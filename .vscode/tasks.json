@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "local-create",
+            "label": "local-create", // this is a workaroud to avoid error on remove the folder
             "type": "shell",
             "command": "New-Item",
             "args": [

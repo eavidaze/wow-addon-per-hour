@@ -81,6 +81,39 @@
 					<Color a="0.5" r="0" g="0" b="0" />
 				</Texture>
 
+				<!-- Timer -->
+
+				<FontString	name="$parent_label_timer"
+							inherits="GameFontNormalLarge"
+							text="Timer:"
+							justifyV="TOP"
+							justifyH="RIGHT">
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="0" y="-35" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<Color r="1" g="1" b="1" a="0.7" />
+				</FontString>
+
+				<FontString	name="$parent_value_timer"
+							inherits="GameFontNormalLarge"
+							text="None"
+							justifyV="MIDDLE"
+							justifyH="CENTER">
+					<Anchors>
+						<Anchor point="LEFT"
+								relativeTo="$parent_label_timer"
+								relativePoint="RIGHT">
+							<Offset>
+								<AbsDimension x="5" y="0" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+				</FontString>
+
 				<!-- Per Minute -->
 
 				<FontString	name="$parent_label_per_minute"
@@ -89,9 +122,11 @@
 							justifyV="TOP"
 							justifyH="RIGHT">
 					<Anchors>
-						<Anchor point="TOPLEFT">
+						<Anchor point="TOPLEFT"
+								relativeTo="$parent_label_timer"
+								relativePoint="TOPLEFT">
 							<Offset>
-								<AbsDimension x="0" y="-35" />
+								<AbsDimension x="0" y="-20" />
 							</Offset>
 						</Anchor>
 					</Anchors>

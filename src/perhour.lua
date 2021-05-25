@@ -121,18 +121,29 @@ function perhour_onUpdate(self, elapsed)
 
         if (perhour_time_since_last_update > perhour_update_interval) then
 
+            time_now = GetTime() - perhour_start_time;
+
             if not (perhour_has_paused) then
-                perhour_honor_per_min = perhour_total_honor_received / ((GetTime() - perhour_start_time) / 60)
+                perhour_honor_per_min = perhour_total_honor_received / (time_now / 60)
             else
-                perhour_honor_per_min = perhour_total_honor_received / (((GetTime() - perhour_start_time) + perhour_total_played_time) / 60)
+                perhour_honor_per_min = perhour_total_honor_received / ((time_now + perhour_total_played_time) / 60)
             end
     
             honor_per_min = round_value(perhour_honor_per_min, 2)
             honor_per_hour = round_value(perhour_honor_per_min * 60, 2)
             
             -- update values
+
+            -- timer
+            perhour_mainframe_value_timer:SetText(display_time(time_now))
+
+            -- honor per minute
             perhour_mainframe_value_per_minute:SetText(honor_per_min)
+
+            -- honor per hour
             perhour_mainframe_value_per_hour:SetText(honor_per_hour)
+
+            -- total honor
             perhour_mainframe_value_total:SetText(perhour_total_honor_received)
     
             perhour_time_since_last_update = 0
@@ -141,6 +152,31 @@ function perhour_onUpdate(self, elapsed)
 
     end
 
+end
+
+function display_time(time)
+
+    local hours = floor(mod(time, 86400)/3600)
+    local minutes = floor(mod(time,3600)/60)
+    local seconds = floor(mod(time,60))
+
+    local time_formated = ""
+
+    -- if the time has hours
+    if hours >= 1 then
+        local time_formated = format("%02dh ",hours)
+    end
+    
+    -- if the time has minutes
+    if minutes >= 1 then
+        local time_formated = time_formated .. format("%02dm ",minutes)
+    end
+    
+    -- doest metter if have hours or minutes, I just concat seconds
+    local time_formated = time_formated .. format("%02ds",seconds)
+
+    return time_formated
+    
 end
 
 function round_value(num, numDecimals)
