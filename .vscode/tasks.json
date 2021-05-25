@@ -9,7 +9,7 @@
             "command": "New-Item",
             "args": [
                 "-Path",
-                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\", // have to improve
+                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\", // to be improved
                 "-Name",
                 "wow-addon-per-hour",
                 "-ItemType",
@@ -22,7 +22,7 @@
             "type": "shell",
             "command": "Remove-Item",
             "args": [
-                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\wow-addon-per-hour", // have to improve
+                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\wow-addon-per-hour", // to be improved
                 "-Force",
                 "-Confirm:$false",
                 "-Recurse",
@@ -36,7 +36,7 @@
                 "-Path",
                 "${workspaceFolder}",
                 "-Destination",
-                "${path.WorldOfWarcraftAddOns}",
+                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns", // to be improved
                 "-Recurse",
             ]
         },
