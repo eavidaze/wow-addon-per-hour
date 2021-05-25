@@ -1,8 +1,8 @@
 ## Interface: 20501
-## Title: perhour
+## Title: PerHour
 ## Notes: To be defined by myself - inspired by Zwietabak - https://github.com/zwietabak.
 ## Author: José Júnior
 ## Version: 0.0.1
 
-perhour.lua
-perhour.xml
+src\perhour.lua
+src\perhour.xml

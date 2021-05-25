@@ -1,0 +1,70 @@
+{
+    // See https://go.microsoft.com\\fwlink\\?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "local-create",
+            "type": "shell",
+            "command": "New-Item",
+            "args": [
+                "-Path",
+                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\", // have to improve
+                "-Name",
+                "wow-addon-per-hour",
+                "-ItemType",
+                "directory",
+                "-Force",
+            ],
+        },
+        {
+            "label": "local-remove",
+            "type": "shell",
+            "command": "Remove-Item",
+            "args": [
+                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\wow-addon-per-hour", // have to improve
+                "-Force",
+                "-Confirm:$false",
+                "-Recurse",
+            ],
+        },
+        {
+            "label": "local-copy",
+            "type": "shell",
+            "command": "Copy-Item",
+            "args": [
+                "-Path",
+                "${workspaceFolder}",
+                "-Destination",
+                "${path.WorldOfWarcraftAddOns}",
+                "-Recurse",
+            ]
+        },
+        {
+            "label": "local-publish",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "local-create",
+                "local-remove",
+                "local-copy",
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        // {
+        //     "label": "Run Lua",
+        //     "type": "shell",
+        //     "command": "lua53",
+        //     "args": [
+        //         "src\\test\\test.lua",
+        //     ],
+        //     "group": {
+        //         "kind": "test",
+        //         "isDefault": true
+        //     }
+        // }
+    ]
+}
