@@ -1,16 +1,25 @@
+-- const
 perhour_history = {}
 
-perhour_time_since_last_update = 0
-perhour_update_interval = 1.0
-
-perhour_start_time = 0
-perhour_honor_per_min = 0
-
-perhour_is_started = false
+perhour_has_started = false
 perhour_has_paused = false
 
-perhour_total_played_time = 0
+perhour_update_interval = 1.0
+perhour_time_since_last_update = 0
+
+perhour_started_in = 0
+perhour_paused_in = 0
+
+perhour_time_paused = 0
+
+perhour_honor_per_min = 0
+
 perhour_total_honor_received = 0
+
+default_color_r = 0.999
+default_color_g = 0.912
+default_color_b = 0
+default_color_alpha = 1
 
 function perhour_onLoad()
 
@@ -19,7 +28,7 @@ function perhour_onLoad()
     perhour_mainframe:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN")
     perhour_mainframe:RegisterEvent("TIME_PLAYED_MSG")
 
-    perhour_button_reset_onClick()
+    perhour_button_clear_onClick()
 
 end
 
@@ -33,101 +42,110 @@ end
 
 function perhour_button_start_onClick()
 
-    -- if not started
-    if not perhour_is_started then
+    -- if not started or was paused
+    if not perhour_has_started or perhour_has_paused then
 
-        perhour_start_time = GetTime()
+        -- if not was paused, have to set the new start time
+        if not perhour_has_started then
+            perhour_started_in = GetTime()
+            DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ started.")
+        else -- else I just have to calc the time paused
+            perhour_time_paused = perhour_time_paused + GetTime() - perhour_paused_in
+            DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ was unpaused.")
+        end
 
-        perhour_is_started = true
+        perhour_has_started = true
+        perhour_has_paused = false
 
+        perhour_mainframe_value_timer:SetTextColor(default_color_r,default_color_g,default_color_b,1)
         perhour_mainframe_value_per_minute:SetTextColor(1,1,1,1)
         perhour_mainframe_value_per_hour:SetTextColor(1,1,1,1)
+        perhour_mainframe_value_total_honor:SetTextColor(default_color_r,default_color_g,default_color_b,1)
         
-        DEFAULT_CHAT_FRAME:AddMessage("PerHour started.")
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already started.")
     end
 end
 
-function perhour_button_stop_onClick()
+function perhour_button_pause_onClick()
 
-    if perhour_is_started then
-
-        perhour_total_played_time = perhour_total_played_time + (GetTime() - perhour_start_time)
-        local playedTimeHours = floor(perhour_total_played_time / 3600)
-        local playedTimeMinutes = floor((perhour_total_played_time - (playedTimeHours * 3600)) / 60)
-        local playedTimeSeconds = perhour_total_played_time - (playedTimeHours * 3600) -  (playedTimeMinutes * 60)
-
-        DEFAULT_CHAT_FRAME:AddMessage("You played: " .. playedTimeHours .. " h "
-                                                     .. playedTimeMinutes .. " min "
-                                                     .. playedTimeSeconds .. " sec")
-        DEFAULT_CHAT_FRAME:AddMessage("You gained: " .. perhour_total_honor_received .. " Honor")
-
-        perhour_is_started = false
-
-        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,1)
-        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,1)
+    if not perhour_has_paused then
 
         perhour_has_paused = true
-        DEFAULT_CHAT_FRAME:AddMessage("XP-Monitor stoped")
+        perhour_paused_in = GetTime()
 
+        -- set color
+        perhour_mainframe_value_timer:SetTextColor(default_color_r,default_color_g,default_color_b,0.7)
+        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,0.7)
+        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,0.7)
+        perhour_mainframe_value_total_honor:SetTextColor(default_color_r,default_color_g,default_color_b,0.7)
+        
+        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has paused.")
+
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already been paused.")
     end
 
 end
 
-function perhour_button_reset_onClick()
+function perhour_button_clear_onClick()
 
-    perhour_start_time = 0
-
-    perhour_is_started = false
-    perhour_has_paused = false
-
-    perhour_total_played_time = 0
+    perhour_started_in = GetTime()
+    perhour_paused_in = 0
+    perhour_time_paused = 0
     perhour_total_honor_received = 0
 
-    DEFAULT_CHAT_FRAME:AddMessage("Data reseted!")
+    if perhour_has_started and perhour_has_paused then
+        perhour_has_started = false
+    end
 
-    -- experience per minute
+    perhour_mainframe_value_timer:SetText("None")
     perhour_mainframe_value_per_minute:SetText("None")
-    perhour_mainframe_value_per_minute:SetTextColor(1,1,1,0.3)
-
-    -- estimated minutes to next level up
     perhour_mainframe_value_per_hour:SetText("None")
-    perhour_mainframe_value_per_hour:SetTextColor(1,1,1,0.3)
+    perhour_mainframe_value_total_honor:SetText("None")
+    
+    if not perhour_has_started then
+        
+        perhour_mainframe_value_timer:SetTextColor(1,1,1,0.3)
+        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,0.3)
+        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,0.3)
+        perhour_mainframe_value_total_honor:SetTextColor(1,1,1,0.3)
+        
+    end
 
+    DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ is clear.")
 end
 
 function perhour_onEvent(self, event, ...)
 
-    if event == "TIME_PLAYED_MSG" then
-        -- nothing
-    elseif event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
-
-        if (perhour_is_started) then
+    if (perhour_has_started) then
+        
+        if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
 
             local arg = {...}
+
+            -- have to be better tested
             s, e, honor_points = string.find(arg[1], "(%d+)")
-    
-            perhour_total_honor_received = perhour_total_honor_received + tonumber(honor_points, 10)
             
+            perhour_total_honor_received = perhour_total_honor_received + tonumber(honor_points, 10)
+        
+        elseif event == "TIME_PLAYED_MSG" then
+            -- nothing
         end
-    
     end
 end
 
 function perhour_onUpdate(self, elapsed)
-
-    if perhour_is_started then
+    
+    if perhour_has_started and not perhour_has_paused then
 
         perhour_time_since_last_update = perhour_time_since_last_update + elapsed
 
         if (perhour_time_since_last_update > perhour_update_interval) then
 
-            time_now = GetTime() - perhour_start_time;
+            timed = GetTime() - perhour_started_in - perhour_time_paused;
 
-            if not (perhour_has_paused) then
-                perhour_honor_per_min = perhour_total_honor_received / (time_now / 60)
-            else
-                perhour_honor_per_min = perhour_total_honor_received / ((time_now + perhour_total_played_time) / 60)
-            end
+            perhour_honor_per_min = perhour_total_honor_received / (timed / 60)
     
             honor_per_min = round_value(perhour_honor_per_min, 2)
             honor_per_hour = round_value(perhour_honor_per_min * 60, 2)
@@ -135,7 +153,7 @@ function perhour_onUpdate(self, elapsed)
             -- update values
 
             -- timer
-            perhour_mainframe_value_timer:SetText(display_time(time_now))
+            perhour_mainframe_value_timer:SetText(display_time(timed))
 
             -- honor per minute
             perhour_mainframe_value_per_minute:SetText(honor_per_min)
@@ -144,7 +162,7 @@ function perhour_onUpdate(self, elapsed)
             perhour_mainframe_value_per_hour:SetText(honor_per_hour)
 
             -- total honor
-            perhour_mainframe_value_total:SetText(perhour_total_honor_received)
+            perhour_mainframe_value_total_honor:SetText(perhour_total_honor_received)
     
             perhour_time_since_last_update = 0
 
@@ -153,6 +171,10 @@ function perhour_onUpdate(self, elapsed)
     end
 
 end
+
+--------
+-- utils
+--------
 
 function display_time(time)
 

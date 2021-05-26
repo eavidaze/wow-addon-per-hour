@@ -1,27 +1,25 @@
 <Ui>
-
 	<Frame name="perhour_mainframe" parent="UIParent" enableMouse="true" movable="true">
-		
 		<Anchors>
 			<Anchor point="CENTER" />
 		</Anchors>
 
-		<Size x="180" y="30"/>
+		<Size x="192" y="38"/>
 
 		<Frames>
-			<Button name="$parent_button_start">
+			<Button name="$parent_button_start" inherits="UIPanelButtonTemplate" text="Start" >
 				<Size>
-					<AbsDimension x="20" y="20" />
+					<AbsDimension x="64" y="22" />
 				</Size>
+
 				<Anchors>
-					<Anchor point="right">
+					<Anchor point="topright">
 						<Offset>
-							<AbsDimension x="-5" y="0" />
+							<AbsDimension x="0" y="-16" />
 						</Offset>
 					</Anchor>
 				</Anchors>
-				<NormalTexture file="Interface\Buttons\UI-PlusButton-Up" />
-				<HighlightTexture file="Interface\Buttons\UI-PlusButton-Down" />
+				 
 				<Scripts>
 					<OnClick>
 						perhour_button_start_onClick()
@@ -29,52 +27,48 @@
 				</Scripts>
 			</Button>
 
-			<Button name="$parent_button_stop">
+			<Button name="$parent_button_stop" inherits="UIPanelButtonTemplate" text="Pause">
 				<Size>
-					<AbsDimension x="20" y="20" />
+					<AbsDimension x="64" y="22" />
 				</Size>
 				<Anchors>
-					<Anchor point="right"
-							relativeTo="$parent_button_start"
-							relativePoint="left">
+					<Anchor relativeTo="$parent_button_start" point="right" relativePoint="left">
 						<Offset>
 							<AbsDimension x="0" y="0" />
 						</Offset>
 					</Anchor>
 				</Anchors>
-				<NormalTexture file="Interface\Buttons\UI-MinusButton-Up" />
-				<HighlightTexture file="Interface\Buttons\UI-MinusButton-Down" />
+				
 				<Scripts>
 					<OnClick>
-						perhour_button_stop_onClick()
+						perhour_button_pause_onClick()
 					</OnClick>
 				</Scripts>
 			</Button>
 
-			<Button name="$parent_button_reset">
+			<Button name="$parent_button_clear" inherits="UIPanelButtonTemplate" text="Clear">
 				<Size>
-					<AbsDimension x="20" y="20" />
+					<AbsDimension x="64" y="22" />
 				</Size>
+
 				<Anchors>
-					<Anchor point="right"
-							relativeTo="$parent_button_stop"
-							relativePoint="left">
+					<Anchor relativeTo="$parent_button_stop" point="right" relativePoint="left">
 						<Offset>
 							<AbsDimension x="0" y="0" />
 						</Offset>
 					</Anchor>
 				</Anchors>
-				<NormalTexture file="Interface\Buttons\UI-GroupLoot-Dice-Up" />
-				<HighlightTexture file="Interface\Buttons\UI-GroupLoot-Dice-Highlight" />
+
 				<Scripts>
 					<OnClick>
-						perhour_button_reset_onClick()
+						perhour_button_clear_onClick()
 					</OnClick>
 				</Scripts>
 			</Button>
 		</Frames>
 		
 		<Layers>
+		
 			<Layer level="ARTWORK">
 			
 				<Texture>
@@ -83,48 +77,33 @@
 
 				<!-- title -->
 
-				<FontString	name="$parent_label_title"
-							inherits="GameFontNormalLarge"
-							text="PerHour ™"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_label_title" inherits="GameFontNormal" text="Per Hour™">
 					<Anchors>
-						<Anchor point="TOPLEFT">
+						<Anchor point="TOP">
 							<Offset>
-								<AbsDimension x="7" y="-8" />
+								<AbsDimension x="0" y="-3" />
 							</Offset>
 						</Anchor>
 					</Anchors>
 					<Color r="1" g="1" b="1" a="1" />
 				</FontString>
 
-
 				<!-- Timer -->
 
-				<FontString	name="$parent_label_timer"
-							inherits="GameFontNormal"
-							text="Timer:"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_label_timer" inherits="GameFontNormal" text="Timer:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
 							<Offset>
-								<AbsDimension x="0" y="-38" />
+								<AbsDimension x="0" y="-42" />
 							</Offset>
 						</Anchor>
 					</Anchors>
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_timer"
-							inherits="GameFontNormal"
-							text="None"
-							justifyV="MIDDLE"
-							justifyH="CENTER">
+				<FontString	name="$parent_value_timer" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="LEFT"
-								relativeTo="$parent_label_timer"
-								relativePoint="RIGHT">
+						<Anchor relativeTo="$parent_label_timer" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -134,15 +113,9 @@
 
 				<!-- Per Minute -->
 
-				<FontString	name="$parent_label_per_minute"
-							inherits="GameFontNormal"
-							text="Honor per minute:"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_label_per_minute" inherits="GameFontNormal" text="Honor/min:">
 					<Anchors>
-						<Anchor point="TOPLEFT"
-								relativeTo="$parent_label_timer"
-								relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parent_label_timer" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -151,15 +124,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_per_minute"
-							inherits="GameFontNormal"
-							text="None"
-							justifyV="MIDDLE"
-							justifyH="CENTER">
+				<FontString	name="$parent_value_per_minute" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="LEFT"
-								relativeTo="$parent_label_per_minute"
-								relativePoint="RIGHT">
+						<Anchor relativeTo="$parent_label_per_minute" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -169,15 +136,9 @@
 
 				<!-- Per Hour -->
 
-				<FontString	name="$parent_label_per_hour"
-							inherits="GameFontNormal"
-							text="Honor per hour:"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_label_per_hour" inherits="GameFontNormal" text="Honor/hour:">
 					<Anchors>
-						<Anchor point="TOPLEFT"
-								relativeTo="$parent_label_per_minute"
-								relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parent_label_per_minute" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -186,15 +147,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_per_hour"
-							inherits="GameFontNormal"
-							text="None"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_value_per_hour" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="LEFT"
-								relativeTo="$parent_label_per_hour"
-								relativePoint="RIGHT">
+						<Anchor relativeTo="$parent_label_per_hour" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -204,15 +159,9 @@
 
 				<!-- Total of Honor -->
 
-				<FontString	name="$parent_label_total"
-							inherits="GameFontNormal"
-							text="Total of honor:"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_label_total" inherits="GameFontNormal" text="Total of honor:">
 					<Anchors>
-						<Anchor point="TOPLEFT"
-								relativeTo="$parent_label_per_hour"
-								relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parent_label_per_hour" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -221,15 +170,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_total"
-							inherits="GameFontNormal"
-							text="None"
-							justifyV="TOP"
-							justifyH="RIGHT">
+				<FontString	name="$parent_value_total_honor" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor point="LEFT"
-								relativeTo="$parent_label_total"
-								relativePoint="RIGHT">
+						<Anchor relativeTo="$parent_label_total" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
