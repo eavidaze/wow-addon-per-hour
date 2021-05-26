@@ -164,16 +164,16 @@ function display_time(time)
 
     -- if the time has hours
     if hours >= 1 then
-        local time_formated = format("%02dh ",hours)
+        time_formated = format("%02dh ",hours)
     end
     
     -- if the time has minutes
-    if minutes >= 1 then
-        local time_formated = time_formated .. format("%02dm ",minutes)
+    if minutes >= 1 or hours >= 1 then
+        time_formated = time_formated .. format("%02dm ",minutes)
     end
     
     -- doest metter if have hours or minutes, I just concat seconds
-    local time_formated = time_formated .. format("%02ds",seconds)
+    time_formated = time_formated .. format("%02ds",seconds)
 
     return time_formated
     

@@ -6,7 +6,7 @@
 			<Anchor point="CENTER" />
 		</Anchors>
 
-		<Size x="160" y="30"/>
+		<Size x="180" y="30"/>
 
 		<Frames>
 			<Button name="$parent_button_start">
@@ -14,9 +14,9 @@
 					<AbsDimension x="20" y="20" />
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT">
+					<Anchor point="right">
 						<Offset>
-							<AbsDimension x="50" y="-5" />
+							<AbsDimension x="-5" y="0" />
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -34,11 +34,11 @@
 					<AbsDimension x="20" y="20" />
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT"
+					<Anchor point="right"
 							relativeTo="$parent_button_start"
-							relativePoint="TOPRIGHT">
+							relativePoint="left">
 						<Offset>
-							<AbsDimension x="5" y="0" />
+							<AbsDimension x="0" y="0" />
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -56,11 +56,11 @@
 					<AbsDimension x="20" y="20" />
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT"
+					<Anchor point="right"
 							relativeTo="$parent_button_stop"
-							relativePoint="TOPRIGHT">
+							relativePoint="left">
 						<Offset>
-							<AbsDimension x="5" y="0" />
+							<AbsDimension x="0" y="0" />
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -81,25 +81,43 @@
 					<Color a="0.5" r="0" g="0" b="0" />
 				</Texture>
 
+				<!-- title -->
+
+				<FontString	name="$parent_label_title"
+							inherits="GameFontNormalLarge"
+							text="PerHour ™"
+							justifyV="TOP"
+							justifyH="RIGHT">
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="7" y="-8" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<Color r="1" g="1" b="1" a="1" />
+				</FontString>
+
+
 				<!-- Timer -->
 
 				<FontString	name="$parent_label_timer"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="Timer:"
 							justifyV="TOP"
 							justifyH="RIGHT">
 					<Anchors>
 						<Anchor point="TOPLEFT">
 							<Offset>
-								<AbsDimension x="0" y="-35" />
+								<AbsDimension x="0" y="-38" />
 							</Offset>
 						</Anchor>
 					</Anchors>
-					<Color r="1" g="1" b="1" a="0.7" />
+					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
 				<FontString	name="$parent_value_timer"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="None"
 							justifyV="MIDDLE"
 							justifyH="CENTER">
@@ -117,7 +135,7 @@
 				<!-- Per Minute -->
 
 				<FontString	name="$parent_label_per_minute"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="Honor per minute:"
 							justifyV="TOP"
 							justifyH="RIGHT">
@@ -130,11 +148,11 @@
 							</Offset>
 						</Anchor>
 					</Anchors>
-					<Color r="1" g="1" b="1" a="0.7" />
+					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
 				<FontString	name="$parent_value_per_minute"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="None"
 							justifyV="MIDDLE"
 							justifyH="CENTER">
@@ -152,7 +170,7 @@
 				<!-- Per Hour -->
 
 				<FontString	name="$parent_label_per_hour"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="Honor per hour:"
 							justifyV="TOP"
 							justifyH="RIGHT">
@@ -165,11 +183,11 @@
 							</Offset>
 						</Anchor>
 					</Anchors>
-					<Color r="1" g="1" b="1" a="0.7" />
+					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
 				<FontString	name="$parent_value_per_hour"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="None"
 							justifyV="TOP"
 							justifyH="RIGHT">
@@ -187,7 +205,7 @@
 				<!-- Total of Honor -->
 
 				<FontString	name="$parent_label_total"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="Total of honor:"
 							justifyV="TOP"
 							justifyH="RIGHT">
@@ -200,11 +218,11 @@
 							</Offset>
 						</Anchor>
 					</Anchors>
-					<Color r="1" g="1" b="1" a="0.7" />
+					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
 				<FontString	name="$parent_value_total"
-							inherits="GameFontNormalLarge"
+							inherits="GameFontNormal"
 							text="None"
 							justifyV="TOP"
 							justifyH="RIGHT">
