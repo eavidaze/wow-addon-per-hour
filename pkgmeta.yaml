@@ -1,0 +1,4 @@
+package-as: PerHour
+ignore: # Files and directories beginning with a dot (such as .git) are automatically ignored, as is the pgkmeta file itself.
+    - img/
+    - src/test/
