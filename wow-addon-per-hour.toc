@@ -1,8 +1,10 @@
 ## Interface: 20501
 ## Title: PerHour
-## Notes: To be defined by myself - inspired by Zwietabak - https://github.com/zwietabak.
-## Author: José Júnior
+## Notes: If you want to understand how log you are from your honor items, use this AddOn.
+## Author: José Júnior - https://github.com/juninze
 ## Version: 0.0.1
+
+# Special thanks to Zwietabak (https://github.com/zwietabak) who inspired me with your addon XpMonitor.
 
 src\perhour.lua
 src\perhour.xml
