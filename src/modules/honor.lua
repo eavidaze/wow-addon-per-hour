@@ -26,6 +26,7 @@ default_color_alpha = 1
 
 function perhour_onLoad()
 
+    
     perhour_mainframe:SetScript("OnUpdate", perhour_onUpdate)
 
     perhour_mainframe:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN")
