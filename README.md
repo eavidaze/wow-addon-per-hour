@@ -1,4 +1,4 @@
-# Per Hour - The alpha minos version
+# Per Hour - The alpha minus version
 
 If you want to see how log you are from your honor items, use this AddOn.
 
