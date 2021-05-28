@@ -1,88 +1,85 @@
 -- require
-local utils = utils
+local Utils = Utils
 
--- const
-perhour_history = {}
+-- statics
+local STATIC_UPDATE_INTERVAL = 1.0
+local STATIC_RED = 0.999
+local STATIC_GREEN = 0.912
+local STATIC_BLUE = 0
+local STATIC_ALPHA = 1
 
-perhour_has_started = false
-perhour_has_paused = false
+-- variables
+local HAS_STARTED = false
+local HAS_PAUSED = false
 
-perhour_update_interval = 1.0
-perhour_time_since_last_update = 0
+local STARTED_AT = 0
+local PAUSED_AT = 0
+local PAUSED_DURATION = 0
 
-perhour_started_in = 0
-perhour_paused_in = 0
+local TOTAL_OF_HONOR_RECEIVED = 0
+local TIME_SINCE_LAST_UPDATE = 0
 
-perhour_time_paused = 0
 
-perhour_honor_per_min = 0
 
-perhour_total_honor_received = 0
+-- XML events
+function HonorPerHour_OnLoad()
 
-default_color_r = 0.999
-default_color_g = 0.912
-default_color_b = 0
-default_color_alpha = 1
+    HonorPerHourMainFrame:SetScript("OnUpdate", HonorPerHour_OnUpdate)
 
-function perhour_onLoad()
+    HonorPerHourMainFrame:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN")
+    HonorPerHourMainFrame:RegisterEvent("TIME_PLAYED_MSG")
 
-    
-    perhour_mainframe:SetScript("OnUpdate", perhour_onUpdate)
-
-    perhour_mainframe:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN")
-    perhour_mainframe:RegisterEvent("TIME_PLAYED_MSG")
-
-    perhour_button_clear_onClick()
+    PerHourButtonClear_OnClick()
 
 end
 
-function perhour_onMouseDown()
-    perhour_mainframe:StartMoving()
+function HonorPerHour_OnMouseDown()
+    HonorPerHourMainFrame:StartMoving()
 end
 
-function perhour_onMouseUp()
-    perhour_mainframe:StopMovingOrSizing()
+function HonorPerHour_OnMouseUp()
+    HonorPerHourMainFrame:StopMovingOrSizing()
 end
 
-function perhour_button_start_onClick()
+function PerHourButtonStart_OnClick()
 
     -- if not started or was paused
-    if not perhour_has_started or perhour_has_paused then
+    if not HAS_STARTED or HAS_PAUSED then
 
         -- if not was paused, have to set the new start time
-        if not perhour_has_started then
-            perhour_started_in = GetTime()
+        if not HAS_STARTED then
+            STARTED_AT = GetTime()
             DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ started.")
         else -- else I just have to calc the time paused
-            perhour_time_paused = perhour_time_paused + GetTime() - perhour_paused_in
+            PAUSED_DURATION = PAUSED_DURATION + GetTime() - PAUSED_AT
             DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ was unpaused.")
         end
 
-        perhour_has_started = true
-        perhour_has_paused = false
+        HAS_STARTED = true
+        HAS_PAUSED = false
 
-        perhour_mainframe_value_timer:SetTextColor(default_color_r,default_color_g,default_color_b,1)
-        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,1)
-        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,1)
-        perhour_mainframe_value_total_honor:SetTextColor(default_color_r,default_color_g,default_color_b,1)
+        HonorPerHourMainFrameValueHonorTimer:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,1)
+        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,1)
+        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,1)
+        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,1)
         
     else
         DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already started.")
     end
 end
 
-function perhour_button_pause_onClick()
+function PerHourButtonPause_OnClick()
 
-    if not perhour_has_paused then
+    if not HAS_PAUSED then
 
-        perhour_has_paused = true
-        perhour_paused_in = GetTime()
+        HAS_PAUSED = true
+        PAUSED_AT = GetTime()
 
         -- set color
-        perhour_mainframe_value_timer:SetTextColor(default_color_r,default_color_g,default_color_b,0.7)
-        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,0.7)
-        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,0.7)
-        perhour_mainframe_value_total_honor:SetTextColor(default_color_r,default_color_g,default_color_b,0.7)
+        HonorPerHourMainFrameValueHonorTimer:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,0.7)
+        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,0.7)
+        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,0.7)
+        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,0.7)
         
         DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has paused.")
 
@@ -92,46 +89,46 @@ function perhour_button_pause_onClick()
 
 end
 
-function perhour_button_clear_onClick()
+function PerHourButtonClear_OnClick()
 
-    perhour_started_in = GetTime()
-    perhour_paused_in = 0
-    perhour_time_paused = 0
-    perhour_total_honor_received = 0
+    STARTED_AT = GetTime()
+    PAUSED_AT = 0
+    PAUSED_DURATION = 0
+    TOTAL_OF_HONOR_RECEIVED = 0
 
-    if perhour_has_started and perhour_has_paused then
-        perhour_has_started = false
+    if HAS_STARTED and HAS_PAUSED then
+        HAS_STARTED = false
     end
 
-    perhour_mainframe_value_timer:SetText("None")
-    perhour_mainframe_value_per_minute:SetText("None")
-    perhour_mainframe_value_per_hour:SetText("None")
-    perhour_mainframe_value_total_honor:SetText("None")
+    HonorPerHourMainFrameValueHonorTimer:SetText("None")
+    HonorPerHourMainFrameValueHonorPerMinute:SetText("None")
+    HonorPerHourMainFrameValueHonorPerHour:SetText("None")
+    HonorPerHourMainFrameValueHonorTotalHonor:SetText("None")
     
-    if not perhour_has_started then
+    if not HAS_STARTED then
         
-        perhour_mainframe_value_timer:SetTextColor(1,1,1,0.3)
-        perhour_mainframe_value_per_minute:SetTextColor(1,1,1,0.3)
-        perhour_mainframe_value_per_hour:SetTextColor(1,1,1,0.3)
-        perhour_mainframe_value_total_honor:SetTextColor(1,1,1,0.3)
+        HonorPerHourMainFrameValueHonorTimer:SetTextColor(1,1,1,0.3)
+        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,0.3)
+        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,0.3)
+        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(1,1,1,0.3)
         
     end
 
     DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ is clear.")
 end
 
-function perhour_onEvent(self, event, ...)
+function HonorPerHour_OnEvent(self, event, ...)
 
-    if (perhour_has_started) then
+    if (HAS_STARTED) then
         
-        if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
+        if event == "CHAT_MSG_COMBATHonor_GAIN" then
 
             local arg = {...}
 
             -- have to be better tested
             s, e, honor_points = string.find(arg[1], "(%d+)")
             
-            perhour_total_honor_received = perhour_total_honor_received + tonumber(honor_points, 10)
+            TOTAL_OF_HONOR_RECEIVED = TOTAL_OF_HONOR_RECEIVED + tonumber(honor_points, 10)
         
         elseif event == "TIME_PLAYED_MSG" then
             -- nothing
@@ -139,36 +136,28 @@ function perhour_onEvent(self, event, ...)
     end
 end
 
-function perhour_onUpdate(self, elapsed)
+function HonorPerHour_OnUpdate(self, elapsed)
     
-    if perhour_has_started and not perhour_has_paused then
+    if HAS_STARTED and not HAS_PAUSED then
 
-        perhour_time_since_last_update = perhour_time_since_last_update + elapsed
+        TIME_SINCE_LAST_UPDATE = TIME_SINCE_LAST_UPDATE + elapsed
 
-        if (perhour_time_since_last_update > perhour_update_interval) then
+        if (TIME_SINCE_LAST_UPDATE > STATIC_UPDATE_INTERVAL) then
 
-            timed = GetTime() - perhour_started_in - perhour_time_paused;
+            timed = GetTime() - STARTED_AT - PAUSED_DURATION;
 
-            perhour_honor_per_min = perhour_total_honor_received / (timed / 60)
+            honorPerMinute = TOTAL_OF_HONOR_RECEIVED / (timed / 60)
             
-            honor_per_min = utils:round_value(perhour_honor_per_min, 2)
-            honor_per_hour = utils:round_value(perhour_honor_per_min * 60, 2)
+            honorPerMinuteRounded = Utils:RoundValue(honorPerMinute, 2)
+            honorPerHourRounded = Utils:RoundValue(honorPerMinute * 60, 2)
             
             -- update values
-
-            -- timer
-            perhour_mainframe_value_timer:SetText(utils:display_timer(timed))
-
-            -- honor per minute
-            perhour_mainframe_value_per_minute:SetText(honor_per_min)
-
-            -- honor per hour
-            perhour_mainframe_value_per_hour:SetText(honor_per_hour)
-
-            -- total honor
-            perhour_mainframe_value_total_honor:SetText(perhour_total_honor_received)
+            HonorPerHourMainFrameValueHonorTimer:SetText(Utils:DisplayTimer(timed))
+            HonorPerHourMainFrameValueHonorPerMinute:SetText(honorPerMinuteRounded)
+            HonorPerHourMainFrameValueHonorPerHour:SetText(honorPerHourRounded)
+            HonorPerHourMainFrameValueHonorTotalHonor:SetText(TOTAL_OF_HONOR_RECEIVED)
     
-            perhour_time_since_last_update = 0
+            TIME_SINCE_LAST_UPDATE = 0
 
         end
 

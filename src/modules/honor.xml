@@ -1,5 +1,5 @@
 <Ui>
-	<Frame name="perhour_mainframe" parent="UIParent" enableMouse="true" movable="true">
+	<Frame name="HonorPerHourMainFrame" parent="UIParent" enableMouse="true" movable="true">
 
 		<Anchors>
 			<Anchor point="CENTER" />
@@ -8,7 +8,7 @@
 		<Size x="192" y="38"/>
 
 		<Frames>
-			<Button name="$parent_button_start" inherits="UIPanelButtonTemplate" text="Start" >
+			<Button name="$parentButtonStart" inherits="UIPanelButtonTemplate" text="Start">
 				<Size>
 					<AbsDimension x="64" y="22" />
 				</Size>
@@ -23,17 +23,17 @@
 				 
 				<Scripts>
 					<OnClick>
-						perhour_button_start_onClick()
+						PerHourButtonStart_OnClick()
 					</OnClick>
 				</Scripts>
 			</Button>
 
-			<Button name="$parent_button_stop" inherits="UIPanelButtonTemplate" text="Pause">
+			<Button name="$parentButtonPause" inherits="UIPanelButtonTemplate" text="Pause">
 				<Size>
 					<AbsDimension x="64" y="22" />
 				</Size>
 				<Anchors>
-					<Anchor relativeTo="$parent_button_start" point="right" relativePoint="left">
+					<Anchor relativeTo="$parentButtonStart" point="right" relativePoint="left">
 						<Offset>
 							<AbsDimension x="0" y="0" />
 						</Offset>
@@ -42,18 +42,18 @@
 				
 				<Scripts>
 					<OnClick>
-						perhour_button_pause_onClick()
+						PerHourButtonPause_OnClick()
 					</OnClick>
 				</Scripts>
 			</Button>
 
-			<Button name="$parent_button_clear" inherits="UIPanelButtonTemplate" text="Clear">
+			<Button name="$parentButtonClear" inherits="UIPanelButtonTemplate" text="Clear">
 				<Size>
 					<AbsDimension x="64" y="22" />
 				</Size>
 
 				<Anchors>
-					<Anchor relativeTo="$parent_button_stop" point="right" relativePoint="left">
+					<Anchor relativeTo="$parentButtonPause" point="right" relativePoint="left">
 						<Offset>
 							<AbsDimension x="0" y="0" />
 						</Offset>
@@ -62,7 +62,7 @@
 
 				<Scripts>
 					<OnClick>
-						perhour_button_clear_onClick()
+						PerHourButtonClear_OnClick()
 					</OnClick>
 				</Scripts>
 			</Button>
@@ -78,7 +78,7 @@
 
 				<!-- title -->
 
-				<FontString	name="$parent_label_title" inherits="GameFontNormal" text="Per Hour™">
+				<FontString	name="$parentLabelHonorTitle" inherits="GameFontNormal" text="Honor Per Hour™">
 					<Anchors>
 						<Anchor point="TOP">
 							<Offset>
@@ -91,7 +91,7 @@
 
 				<!-- Timer -->
 
-				<FontString	name="$parent_label_timer" inherits="GameFontNormal" text="Timer:">
+				<FontString	name="$parentLabelHonorTimer" inherits="GameFontNormal" text="Timer:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
 							<Offset>
@@ -102,9 +102,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_timer" inherits="GameFontNormal">
+				<FontString	name="$parentValueHonorTimer" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_timer" point="LEFT" relativePoint="RIGHT">
+						<Anchor relativeTo="$parentLabelHonorTimer" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -114,9 +114,9 @@
 
 				<!-- Per Minute -->
 
-				<FontString	name="$parent_label_per_minute" inherits="GameFontNormal" text="Honor/min:">
+				<FontString	name="$parentLabelHonorPerMinute" inherits="GameFontNormal" text="Honor/min:">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_timer" point="TOPLEFT" relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parentLabelHonorTimer" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -125,9 +125,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_per_minute" inherits="GameFontNormal">
+				<FontString	name="$parentValueHonorPerMinute" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_per_minute" point="LEFT" relativePoint="RIGHT">
+						<Anchor relativeTo="$parentLabelHonorPerMinute" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -137,9 +137,9 @@
 
 				<!-- Per Hour -->
 
-				<FontString	name="$parent_label_per_hour" inherits="GameFontNormal" text="Honor/hour:">
+				<FontString	name="$parentLabelHonorPerHour" inherits="GameFontNormal" text="Honor/hour:">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_per_minute" point="TOPLEFT" relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parentLabelHonorPerMinute" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -148,9 +148,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_per_hour" inherits="GameFontNormal">
+				<FontString	name="$parentValueHonorPerHour" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_per_hour" point="LEFT" relativePoint="RIGHT">
+						<Anchor relativeTo="$parentLabelHonorPerHour" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -160,9 +160,9 @@
 
 				<!-- Total of Honor -->
 
-				<FontString	name="$parent_label_total" inherits="GameFontNormal" text="Total of honor:">
+				<FontString	name="$parentLabelHonorTotal" inherits="GameFontNormal" text="Total of honor:">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_per_hour" point="TOPLEFT" relativePoint="TOPLEFT">
+						<Anchor relativeTo="$parentLabelHonorPerHour" point="TOPLEFT" relativePoint="TOPLEFT">
 							<Offset>
 								<AbsDimension x="0" y="-20" />
 							</Offset>
@@ -171,9 +171,9 @@
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
 
-				<FontString	name="$parent_value_total_honor" inherits="GameFontNormal">
+				<FontString	name="$parentValueHonorTotalHonor" inherits="GameFontNormal">
 					<Anchors>
-						<Anchor relativeTo="$parent_label_total" point="LEFT" relativePoint="RIGHT">
+						<Anchor relativeTo="$parentLabelHonorTotal" point="LEFT" relativePoint="RIGHT">
 							<Offset>
 								<AbsDimension x="5" y="0" />
 							</Offset>
@@ -187,23 +187,23 @@
 
 		<Scripts>
 			<OnLoad>
-				perhour_onLoad(this)
+				HonorPerHour_OnLoad(this)
 			</OnLoad>
 
 			<OnEvent>
-				perhour_onEvent(this, event, ...)
+				HonorPerHour_OnEvent(this, event, ...)
 			</OnEvent>
 
 			<OnUpdate>
-				perhour_onUpdate(this)
+				HonorPerHour_OnUpdate(this)
 			</OnUpdate>
 
 			<OnMouseDown>
-				perhour_onMouseDown()
+				HonorPerHour_OnMouseDown()
 			</OnMouseDown>
 
 			<OnMouseUp>
-				perhour_onMouseUp()
+				HonorPerHour_OnMouseUp()
 			</OnMouseUp>
 		</Scripts>
 
