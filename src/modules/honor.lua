@@ -1,5 +1,8 @@
--- require
+-- import
 local Utils = Utils
+
+-- class
+
 
 -- statics
 local STATIC_UPDATE_INTERVAL = 1.0

@@ -1,7 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	
-	<Script file="honor.lua"/>
+	<Script file="Honor.lua"/>
 
 	<Frame name="HonorPerHourMainFrame" parent="UIParent" enableMouse="true" movable="true">
 

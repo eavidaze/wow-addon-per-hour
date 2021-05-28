@@ -1,4 +1,4 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <Include file="honor.xml"/>
+    <Include file="Honor.xml"/>
 </Ui>

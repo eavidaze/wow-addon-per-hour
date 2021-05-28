@@ -9,7 +9,7 @@
             "command": "New-Item",
             "args": [
                 "-Path",
-                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\", // to be improved
+                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\",
                 "-Name",
                 "per-hour",
                 "-ItemType",
@@ -22,7 +22,7 @@
             "type": "shell",
             "command": "Remove-Item",
             "args": [
-                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\per-hour", // to be improved
+                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\per-hour",
                 "-Force",
                 "-Confirm:$false",
                 "-Recurse",
@@ -36,7 +36,7 @@
                 "-Path",
                 "${workspaceFolder}\\",
                 "-Destination",
-                "C:\\Program Files (x86)\\World of Warcraft\\_classic_\\Interface\\AddOns\\per-hour", // to be improved
+                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\per-hour",
                 "-Recurse",
             ]
         },
@@ -44,11 +44,7 @@
             "label": "local-publish",
             "type": "shell",
             "dependsOrder": "sequence",
-            "dependsOn": [
-                "local-create",
-                "local-remove",
-                "local-copy",
-            ],
+            "dependsOn": ["local-create", "local-remove", "local-copy"],
             "group": {
                 "kind": "build",
                 "isDefault": true
