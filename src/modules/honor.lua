@@ -121,7 +121,7 @@ function HonorPerHour_OnEvent(self, event, ...)
 
     if (HAS_STARTED) then
         
-        if event == "CHAT_MSG_COMBATHonor_GAIN" then
+        if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
 
             local arg = {...}
 
