@@ -6,4 +6,4 @@
 
 # Special thanks to Zwietabak (https://github.com/zwietabak) who inspired me with your addon XpMonitor.
 
-src\init.xml
+src\Init.xml

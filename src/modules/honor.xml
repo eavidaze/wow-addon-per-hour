@@ -1,22 +1,16 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	
 	<Script file="Honor.lua"/>
-
 	<Frame name="HonorPerHourMainFrame" parent="UIParent" enableMouse="true" movable="true">
-
 		<Anchors>
 			<Anchor point="CENTER" />
 		</Anchors>
-
 		<Size x="192" y="38"/>
-
 		<Frames>
 			<Button name="$parentButtonStart" inherits="UIPanelButtonTemplate" text="Start">
 				<Size>
 					<AbsDimension x="64" y="22" />
 				</Size>
-
 				<Anchors>
 					<Anchor point="topright">
 						<Offset>
@@ -24,14 +18,12 @@
 						</Offset>
 					</Anchor>
 				</Anchors>
-				 
 				<Scripts>
 					<OnClick>
 						PerHourButtonStart_OnClick()
 					</OnClick>
 				</Scripts>
 			</Button>
-
 			<Button name="$parentButtonPause" inherits="UIPanelButtonTemplate" text="Pause">
 				<Size>
 					<AbsDimension x="64" y="22" />
@@ -50,7 +42,6 @@
 					</OnClick>
 				</Scripts>
 			</Button>
-
 			<Button name="$parentButtonClear" inherits="UIPanelButtonTemplate" text="Clear">
 				<Size>
 					<AbsDimension x="64" y="22" />
@@ -71,17 +62,12 @@
 				</Scripts>
 			</Button>
 		</Frames>
-		
 		<Layers>
-		
 			<Layer level="ARTWORK">
-			
 				<Texture>
 					<Color a="0.5" r="0" g="0" b="0" />
 				</Texture>
-
 				<!-- title -->
-
 				<FontString	name="$parentLabelHonorTitle" inherits="GameFontNormal" text="Honor Per Hour™">
 					<Anchors>
 						<Anchor point="TOP">
@@ -92,9 +78,7 @@
 					</Anchors>
 					<Color r="1" g="1" b="1" a="1" />
 				</FontString>
-
 				<!-- Timer -->
-
 				<FontString	name="$parentLabelHonorTimer" inherits="GameFontNormal" text="Timer:">
 					<Anchors>
 						<Anchor point="TOPLEFT">
@@ -105,7 +89,6 @@
 					</Anchors>
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
-
 				<FontString	name="$parentValueHonorTimer" inherits="GameFontNormal">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorTimer" point="LEFT" relativePoint="RIGHT">
@@ -115,9 +98,7 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-
 				<!-- Per Minute -->
-
 				<FontString	name="$parentLabelHonorPerMinute" inherits="GameFontNormal" text="Honor/min:">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorTimer" point="TOPLEFT" relativePoint="TOPLEFT">
@@ -128,7 +109,6 @@
 					</Anchors>
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
-
 				<FontString	name="$parentValueHonorPerMinute" inherits="GameFontNormal">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorPerMinute" point="LEFT" relativePoint="RIGHT">
@@ -138,9 +118,7 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-
 				<!-- Per Hour -->
-
 				<FontString	name="$parentLabelHonorPerHour" inherits="GameFontNormal" text="Honor/hour:">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorPerMinute" point="TOPLEFT" relativePoint="TOPLEFT">
@@ -151,7 +129,6 @@
 					</Anchors>
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
-
 				<FontString	name="$parentValueHonorPerHour" inherits="GameFontNormal">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorPerHour" point="LEFT" relativePoint="RIGHT">
@@ -161,9 +138,7 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-
 				<!-- Total of Honor -->
-
 				<FontString	name="$parentLabelHonorTotal" inherits="GameFontNormal" text="Total of honor:">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorPerHour" point="TOPLEFT" relativePoint="TOPLEFT">
@@ -174,7 +149,6 @@
 					</Anchors>
 					<Color r="1" g="1" b="1" a="0.9" />
 				</FontString>
-
 				<FontString	name="$parentValueHonorTotalHonor" inherits="GameFontNormal">
 					<Anchors>
 						<Anchor relativeTo="$parentLabelHonorTotal" point="LEFT" relativePoint="RIGHT">
@@ -184,44 +158,24 @@
 						</Anchor>
 					</Anchors>
 				</FontString>
-
 			</Layer>
-			
 		</Layers>
-
 		<Scripts>
 			<OnLoad>
 				HonorPerHour_OnLoad(this)
 			</OnLoad>
-
 			<OnEvent>
 				HonorPerHour_OnEvent(this, event, ...)
 			</OnEvent>
-
 			<OnUpdate>
 				HonorPerHour_OnUpdate(this)
 			</OnUpdate>
-
 			<OnMouseDown>
 				HonorPerHour_OnMouseDown()
 			</OnMouseDown>
-
 			<OnMouseUp>
 				HonorPerHour_OnMouseUp()
 			</OnMouseUp>
 		</Scripts>
-
 	</Frame>
 </Ui>
-
-
-
-
-
-
-
-
-
-
-
-

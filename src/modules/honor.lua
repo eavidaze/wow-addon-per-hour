@@ -1,9 +1,6 @@
 -- import
 local Utils = Utils
 
--- class
-
-
 -- statics
 local STATIC_UPDATE_INTERVAL = 1.0
 local STATIC_RED = 0.999
@@ -11,7 +8,10 @@ local STATIC_GREEN = 0.912
 local STATIC_BLUE = 0
 local STATIC_ALPHA = 1
 
--- variables
+-- class
+Honor = {}
+
+-- private variables
 local HAS_STARTED = false
 local HAS_PAUSED = false
 
@@ -22,7 +22,16 @@ local PAUSED_DURATION = 0
 local TOTAL_OF_HONOR_RECEIVED = 0
 local TIME_SINCE_LAST_UPDATE = 0
 
-
+-- public functions
+function Honor:Toggle()
+	if (HonorPerHourMainFrame:IsShown()) then
+		HonorPerHourMainFrame:Hide()
+        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ Hide.")
+	else
+		HonorPerHourMainFrame:Show()
+        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ Show.")
+	end
+end
 
 -- XML events
 function HonorPerHour_OnLoad()

@@ -1,7 +1,7 @@
 -- class
 Utils = {}
 
--- functions
+-- public functions
 function Utils:DisplayTimer(time)
     local hours = floor(mod(time, 86400)/3600)
     local minutes = floor(mod(time,3600)/60)
