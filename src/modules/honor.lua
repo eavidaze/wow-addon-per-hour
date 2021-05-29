@@ -26,10 +26,10 @@ local TIME_SINCE_LAST_UPDATE = 0
 function Honor:Toggle()
 	if (HonorPerHourMainFrame:IsShown()) then
 		HonorPerHourMainFrame:Hide()
-        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ Hide.")
+        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ Hide.")
 	else
 		HonorPerHourMainFrame:Show()
-        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ Show.")
+        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ Show.")
 	end
 end
 
@@ -76,10 +76,10 @@ function PerHourButtonStart_OnClick()
         -- if not was paused, have to set the new start time
         if not HAS_STARTED then
             STARTED_AT = GetTime()
-            DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ started.")
+            DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ started.")
         else -- else I just have to calc the time paused
             PAUSED_DURATION = PAUSED_DURATION + GetTime() - PAUSED_AT
-            DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ was unpaused.")
+            DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ was unpaused.")
         end
 
         HAS_STARTED = true
@@ -87,7 +87,7 @@ function PerHourButtonStart_OnClick()
         
         Honor:SetValuesAlpha(1)
     else
-        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already started.")
+        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has already started.")
     end
 end
 
@@ -98,9 +98,9 @@ function PerHourButtonPause_OnClick()
         PAUSED_AT = GetTime()
         -- set color
         Honor:SetValuesAlpha(0.5)
-        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has paused.")
+        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has paused.")
     else
-        DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already been paused.")
+        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has already been paused.")
     end
 
 end
@@ -122,7 +122,7 @@ function PerHourButtonClear_OnClick()
         Honor:SetValuesAlpha(0.5)
     end
 
-    DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ is clear.")
+    DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ is clear.")
 end
 
 function HonorPerHour_OnEvent(self, event, ...)
