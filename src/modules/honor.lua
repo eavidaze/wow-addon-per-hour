@@ -33,16 +33,31 @@ function Honor:Toggle()
 	end
 end
 
+function Honor:SetValuesAlpha(alphaValue)
+    HonorPerHourMainFrameValueHonorTimer:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,alphaValue)
+    HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,alphaValue)
+    HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,alphaValue)
+    HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,alphaValue)
+end
+
+function Honor:SetValues(timer,perMinute,perHour,totalHonor)
+    HonorPerHourMainFrameValueHonorTimer:SetText(timer)
+    HonorPerHourMainFrameValueHonorPerMinute:SetText(perMinute)
+    HonorPerHourMainFrameValueHonorPerHour:SetText(perHour)
+    HonorPerHourMainFrameValueHonorTotalHonor:SetText(totalHonor)
+end
+
+function Honor:SetAllValues(sharedValue)
+    Honor:SetValues(sharedValue,sharedValue,sharedValue,sharedValue)
+end
+
 -- XML events
 function HonorPerHour_OnLoad()
-
     HonorPerHourMainFrame:SetScript("OnUpdate", HonorPerHour_OnUpdate)
-
     HonorPerHourMainFrame:RegisterEvent("CHAT_MSG_COMBAT_HONOR_GAIN")
     HonorPerHourMainFrame:RegisterEvent("TIME_PLAYED_MSG")
 
     PerHourButtonClear_OnClick()
-
 end
 
 function HonorPerHour_OnMouseDown()
@@ -69,12 +84,8 @@ function PerHourButtonStart_OnClick()
 
         HAS_STARTED = true
         HAS_PAUSED = false
-
-        HonorPerHourMainFrameValueHonorTimer:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,1)
-        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,1)
-        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,1)
-        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,1)
         
+        Honor:SetValuesAlpha(1)
     else
         DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already started.")
     end
@@ -83,18 +94,11 @@ end
 function PerHourButtonPause_OnClick()
 
     if not HAS_PAUSED then
-
         HAS_PAUSED = true
         PAUSED_AT = GetTime()
-
         -- set color
-        HonorPerHourMainFrameValueHonorTimer:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,0.7)
-        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,0.7)
-        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,0.7)
-        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(STATIC_RED,STATIC_GREEN,STATIC_BLUE,0.7)
-        
+        Honor:SetValuesAlpha(0.5)
         DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has paused.")
-
     else
         DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ has already been paused.")
     end
@@ -112,34 +116,21 @@ function PerHourButtonClear_OnClick()
         HAS_STARTED = false
     end
 
-    HonorPerHourMainFrameValueHonorTimer:SetText("None")
-    HonorPerHourMainFrameValueHonorPerMinute:SetText("None")
-    HonorPerHourMainFrameValueHonorPerHour:SetText("None")
-    HonorPerHourMainFrameValueHonorTotalHonor:SetText("None")
+    Honor:SetAllValues("None")
     
     if not HAS_STARTED then
-        
-        HonorPerHourMainFrameValueHonorTimer:SetTextColor(1,1,1,0.3)
-        HonorPerHourMainFrameValueHonorPerMinute:SetTextColor(1,1,1,0.3)
-        HonorPerHourMainFrameValueHonorPerHour:SetTextColor(1,1,1,0.3)
-        HonorPerHourMainFrameValueHonorTotalHonor:SetTextColor(1,1,1,0.3)
-        
+        Honor:SetValuesAlpha(0.5)
     end
 
     DEFAULT_CHAT_FRAME:AddMessage("Per Hour™ is clear.")
 end
 
 function HonorPerHour_OnEvent(self, event, ...)
-
     if (HAS_STARTED) then
-        
         if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
-
             local arg = {...}
-
             -- have to be better tested
             s, e, honor_points = string.find(arg[1], "(%d+)")
-            
             TOTAL_OF_HONOR_RECEIVED = TOTAL_OF_HONOR_RECEIVED + tonumber(honor_points, 10)
         
         elseif event == "TIME_PLAYED_MSG" then
@@ -149,30 +140,19 @@ function HonorPerHour_OnEvent(self, event, ...)
 end
 
 function HonorPerHour_OnUpdate(self, elapsed)
-    
     if HAS_STARTED and not HAS_PAUSED then
-
         TIME_SINCE_LAST_UPDATE = TIME_SINCE_LAST_UPDATE + elapsed
-
         if (TIME_SINCE_LAST_UPDATE > STATIC_UPDATE_INTERVAL) then
-
             timed = GetTime() - STARTED_AT - PAUSED_DURATION;
-
-            honorPerMinute = TOTAL_OF_HONOR_RECEIVED / (timed / 60)
             
+            displayedTime = Utils:DisplayTimer(timed)
+            honorPerMinute = TOTAL_OF_HONOR_RECEIVED / (timed / 60)
             honorPerMinuteRounded = Utils:RoundValue(honorPerMinute, 2)
             honorPerHourRounded = Utils:RoundValue(honorPerMinute * 60, 2)
             
-            -- update values
-            HonorPerHourMainFrameValueHonorTimer:SetText(Utils:DisplayTimer(timed))
-            HonorPerHourMainFrameValueHonorPerMinute:SetText(honorPerMinuteRounded)
-            HonorPerHourMainFrameValueHonorPerHour:SetText(honorPerHourRounded)
-            HonorPerHourMainFrameValueHonorTotalHonor:SetText(TOTAL_OF_HONOR_RECEIVED)
-    
+            Honor:SetValues(displayedTime,honorPerMinuteRounded,honorPerHourRounded,TOTAL_OF_HONOR_RECEIVED)
+
             TIME_SINCE_LAST_UPDATE = 0
-
         end
-
     end
-
 end

@@ -167,9 +167,9 @@
 			<OnEvent>
 				HonorPerHour_OnEvent(this, event, ...)
 			</OnEvent>
-			<OnUpdate>
+			<!-- <OnUpdate>
 				HonorPerHour_OnUpdate(this)
-			</OnUpdate>
+			</OnUpdate> -->
 			<OnMouseDown>
 				HonorPerHour_OnMouseDown()
 			</OnMouseDown>
