@@ -2,6 +2,9 @@
 Utils = {}
 
 -- public functions
+function Utils:P(text)
+    DEFAULT_CHAT_FRAME:AddMessage("########### LOG: "..text)
+end
 
 function Utils:DisplayTimer(time)
     local hours = floor(mod(time, 86400)/3600)

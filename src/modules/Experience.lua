@@ -10,19 +10,34 @@ PerHour.Modules.Experience = Module
 Module.Name = "Experience"
 Module.TagName = "experience"
 Module.ShortName = "XP"
-Module.RegisteredEvents = {"CHAT_MSG_COMBAT_XP_GAIN"}
+Module.RegisteredEvents = {}
 
--- custom fucntions
-function Module:CustomOnEvent(self, event, ...)
-    if (Module.HasStarted) then
-        if event == "CHAT_MSG_COMBAT_HONOR_GAIN" then
-            local arg = {...}
-            -- have to be better tested
-            startPoint, endPoint, honorPoints = string.find(arg[1], "(%d+)")
-            Module.Element = Module.Element + tonumber(honorPoints, 10)
-        elseif event == "TIME_PLAYED_MSG" then
-            -- nothing
-            Module.Element = Module.Element + 420
-        end
+-- custom properties
+Module.LastMaxXp = 0
+Module.LastXp = 0
+
+-- custom functions
+Module.CustomOnUpdate = function(self, elapsed)
+    local xpReceived = 0
+    local currentMaxXp = UnitXPMax("player")
+    local currentXp = UnitXP("player")
+
+    if Module.LastMaxXp == currentMaxXp then
+        xpReceived = currentXp - Module.LastXp
+    elseif Module.LastMaxXp < currentMaxXp then
+        local levelUpDiff = Module.LastMaxXp - Module.LastXp
+        xpReceived = levelUpDiff + currentXp
     end
+
+    -- update lasts
+    Module.LastMaxXp = currentMaxXp
+    Module.LastXp = currentXp
+    
+    -- Element is the amount of XP
+    Module.Element = Module.Element + xpReceived
+end
+
+Module.CustomReset = function()
+    Module.LastMaxXp = 0
+    Module.LastXp = 0
 end

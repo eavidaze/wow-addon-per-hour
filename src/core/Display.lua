@@ -84,7 +84,13 @@ local function ButtonResetOnClick(contextModule)
 
     contextModule.TimeSinceLastUpdate = 0
     
+    -- run custom
+    if contextModule.CustomReset~=nil then
+        contextModule.CustomReset()
+    end
+
     UpdateDisplayedValues(contextModule)
+
     DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ is clear.")
 end
 
@@ -109,8 +115,8 @@ local function RenderFrame(contextModule)
         self:StopMovingOrSizing()
     end)
     Frame:SetPoint("CENTER",0,0)
-    Frame:Show()
-    -- Frame:Hide()
+    Frame:Hide()
+    -- Frame:Show()
 
     -- set texture
     local FrameTexture = Frame:CreateTexture(nil,"BACKGROUND")
@@ -199,7 +205,12 @@ local function RegisterScripts(contextModule)
     local Frame = contextModule.Frame
     
     Frame:SetScript("OnEvent", function(self, event, ...)
-        contextModule:CustomOnEvent(self, event, ...)
+        if (contextModule.HasStarted) then
+            -- run custom
+            if contextModule.CustomOnEvent~=nil then
+                contextModule.CustomOnEvent(self, event, ...)
+            end
+        end
     end)
 
     Frame:SetScript("OnUpdate", function(self, elapsed)
@@ -207,11 +218,13 @@ local function RegisterScripts(contextModule)
             contextModule.TimeSinceLastUpdate = contextModule.TimeSinceLastUpdate + elapsed
             if (contextModule.TimeSinceLastUpdate > STATIC_UPDATE_INTERVAL) then
                 contextModule.TimeSinceLastUpdate = 0
+                -- run custom
+                if contextModule.CustomOnUpdate~=nil then
+                    contextModule.CustomOnUpdate(self, elapsed)
+                end
 
                 contextModule.Time = GetTime() - contextModule.StartedAt - contextModule.PausedTime
-
                 local elementPerMinute = contextModule.Element / (contextModule.Time / 60)
-                
                 contextModule.ElementPerMinute = Utils:RoundValue(elementPerMinute, 2)
                 contextModule.ElementPerHour = Utils:RoundValue(elementPerMinute * 60, 2)
                 
