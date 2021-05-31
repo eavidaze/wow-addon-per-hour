@@ -4,13 +4,13 @@ local Utils = Utils
 
 -- declaretion
 local Module = {}
-PerHour.Modules.Honor = Module
+PerHour.Modules.Experience = Module
 
 -- properties
-Module.Name = "Honor"
-Module.TagName = "honor"
-Module.ShortName = "hon"
-Module.RegisteredEvents = {"CHAT_MSG_COMBAT_HONOR_GAIN"}
+Module.Name = "Experience"
+Module.TagName = "experience"
+Module.ShortName = "XP"
+Module.RegisteredEvents = {"CHAT_MSG_COMBAT_XP_GAIN"}
 
 -- custom fucntions
 function Module:CustomOnEvent(self, event, ...)

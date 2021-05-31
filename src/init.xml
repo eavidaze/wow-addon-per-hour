@@ -1,6 +1,9 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<Script file="utils\Utils.lua" />
+    <Script file="core\Model.lua" />
     <Include file="modules\Init.xml"/>
+    <Script file="core\Display.lua" />
+    <Script file="core\ToggleMenu.lua" />
     <Script file="core\CommandLine.lua" />
 </Ui>
