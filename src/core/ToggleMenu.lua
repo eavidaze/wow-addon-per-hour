@@ -2,13 +2,13 @@
 local PerHour = PerHour
 local Utils = Utils
 local Modules = PerHour.Modules
+local Settings = PerHour.Settings
 
 -- class declaration
 TogglePerHour = {}
 PerHour.TogglePerHour = TogglePerHour
 
 -- private
--- local ToggleMenuItems = PerHour.ToggleMenuItems
 local ElementWidth = 96
 local ElementHeight = 22
 
@@ -57,9 +57,11 @@ local function RenderButton(contextModule, referanceFrame)
     toggleButton:RegisterForClicks("AnyUp")
     toggleButton:SetScript("OnClick", function(self, button, down)
         if (frame:IsShown()) then
+            Settings:SetIsShown(name, false)
             frame:Hide()
             DEFAULT_CHAT_FRAME:AddMessage(name .. " Hide.")
         else
+            Settings:SetIsShown(name, true)
             frame:Show()
             DEFAULT_CHAT_FRAME:AddMessage(name .. " Show.")
         end
@@ -68,7 +70,7 @@ local function RenderButton(contextModule, referanceFrame)
 end
 
 local function RenderElements()
-    -- render title
+    -- render toggle menu title
     local titlePerHonor = Frame:CreateFontString(Frame, "OVERLAY", "GameTooltipText")
     titlePerHonor:SetHeight(ElementHeight)
     titlePerHonor:SetPoint("TOP")
@@ -77,13 +79,17 @@ local function RenderElements()
     local pointReference = titlePerHonor
 
     for key,contextModule in pairs(Modules) do
+        -- for each module registred, we render a button
         pointReference = RenderButton(contextModule, pointReference)
+        
+        -- here we check if it is displayed or not #display0192364
+        if Settings:IsShown(contextModule.Name) then
+            contextModule.Frame:Show()
+        else
+            contextModule.Frame:Hide()
+        end
+        
     end
-    
-    -- for toggleName, toggleFunction in pairs(ToggleMenuItems) do
-    --     pointReference = RenderButton(toggleName, toggleFunction, pointReference)
-    -- end
-
 end
 
 -- public functions
@@ -91,6 +97,7 @@ function TogglePerHour:OnEvent(event, name)
     if name ~= PerHour.AddonName then
         return
     end
+    Settings:Init()
     RenderFrame()
     RenderElements()
 end

@@ -2,7 +2,7 @@
 Utils = {}
 
 -- public functions
-function Utils:P(text)
+function Utils:Print(text)
     DEFAULT_CHAT_FRAME:AddMessage("########### LOG: "..text)
 end
 

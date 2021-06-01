@@ -87,8 +87,9 @@ local function RenderFrame(contextModule)
         self:StopMovingOrSizing()
     end)
     Frame:SetPoint("CENTER",0,0)
-    Frame:Hide()
-    -- Frame:Show()
+    
+    -- Frame:Show() or Frame:Hide() will be later
+    -- we have a config for that #display0192364
 
     -- set texture
     local FrameTexture = Frame:CreateTexture(nil,"BACKGROUND")
