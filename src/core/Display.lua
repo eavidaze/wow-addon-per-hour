@@ -1,6 +1,7 @@
 -- import
 local PerHour = PerHour
 local Utils = Utils
+local BaseModule = BaseModule
 local Modules = PerHour.Modules
 
 -- class declaration
@@ -21,7 +22,7 @@ local FrameHeight = 150
 local STATIC_UPDATE_INTERVAL = 1
 
 -- private display functions
-local function UpdateDisplayedValues(contextModule)
+local function RefreshDisplayedValues(contextModule)
     contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
     contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 1))
@@ -29,69 +30,40 @@ local function UpdateDisplayedValues(contextModule)
 end
 
 -- private buttons functions
-local function ButtonStartOnClick(contextModule)
-    -- if not started or was paused
-    if not contextModule.HasStarted or contextModule.HasPaused then
-
-        -- if not was paused, have to set the new start time
-        if not contextModule.HasStarted then
-            contextModule.StartedAt = GetTime()
-            DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ started.")
-        else -- else I just have to calc the time paused
-            contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
-            DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ was unpaused.")
-        end
-
-        contextModule.HasStarted = true
-        contextModule.HasPaused = false
-        
-        -- not yet
-        -- Honor:SetValuesAlpha(1)
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has already started.")
-    end
-end
-
-local function ButtonPauseOnClick(contextModule)
+local function ToggleStartOnClick(contextModule)
     
-    if not contextModule.HasPaused then
+    if contextModule.HasStarted and not contextModule.HasPaused then
+        -- if started and not poused
         contextModule.HasPaused = true
         contextModule.PausedAt = GetTime()
-        
-        -- not yet
-        -- Honor:SetValuesAlpha(0.5)
-        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has paused.")
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ has already been paused.")
-    end
+        contextModule.ToggleStartButtom:SetText("Start")
 
+    elseif not contextModule.HasStarted or contextModule.HasPaused then
+        -- if not started or was paused
+        contextModule.HasStarted = true
+        contextModule.HasPaused = false
+        contextModule.ToggleStartButtom:SetText("Pause")
+
+        if not contextModule.HasStarted then
+            -- if not was paused, have to set the new start time
+            contextModule.StartedAt = GetTime()
+            DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." started.")
+        else
+            -- else I just have to calc the time paused
+            contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
+            DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." was unpaused.")
+        end
+    else
+
+    end
+    
 end
 
 local function ButtonResetOnClick(contextModule)
-    -- define values
-    contextModule.Time = 0
-    contextModule.Element = 0
-    contextModule.ElementPerHour = 0
-    contextModule.ElementPerMinute = 0
-    
-    -- define controls
-    contextModule.HasStarted = false
-    contextModule.HasPaused = false
-
-    contextModule.StartedAt = 0
-    contextModule.PausedAt = 0
-    contextModule.PausedTime = 0
-
-    contextModule.TimeSinceLastUpdate = 0
-    
-    -- run custom
-    if contextModule.CustomReset~=nil then
-        contextModule.CustomReset()
-    end
-
-    UpdateDisplayedValues(contextModule)
-
-    DEFAULT_CHAT_FRAME:AddMessage("Honor Per Hour™ is clear.")
+    BaseModule:ResetModule(contextModule)
+    DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." reseted.")
+    contextModule.ToggleStartButtom:SetText("Start")
+    RefreshDisplayedValues(contextModule)
 end
 
 -- private render functions
@@ -174,26 +146,22 @@ local function RenderButtons(contextModule)
     local Frame = contextModule.Frame
 
     -- configure buttons
-    local startButtom = CreateFrame("Button", "StartXPPerHour", Frame, "UIGoldBorderButtonTemplate")
-    startButtom:SetWidth(FrameWidth - (Margin * 2))
-    startButtom:SetHeight(22)
-    startButtom:SetPoint("BOTTOM", 0, GetMarginBottom())
-    startButtom:SetText("Start")
-    startButtom:RegisterForClicks("AnyUp")
-    startButtom:SetScript("OnClick", function(self, button, down)
-        if self:GetText() == "Start" then
-            self:SetText("Pause")
-            ButtonStartOnClick(contextModule)
-        else
-            self:SetText("Start")
-            ButtonPauseOnClick(contextModule)
-        end
+    local toggleStartButtom = CreateFrame("Button", "StartXPPerHour", Frame, "UIGoldBorderButtonTemplate")
+    contextModule.ToggleStartButtom = toggleStartButtom
+    toggleStartButtom:SetWidth(FrameWidth - (Margin * 2))
+    toggleStartButtom:SetHeight(22)
+    toggleStartButtom:SetPoint("BOTTOM", 0, GetMarginBottom())
+    toggleStartButtom:SetText("Start") -- when save state, we gonna change this
+    toggleStartButtom:RegisterForClicks("AnyUp")
+    toggleStartButtom:SetScript("OnClick", function(self, button, down)
+        ToggleStartOnClick(contextModule)
     end)
     
+
     local resetButtom = CreateFrame("Button", "ResetXPPerHour", Frame, "UIMenuButtonStretchTemplate")
     resetButtom:SetWidth((FrameWidth/2) - Margin)
     resetButtom:SetHeight(22)
-    resetButtom:SetPoint("BOTTOMRIGHT", startButtom, "TOPRIGHT", 0, GetPaddingBottom())
+    resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, GetPaddingBottom())
     resetButtom:SetText("Reset")
     resetButtom:RegisterForClicks("AnyUp")
     resetButtom:SetScript("OnClick", function(self, button, down)
@@ -228,7 +196,7 @@ local function RegisterScripts(contextModule)
                 contextModule.ElementPerMinute = Utils:RoundValue(elementPerMinute, 2)
                 contextModule.ElementPerHour = Utils:RoundValue(elementPerMinute * 60, 2)
                 
-                UpdateDisplayedValues(contextModule)
+                RefreshDisplayedValues(contextModule)
             end
         end
     end)

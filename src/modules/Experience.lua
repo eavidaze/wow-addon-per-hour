@@ -24,7 +24,9 @@ Module.CustomOnUpdate = function(self, elapsed)
 
     if Module.LastMaxXp == currentMaxXp then
         xpReceived = currentXp - Module.LastXp
-    elseif Module.LastMaxXp < currentMaxXp then
+    elseif Module.LastMaxXp ~= 0 and Module.LastMaxXp < currentMaxXp then
+        -- if last max xp is zero, we are in the first loop
+        -- else not, just lvl up :) gratz
         local levelUpDiff = Module.LastMaxXp - Module.LastXp
         xpReceived = levelUpDiff + currentXp
     end
