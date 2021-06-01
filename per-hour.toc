@@ -3,8 +3,8 @@
 ## Notes: If you want to see how log you are from your honor items, use this AddOn.
 ## Author: José Júnior - https://github.com/juninze
 ## Version: 0.0.1
-## SavedVariables: PerHourDB_Settings
-## SavedVariablesPerCharacter: PerHourDB_Values
+## SavedVariables: PerHourAccount_Settings
+## SavedVariablesPerCharacter: PerHourCharacter_Values
 
 # Special thanks to Zwietabak (https://github.com/zwietabak) who inspired me with your addon XpMonitor.
 

@@ -3,7 +3,7 @@ Utils = {}
 
 -- public functions
 function Utils:Print(text)
-    DEFAULT_CHAT_FRAME:AddMessage("########### LOG: "..text)
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000###########|r LOG: "..text)
 end
 
 function Utils:DisplayTimer(time)

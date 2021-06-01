@@ -5,8 +5,8 @@ local BaseModule = BaseModule
 local Modules = PerHour.Modules
 
 -- class declaration
-DisplayPerHour = {}
-PerHour.DisplayPerHour = DisplayPerHour
+PerHour.Displayer = {}
+Displayer = PerHour.Displayer
 
 -- private properties - addon
 local Padding = 2
@@ -212,7 +212,7 @@ local function RegisterEvents(contextModule)
 end
 
 -- public functions
-function DisplayPerHour:Init()
+function Displayer:Init()
     -- for each module I render 1 addon
     for key,contextModule in pairs(Modules) do
         
@@ -225,7 +225,7 @@ function DisplayPerHour:Init()
         -- startup addon
         ButtonResetOnClick(contextModule)
     end
-    -- Frame:SetScript("OnEvent", DisplayPerHour.OnEvent)
+    -- Frame:SetScript("OnEvent", Displayer.OnEvent)
 end
 
-DisplayPerHour:Init()
+Displayer:Init()

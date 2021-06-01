@@ -5,8 +5,8 @@ local Modules = PerHour.Modules
 local Settings = PerHour.Settings
 
 -- class declaration
-TogglePerHour = {}
-PerHour.TogglePerHour = TogglePerHour
+ToggleMenu = {}
+PerHour.ToggleMenu = ToggleMenu
 
 -- private
 local ElementWidth = 96
@@ -18,7 +18,7 @@ local FrameHeight = ((1 + Utils:GetTableSize(Modules)) * ElementHeight) + 2
 local FrameWidth = ElementWidth + 4
 
 local Frame = CreateFrame("Frame", PerHour.AddonName .. "-toggle-frame", UIParent)
-TogglePerHour.Frame = Frame
+ToggleMenu.Frame = Frame
 
 -- private functions
 local function RenderFrame()
@@ -93,7 +93,7 @@ local function RenderElements()
 end
 
 -- public functions
-function TogglePerHour:OnEvent(event, name)
+function ToggleMenu:OnEvent(event, name)
     if name ~= PerHour.AddonName then
         return
     end
@@ -103,4 +103,4 @@ function TogglePerHour:OnEvent(event, name)
 end
 
 Frame:RegisterEvent("ADDON_LOADED")
-Frame:SetScript("OnEvent", TogglePerHour.OnEvent)
+Frame:SetScript("OnEvent", ToggleMenu.OnEvent)
