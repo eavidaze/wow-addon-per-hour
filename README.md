@@ -12,6 +12,8 @@ You will be able to measure your performance:
 
     - `Character Info` window > `Reputation` tab > click in a reputation > check `Show as Experience Bar`.
 
+  - If you change your reputation selected, the tracker will be reseted.
+
 ![This image shows the addon in game.](https://raw.githubusercontent.com/eavidaze/wow-addon-per-hour/main/img/ss1.png "Screenshot")
 
 I'll soon add many other measurement options, such as:
