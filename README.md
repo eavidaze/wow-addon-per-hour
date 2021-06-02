@@ -2,6 +2,8 @@
 
 Do you want to know your performance? The Per Hour Addon is for you!
 
+![This image shows the addon in game.](https://raw.githubusercontent.com/eavidaze/wow-addon-per-hour/main/img/ss1.png "Screenshot")
+
 You will be able to measure your performance:
 
 - Experience
