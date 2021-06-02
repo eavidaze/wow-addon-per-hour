@@ -1,28 +1,41 @@
 -- definition
 BaseModule = {}
 
+function BaseModule:RefreshDisplayedValues(contextModule)
+    contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
+    contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
+    contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 1))
+    contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 1))
+end
+
 -- public functions
-function BaseModule:ResetModule(baseModule)
-    -- displayable values
-    baseModule.Time = 0
-    baseModule.Element = 0
-    baseModule.ElementPerHour = 0
-    baseModule.ElementPerMinute = 0
-    
+function BaseModule:ResetModule(contextModule)
     -- control values
-    baseModule.HasStarted = false
-    baseModule.HasPaused = false
+    contextModule.HasStarted = false
+    contextModule.HasPaused = false
 
-    baseModule.StartedAt = 0
-    baseModule.PausedAt = 0
-    baseModule.PausedTime = 0
+    contextModule.StartedAt = 0
+    contextModule.PausedAt = 0
+    contextModule.PausedTime = 0
 
-    baseModule.TimeSinceLastUpdate = 0
+    contextModule.TimeSinceLastUpdate = 0
 
+    -- displayable values
+    contextModule.Time = 0
+    contextModule.Element = 0
+    contextModule.ElementPerHour = 0
+    contextModule.ElementPerMinute = 0
+    
     -- run custom
-    if baseModule.CustomReset~=nil then
-        baseModule.CustomReset()
+    if contextModule.CustomReset~=nil then
+        contextModule.CustomReset()
     end
 
+    -- reset the button
+    if contextModule.ToggleStartButtom~=nil then
+        contextModule.ToggleStartButtom:SetText("Start")
+    end
+    
+    BaseModule:RefreshDisplayedValues(contextModule)
 end
 

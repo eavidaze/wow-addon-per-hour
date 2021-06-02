@@ -36,7 +36,9 @@ Module.CustomOnUpdate = function(self, elapsed)
     Module.LastXp = currentXp
     
     -- Element is the amount of XP
-    Module.Element = Module.Element + xpReceived
+    if not Module.HasPaused then
+        Module.Element = Module.Element + xpReceived
+    end
 end
 
 Module.CustomReset = function()

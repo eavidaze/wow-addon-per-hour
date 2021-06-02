@@ -3,4 +3,5 @@
     <Script file="BaseModule.lua" />
     <Script file="Honor.lua" />
     <Script file="Experience.lua" />
+    <Script file="Reputation.lua" />
 </Ui>

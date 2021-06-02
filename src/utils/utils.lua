@@ -2,6 +2,10 @@
 Utils = {}
 
 -- public functions
+function Utils:AddonMessage(text)
+    DEFAULT_CHAT_FRAME:AddMessage("|cFFFFD700Per Hour™|r "..text)
+end
+
 function Utils:Print(text)
     DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000###########|r LOG: "..text)
 end

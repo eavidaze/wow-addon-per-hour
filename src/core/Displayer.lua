@@ -22,37 +22,45 @@ local FrameHeight = 150
 local STATIC_UPDATE_INTERVAL = 1
 
 -- private display functions
-local function RefreshDisplayedValues(contextModule)
-    contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
-    contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
-    contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 1))
-    contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 1))
-end
+
 
 -- private buttons functions
 local function ToggleStartOnClick(contextModule)
     
     if contextModule.HasStarted and not contextModule.HasPaused then
-        -- if started and not poused
+        -- if started and not paused > then pause
         contextModule.HasPaused = true
+        -- and set the pause time
         contextModule.PausedAt = GetTime()
+
         contextModule.ToggleStartButtom:SetText("Start")
+        Utils:AddonMessage(contextModule.Name.." paused.")
 
-    elseif not contextModule.HasStarted or contextModule.HasPaused then
-        -- if not started or was paused
-        contextModule.HasStarted = true
+    elseif contextModule.HasStarted and contextModule.HasPaused then
+        -- if started and paused
+        -- unpause
         contextModule.HasPaused = false
-        contextModule.ToggleStartButtom:SetText("Pause")
+        -- and sum the time paused
+        contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
 
-        if not contextModule.HasStarted then
-            -- if not was paused, have to set the new start time
-            contextModule.StartedAt = GetTime()
-            DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." started.")
-        else
-            -- else I just have to calc the time paused
-            contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
-            DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." was unpaused.")
+        contextModule.ToggleStartButtom:SetText("Pause")
+        Utils:AddonMessage(contextModule.Name.." was unpaused.")
+
+    elseif not contextModule.HasStarted then
+        -- if not started
+        -- start
+        contextModule.HasStarted = true
+        -- and set the start time
+        contextModule.StartedAt = GetTime()
+
+        contextModule.ToggleStartButtom:SetText("Pause")
+        
+        local startedMessage = " started."
+        if contextModule.CustomStartedMessage~=nil then
+            startedMessage = contextModule.CustomStartedMessage()
         end
+        Utils:AddonMessage(contextModule.Name..startedMessage)
+        
     else
 
     end
@@ -61,9 +69,7 @@ end
 
 local function ButtonResetOnClick(contextModule)
     BaseModule:ResetModule(contextModule)
-    DEFAULT_CHAT_FRAME:AddMessage(contextModule.Name.." reseted.")
-    contextModule.ToggleStartButtom:SetText("Start")
-    RefreshDisplayedValues(contextModule)
+    Utils:AddonMessage(contextModule.Name.." reseted.")
 end
 
 -- private render functions
@@ -137,6 +143,13 @@ local function RenderElements(contextModule)
     local elementPerMinuteValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
     elementPerMinuteValue:SetPoint("TOP", elementPerMinuteText, "BOTTOM", 0, GetPaddingTop())
 
+    -- set module texts
+    contextModule.TimeText = timeText
+    contextModule.ElementText = elementText
+    contextModule.ElementPerHourText = elementPerHourText
+    contextModule.ElementPerMinuteText = elementPerMinuteText
+
+    -- set module values
     contextModule.TimeValue = timeValue
     contextModule.ElementValue = elementValue
     contextModule.ElementPerHourValue = elementPerHourValue
@@ -174,7 +187,7 @@ local function RegisterScripts(contextModule)
     local Frame = contextModule.Frame
     
     Frame:SetScript("OnEvent", function(self, event, ...)
-        if (contextModule.HasStarted) then
+        if contextModule.HasStarted then
             -- run custom
             if contextModule.CustomOnEvent~=nil then
                 contextModule.CustomOnEvent(self, event, ...)
@@ -183,21 +196,27 @@ local function RegisterScripts(contextModule)
     end)
 
     Frame:SetScript("OnUpdate", function(self, elapsed)
-        if contextModule.HasStarted and not contextModule.HasPaused then
+        if contextModule.HasStarted then
+            -- check if displayer is started
+
             contextModule.TimeSinceLastUpdate = contextModule.TimeSinceLastUpdate + elapsed
             if (contextModule.TimeSinceLastUpdate > STATIC_UPDATE_INTERVAL) then
                 contextModule.TimeSinceLastUpdate = 0
+
                 -- run custom
                 if contextModule.CustomOnUpdate~=nil then
                     contextModule.CustomOnUpdate(self, elapsed)
                 end
 
-                contextModule.Time = GetTime() - contextModule.StartedAt - contextModule.PausedTime
-                local elementPerMinute = contextModule.Element / (contextModule.Time / 60)
-                contextModule.ElementPerMinute = Utils:RoundValue(elementPerMinute, 2)
-                contextModule.ElementPerHour = Utils:RoundValue(elementPerMinute * 60, 2)
-                
-                RefreshDisplayedValues(contextModule)
+                if contextModule.HasStarted and not contextModule.HasPaused then
+                    -- check if the custom event does not stop the displayer
+                    contextModule.Time = GetTime() - contextModule.StartedAt - contextModule.PausedTime
+                    local elementPerMinute = contextModule.Element / (contextModule.Time / 60)
+                    contextModule.ElementPerMinute = Utils:RoundValue(elementPerMinute, 2)
+                    contextModule.ElementPerHour = Utils:RoundValue(elementPerMinute * 60, 2)
+                    
+                    BaseModule:RefreshDisplayedValues(contextModule)
+                end
             end
         end
     end)

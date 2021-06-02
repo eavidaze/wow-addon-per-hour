@@ -4,18 +4,20 @@ local Utils = Utils
 
 local Settings = PerHour.Settings
 
--- read the status
-function Settings:IsShown(moduleName)
-	return PerHourAccount_Settings[moduleName].isShown
-end
+local function DefineSettingsFunctions(contextModule)
 
--- write the status
-function Settings:SetIsShown(moduleName, isShown)
-	PerHourAccount_Settings[moduleName].isShown = isShown
+    -- read the status
+    function contextModule:IsShown()
+        return PerHourAccount_Settings[self.Name].isShown
+    end
+    
+    -- write the status
+    function contextModule:SetIsShown(isShown)
+        PerHourAccount_Settings[self.Name].isShown = isShown
+    end
 end
 
 function Settings:Init()
-
     local modules = PerHour.Modules
     
     if not PerHourAccount_Settings then
@@ -24,8 +26,8 @@ function Settings:Init()
     end
 
     for key,contextModule in pairs(modules) do
-        -- for each module i have to initialize if does not exists
 
+        -- for each module I have to initialize if does not exists
         local moduleName = contextModule.Name
         
         -- for each module, we check if the module are set.
@@ -33,9 +35,13 @@ function Settings:Init()
             PerHourAccount_Settings[moduleName] = {}
         end
 
+        -- after modules are defined
+        -- than define settings functions in the module
+        DefineSettingsFunctions(contextModule)
+
         -- for each module registred, we check if the configs are set.
         if (PerHourAccount_Settings[moduleName].isShown == nil) then
-            self:SetIsShown(moduleName, true)
+            contextModule:SetIsShown(true)
         end
     end
 

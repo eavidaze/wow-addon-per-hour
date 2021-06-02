@@ -57,13 +57,13 @@ local function RenderButton(contextModule, referanceFrame)
     toggleButton:RegisterForClicks("AnyUp")
     toggleButton:SetScript("OnClick", function(self, button, down)
         if (frame:IsShown()) then
-            Settings:SetIsShown(name, false)
+            contextModule:SetIsShown(false)
             frame:Hide()
-            DEFAULT_CHAT_FRAME:AddMessage(name .. " Hide.")
+            Utils:AddonMessage(name .. " hide.")
         else
-            Settings:SetIsShown(name, true)
+            contextModule:SetIsShown(true)
             frame:Show()
-            DEFAULT_CHAT_FRAME:AddMessage(name .. " Show.")
+            Utils:AddonMessage(name .. " show.")
         end
     end)
     return toggleButton
@@ -83,7 +83,7 @@ local function RenderElements()
         pointReference = RenderButton(contextModule, pointReference)
         
         -- here we check if it is displayed or not #display0192364
-        if Settings:IsShown(contextModule.Name) then
+        if contextModule:IsShown() then
             contextModule.Frame:Show()
         else
             contextModule.Frame:Hide()
