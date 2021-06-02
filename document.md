@@ -16,6 +16,7 @@ src / `Init.xml`
   - BaseModule.lua
   - Honor.lua
   - Experience.lua
+  - Reputation.lua
 
 - core / `Init.xml`
 

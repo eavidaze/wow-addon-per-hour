@@ -1,7 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <Script file="BaseModule.lua" />
+    <Script file="Reputation.lua" />
     <Script file="Honor.lua" />
     <Script file="Experience.lua" />
-    <Script file="Reputation.lua" />
 </Ui>

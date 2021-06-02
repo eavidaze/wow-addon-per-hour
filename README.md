@@ -4,14 +4,18 @@ Do you want to know your performance? The Per Hour Addon is for you!
 
 You will be able to measure your performance:
 
-- Experience
-- Honor
+- Experience.
+- Honor.
+- Reputation.
+
+  - A reputation must be selected to be displayed as Experience Bar.
+
+    - `Character Info` window > `Reputation` tab > click in a reputation > check `Show as Experience Bar`.
 
 ![This image shows the addon in game.](https://raw.githubusercontent.com/eavidaze/wow-addon-per-hour/main/img/ss1.png "Screenshot")
 
 I'll soon add many other measurement options, such as:
 
-- Reputation.
 - Gold.
 - Etc.
 
