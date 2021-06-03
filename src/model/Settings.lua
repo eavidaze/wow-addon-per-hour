@@ -41,7 +41,7 @@ function Settings:Init()
 
         -- for each module registred, we check if the configs are set.
         if (PerHourAccount_Settings[moduleName].isShown == nil) then
-            contextModule:SetIsShown(true)
+            contextModule:SetIsShown(false)
         end
     end
 

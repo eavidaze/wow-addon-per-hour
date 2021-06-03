@@ -9,11 +9,13 @@ ToggleMenu = {}
 PerHour.ToggleMenu = ToggleMenu
 
 -- private
+local TitleHeight = 15
 local ElementWidth = 96
 local ElementHeight = 22
+local FirstMenuElementOffset = -2
 
--- ( ( title + MenuItems ) * ElementHeight ) + 2px bottom padding
-local FrameHeight = ((1 + Utils:GetTableSize(Modules)) * ElementHeight) + 2
+-- 2px top padding + (2 titles * TitleHeight) + 2px padding + ( MenuItems * ElementHeight ) + 2px bottom padding
+local FrameHeight = 2+(2*TitleHeight)+2+(Utils:GetTableSize(Modules)*ElementHeight)+2
 -- | 2px padding | element | 2px padding |
 local FrameWidth = ElementWidth + 4
 
@@ -52,7 +54,7 @@ local function RenderButton(contextModule, referanceFrame)
     local toggleButton = CreateFrame("Button", "Toggle".. name .. "PerHour", Frame, 'UIGoldBorderButtonTemplate')
     toggleButton:SetWidth(ElementWidth)
     toggleButton:SetHeight(ElementHeight)
-    toggleButton:SetPoint("TOP", referanceFrame, "BOTTOM")
+    toggleButton:SetPoint("TOP", referanceFrame, "BOTTOM", 0, FirstMenuElementOffset)
     toggleButton:SetText(name)
     toggleButton:RegisterForClicks("AnyUp")
     toggleButton:SetScript("OnClick", function(self, button, down)
@@ -66,17 +68,23 @@ local function RenderButton(contextModule, referanceFrame)
             Utils:AddonMessage(name .. " show.")
         end
     end)
+    FirstMenuElementOffset = 0
     return toggleButton
 end
 
 local function RenderElements()
     -- render toggle menu title
-    local titlePerHonor = Frame:CreateFontString(Frame, "OVERLAY", "GameTooltipText")
-    titlePerHonor:SetHeight(ElementHeight)
-    titlePerHonor:SetPoint("TOP")
+    local titlePerHonor = Frame:CreateFontString(Frame, nil, "GameFontNormalSmall")
+    titlePerHonor:SetHeight(TitleHeight)
+    titlePerHonor:SetPoint("TOP", 0, -2)
     titlePerHonor:SetText("Per Hour™")
+    
+    local titleToggle = Frame:CreateFontString(Frame, nil, "GameFontHighlightSmall")
+    titleToggle:SetHeight(TitleHeight)
+    titleToggle:SetPoint("TOP", titlePerHonor, "BOTTOM")
+    titleToggle:SetText("Toggle Menu")
 
-    local pointReference = titlePerHonor
+    local pointReference = titleToggle
 
     for key,contextModule in pairs(Modules) do
         -- for each module registred, we render a button
