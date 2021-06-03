@@ -17,18 +17,26 @@ Module.RegisteredEvents = {}
 Module.LastReputationName = ""
 Module.LastReputationValue = 0
 
+-- bugfix:  sometimes, when the screen is reloaded (a portal for example)
+--          the GetWatchedFactionInfo() returns null witch means without faction.
+---         because of that we have to tolerate some seconds util reset.
+Module.HasWaitingWithoutFaction = false
+Module.WaitingWithoutFactionTime = 0
+
+-- toleration time is considering the "outside elapsed" (Displayer elapse)
+-- here "0.1" is almost 10 seconds.
+local STATIC_TOLERATION_INTERVAL = 0.1
+
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
     local reputationReceived = 0
     local currentName, standing, minBound, maxBound, currentValue, factionID = GetWatchedFactionInfo()
-    -- Utils:Print("currentName: "..currentName)
-    -- Utils:Print("standing: "..standing)
-    -- Utils:Print("minBound: "..minBound)
-    -- Utils:Print("maxBound: "..maxBound)
-    -- Utils:Print("currentValue: "..currentValue)
-    -- Utils:Print("factionID: "..factionID)
 
     if currentName~=nil then
+
+        -- wait condition is true because the tracker is working
+        Module.HasWaitingWithoutFaction = true
+        Module.WaitingWithoutFactionTime = 0
 
         if Module.LastReputationName ~= "" and Module.LastReputationName ~= currentName then
             -- Reputation changed
@@ -51,15 +59,27 @@ Module.CustomOnUpdate = function(self, elapsed)
             end
 
         end
+
     else
-        Utils:AddonMessage(Module.Name.." must be selected to be displayed as Experience Bar.")
-        BaseModule:ResetModule(Module)
+        if Module.HasWaitingWithoutFaction then
+            -- wait condition is reached
+            Module.WaitingWithoutFactionTime = Module.WaitingWithoutFactionTime + elapsed
+            if Module.WaitingWithoutFactionTime > STATIC_TOLERATION_INTERVAL then
+                -- time tolerated is reached
+                Module.HasWaitingWithoutFaction = false
+            end
+        else
+            Utils:AddonMessage(Module.Name.." must be selected to be displayed as Experience Bar.")
+            BaseModule:ResetModule(Module)
+        end
     end
 end
 
 Module.CustomReset = function()
     Module.LastReputationName = ""
     Module.LastReputationValue = 0
+    Module.HasWaitingWithoutFaction = false
+    Module.WaitingWithoutFactionTime = 0
 end
 
 Module.CustomStartedMessage = function ()
