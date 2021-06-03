@@ -2,7 +2,7 @@
 ## Title: PerHour
 ## Notes: If you want to see how log you are from your honor items, use this AddOn.
 ## Author: José Júnior - https://github.com/juninze
-## Version: 1.0.4
+## Version: 1.0.5
 ## SavedVariables: PerHourAccount_Settings
 ## SavedVariablesPerCharacter: PerHourCharacter_Values
 
