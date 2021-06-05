@@ -11,7 +11,7 @@
                 "-Path",
                 "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\",
                 "-Name",
-                "per-hour",
+                "${config:ADDON_NAME_LOCAL_PATH}",
                 "-ItemType",
                 "directory",
                 "-Force",
@@ -22,7 +22,7 @@
             "type": "shell",
             "command": "Remove-Item",
             "args": [
-                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\per-hour",
+                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\${config:ADDON_NAME_LOCAL_PATH}",
                 "-Force",
                 "-Confirm:$false",
                 "-Recurse",
@@ -36,7 +36,7 @@
                 "-Path",
                 "${workspaceFolder}\\",
                 "-Destination",
-                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\per-hour",
+                "${config:WOW_LOCAL_PATH}\\_classic_\\Interface\\AddOns\\${config:ADDON_NAME_LOCAL_PATH}",
                 "-Recurse",
             ]
         },

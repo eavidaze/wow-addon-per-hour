@@ -10,8 +10,10 @@ Displayer = PerHour.Displayer
 
 -- private properties - addon
 local Padding = 2
-local function GetPaddingTop() return Padding*-1 end
-local function GetPaddingBottom() return Padding end
+local function PaddingTop(padding) return padding*-1 end
+local function PaddingBottom(padding) return padding end
+local function PaddingLeft(padding) return padding*-1 end
+local function PaddingRight(padding) return padding end
 local Margin = 5
 local function GetMarginTop() return Margin*-1 end
 local function GetMarginBottom() return Margin end
@@ -112,7 +114,7 @@ local function RenderElements(contextModule)
     timeText:SetText("TIME")
     -- time valeu       | [left]       |
     local timeValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
-    timeValue:SetPoint("TOP", timeText, "BOTTOM", 0, GetPaddingTop())
+    timeValue:SetPoint("TOP", timeText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- element          |       [right] |
     local elementText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
@@ -124,7 +126,7 @@ local function RenderElements(contextModule)
     end
     -- element value    |       [right] |
     local elementValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
-    elementValue:SetPoint("TOP", elementText, "BOTTOM", 0, GetPaddingTop())
+    elementValue:SetPoint("TOP", elementText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- element/h        |   [center]   |
     local elementPerHourText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
@@ -132,7 +134,7 @@ local function RenderElements(contextModule)
     elementPerHourText:SetText(contextModule.ShortName.."/h")
     -- element/h value  |   [center]   |
     local elementPerHourValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
-    elementPerHourValue:SetPoint("TOP", elementPerHourText, "BOTTOM", 0, GetPaddingTop())
+    elementPerHourValue:SetPoint("TOP", elementPerHourText, "BOTTOM", 0, PaddingTop(Padding))
     elementPerHourValue:SetFont("Fonts\\ARIALN.TTF", 32)
 
     -- element/m        | [left]       |
@@ -141,7 +143,7 @@ local function RenderElements(contextModule)
     elementPerMinuteText:SetText(contextModule.ShortName.."/m")
     -- element/m value  | [left]       |
     local elementPerMinuteValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
-    elementPerMinuteValue:SetPoint("TOP", elementPerMinuteText, "BOTTOM", 0, GetPaddingTop())
+    elementPerMinuteValue:SetPoint("TOP", elementPerMinuteText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- set module texts
     contextModule.TimeText = timeText
@@ -171,16 +173,107 @@ local function RenderButtons(contextModule)
         ToggleStartOnClick(contextModule)
     end)
     
-
     local resetButtom = CreateFrame("Button", "ResetXPPerHour", Frame, "UIMenuButtonStretchTemplate")
     resetButtom:SetWidth((FrameWidth/2) - Margin)
-    resetButtom:SetHeight(22)
-    resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, GetPaddingBottom())
+    resetButtom:SetHeight(20)
+    resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, PaddingBottom(Padding))
     resetButtom:SetText("Reset")
     resetButtom:RegisterForClicks("AnyUp")
     resetButtom:SetScript("OnClick", function(self, button, down)
         ButtonResetOnClick(contextModule)
     end)
+
+    local sendToButton = CreateFrame("Button", "sendPerHour", Frame, "SecureActionButtonTemplate")
+    sendToButton:SetSize(14,14)
+    sendToButton:SetPoint("BOTTOMRIGHT", resetButtom, "TOPRIGHT", PaddingLeft(7), PaddingBottom(5))
+    sendToButton:SetNormalTexture([[Interface\AddOns\PerHour\src\textures\announcement_gold_dark]])
+    sendToButton:SetHighlightTexture([[Interface\AddOns\PerHour\src\textures\announcement_gold_dark]])
+    
+    sendToOptionSize = 15
+    local sendToOptions = {
+        "Say",
+        "Party",
+        "Guid",
+        "Raid",
+    }
+    
+    -- submenu
+    local sendToMenu = CreateFrame("Frame", "hoverxxx"..contextModule.TagName, sendToButton)
+    sendToMenu:SetSize(70,(Utils:GetTableSize(sendToOptions) + 1) * sendToOptionSize)
+    sendToMenu:SetPoint("BOTTOMRIGHT", sendToButton, "TOPRIGHT", PaddingRight(5), PaddingBottom(0))
+    sendToMenu:Hide()
+    sendToMenu:SetScript('OnEnter', function(self, motion)
+        if motion then
+            sendToMenu:Show()
+        end
+        Utils:Print("menu show"..tostring(motion))
+    end)
+    sendToMenu:SetScript('OnLeave', function()
+        sendToMenu:Hide()
+        Utils:Print("menu hide")
+    end)
+    
+    local sendToMenuTexture = sendToMenu:CreateTexture(nil, "BACKGROUND")
+    sendToMenuTexture:SetColorTexture(0,0,0,1)
+    sendToMenuTexture:SetAllPoints(sendToMenu)
+    -- submenu end
+    
+    -- submenu items
+
+    -- render submenu title
+    local sendToTitle = sendToMenu:CreateFontString(sendToMenu, nil, "GameFontHighlightSmall")
+    sendToTitle:SetHeight(sendToOptionSize)
+    sendToTitle:SetPoint("TOP", 0, 0)
+    sendToTitle:SetText("Send to:")
+
+    local pointReference = sendToTitle
+
+    for key,thisOpt in ipairs(sendToOptions) do
+        -- for each module registred, we render a button
+        local sendOption = CreateFrame("Button", "SendOption"..thisOpt, sendToMenu, "OptionsListButtonTemplate")
+        sendOption:SetWidth(60)
+        sendOption:SetHeight(sendToOptionSize)
+        sendOption:SetPoint("TOP", pointReference, "BOTTOM", 0, 0)
+        sendOption:SetText(thisOpt)
+        sendOption:SetScript('OnEnter', function()
+            sendToMenu:Show()
+            Utils:Print(thisOpt.." bt show")
+        end)
+        sendOption:SetScript('OnLeave', function()
+            sendToMenu:Hide()
+            Utils:Print(thisOpt.." bt hide")
+        end)
+        sendOption:RegisterForClicks("AnyUp")
+        sendOption:SetScript("OnClick", function(self, button, down)
+            Utils:Print("send to: "..thisOpt)
+            sendToMenu:Hide()
+        end)
+
+        pointReference = sendOption
+    end
+    -- submenu items end
+
+    sendToButton:SetScript('OnEnter', function()
+        sendToMenu:Show()
+        Utils:Print("icon show")
+    end)
+    sendToButton:SetScript('OnLeave', function()
+        sendToMenu:Hide()
+        Utils:Print("icon hide")
+    end)
+
+    -- local Frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. contextModule.TagName .. "-frame", UIParent)
+    -- contextModule.Frame = Frame
+    
+    -- -- set frame size
+    -- Frame:SetFrameStrata("HIGH")
+    -- Frame:SetWidth(FrameWidth)
+    -- Frame:SetHeight(FrameHeight)
+    
+    -- -- set texture
+    -- local FrameTexture = Frame:CreateTexture(nil,"BACKGROUND")
+    -- FrameTexture:SetColorTexture(0,0,0,0.2)
+    -- FrameTexture:SetAllPoints(Frame)
 end
 
 local function RegisterScripts(contextModule)
