@@ -77,7 +77,7 @@ local function RenderElements()
     local titlePerHonor = Frame:CreateFontString(Frame, nil, "GameFontNormalSmall")
     titlePerHonor:SetHeight(TitleHeight)
     titlePerHonor:SetPoint("TOP", 0, -2)
-    titlePerHonor:SetText("Per Hour™")
+    titlePerHonor:SetText("Per Hour")
     
     local titleToggle = Frame:CreateFontString(Frame, nil, "GameFontHighlightSmall")
     titleToggle:SetHeight(TitleHeight)
