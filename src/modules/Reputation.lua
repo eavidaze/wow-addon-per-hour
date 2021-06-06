@@ -24,7 +24,7 @@ Module.CustomSendToMessages = {
         if Module.LastReputationName ~= "" then
             reputationName = Module.LastReputationName
         end
-        return "Reputation tracked: "..reputationName
+        return "Reputation: "..reputationName
     end
     
 }

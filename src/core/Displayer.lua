@@ -296,8 +296,8 @@ local function RenderButtons(contextModule)
     local sendToButton = CreateFrame("Button", "sendPerHour", Frame, "SecureActionButtonTemplate")
     sendToButton:SetSize(14,14)
     sendToButton:SetPoint("BOTTOMRIGHT", resetButtom, "TOPRIGHT", PaddingLeft(PaddingIcon), PaddingBottom(Padding))
-    sendToButton:SetNormalTexture([[Interface\AddOns\PerHour\src\textures\announcement_gold_dark]])
-    sendToButton:SetHighlightTexture([[Interface\AddOns\PerHour\src\textures\announcement_gold_dark]])
+    sendToButton:SetNormalTexture([[Interface\AddOns\per-hour\src\textures\announcement_gold_dark]])
+    sendToButton:SetHighlightTexture([[Interface\AddOns\per-hour\src\textures\announcement_gold_dark]])
     
     RenderSendTo(contextModule, sendToButton)
 end

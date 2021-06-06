@@ -10,8 +10,8 @@ function BaseModule:SendTo(contextModule, chatType)
     local trackingMessage = addonNamePrepend.."Tracking: "..contextModule.Name
     local perHourMessage = addonNamePrepend..contextModule.ElementPerHourText:GetText()..": "..contextModule.ElementPerHour
     local perMinuteMessage = addonNamePrepend..contextModule.ElementPerMinuteText:GetText()..": "..contextModule.ElementPerMinute
-    local forMessage = addonNamePrepend.."For: "..Utils:DisplayTimer(contextModule.Time).."s"
-    local totalMessage = addonNamePrepend.."Total of "..contextModule.ShortName:lower()..": "..Utils:DisplayNumber(contextModule.Element)
+    local forMessage = addonNamePrepend.."Duration: "..Utils:DisplayTimer(contextModule.Time).."s"
+    local totalMessage = addonNamePrepend.."Total earned: "..Utils:DisplayNumber(contextModule.Element)
     
     SendChatMessage(greetingsMessage, chatType)
     SendChatMessage(trackingMessage, chatType)
@@ -26,7 +26,7 @@ function BaseModule:SendTo(contextModule, chatType)
         end
     end
 
-    Utils:AddonMessage("results sent to "..chatType:lower().." successfully.")
+    Utils:AddonMessage("Results sent to "..chatType:lower().." successfully.")
 end
 
 function BaseModule:RefreshDisplayedValues(contextModule)
