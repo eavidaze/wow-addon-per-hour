@@ -17,9 +17,21 @@ Module.RegisteredEvents = {}
 Module.LastReputationName = ""
 Module.LastReputationValue = 0
 
+-- custom messages
+Module.CustomSendToMessages = {
+    ["message1"] = function()
+        local reputationName = ""
+        if Module.LastReputationName ~= "" then
+            reputationName = Module.LastReputationName
+        end
+        return "Reputation: "..reputationName
+    end
+    
+}
+
 -- bugfix:  sometimes, when the screen is reloaded (a portal for example)
 --          the GetWatchedFactionInfo() returns null witch means without faction.
----         because of that we have to tolerate some seconds util reset.
+--          because of that we have to tolerate some seconds util reset.
 Module.HasWaitingWithoutFaction = false
 Module.WaitingWithoutFactionTime = 0
 

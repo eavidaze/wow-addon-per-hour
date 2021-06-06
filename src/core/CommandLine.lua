@@ -2,15 +2,15 @@
 CommandLine = {}
 
 -- private variables
-local COMMAND = "/ph"
+local COMMAND = "/perhour"
 
 -- public functions
 function CommandLine:Init()
 
-    SLASH_PerHour1 = COMMAND
-    SlashCmdList["PerHour"] = function(text)
-        Honor:Toggle()
-    end
+    -- SLASH_PerHour1 = COMMAND
+    -- SlashCmdList["PerHour"] = function(text)
+    --     -- Honor:Toggle()
+    -- end
      
 end
 
