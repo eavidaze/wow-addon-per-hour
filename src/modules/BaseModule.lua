@@ -6,12 +6,22 @@ function BaseModule:SendTo(contextModule, chatType)
     -- chatType = chatType:upper()
     local addonNamePrepend = "Per Hour || "
 
+    local dottedLine = "................"
+    local dottedLineLength = string.len(dottedLine)
+    local perHourLabel = contextModule.ElementPerHourText:GetText()
+    local perMinuteLabel = contextModule.ElementPerMinuteText:GetText()
+
+    local function GetDottedLineByWordSize(wordSize)
+        return string.sub(dottedLine, 0, dottedLineLength - wordSize)
+    end
+    
+    
     local greetingsMessage = addonNamePrepend.."A performance tracker AddOn!"
-    local trackingMessage = addonNamePrepend.."Tracking: "..contextModule.Name
-    local perHourMessage = addonNamePrepend..contextModule.ElementPerHourText:GetText()..": "..contextModule.ElementPerHour
-    local perMinuteMessage = addonNamePrepend..contextModule.ElementPerMinuteText:GetText()..": "..contextModule.ElementPerMinute
-    local forMessage = addonNamePrepend.."Duration: "..Utils:DisplayTimer(contextModule.Time).."s"
-    local totalMessage = addonNamePrepend.."Total earned: "..Utils:DisplayNumber(contextModule.Element)
+    local trackingMessage = addonNamePrepend.."Tracking: ....... "..contextModule.Name
+    local perHourMessage = addonNamePrepend..perHourLabel..": "..GetDottedLineByWordSize(string.len(perHourLabel)-1).." "..Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 0)
+    local perMinuteMessage = addonNamePrepend..perMinuteLabel..": "..GetDottedLineByWordSize(string.len(perMinuteLabel)).." "..Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 0)
+    local forMessage = addonNamePrepend.."Duration: ......... "..Utils:DisplayTimer(contextModule.Time).."s"
+    local totalMessage = addonNamePrepend.."Total earned: ... "..Utils:DisplayNumber(contextModule.Element)
     
     SendChatMessage(greetingsMessage, chatType)
     SendChatMessage(trackingMessage, chatType)
@@ -33,7 +43,7 @@ function BaseModule:RefreshDisplayedValues(contextModule)
     contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
     contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 0))
-    contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 1))
+    contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 0))
 end
 
 -- public functions
