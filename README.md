@@ -1,3 +1,5 @@
+[![CurseForge downloads](http://cf.way2muchnoise.eu/full_486717_downloads.svg)](https://www.curseforge.com/wow/addons/per-hour)
+
 # Per Hour
 
 Do you want to know your performance? The Per Hour Addon is for you!
