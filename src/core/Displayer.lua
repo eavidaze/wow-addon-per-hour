@@ -161,7 +161,7 @@ end
 
 local function RenderSendTo(contextModule, sendToButton)
 
-    local sendToOptionHeight = 16
+    local sendToOptionHeight = 18
     local sendOptionWidth = (FrameWidth-(Margin*4))/2
 
     local sendToOptions = {
@@ -188,9 +188,11 @@ local function RenderSendTo(contextModule, sendToButton)
     sendToButton:SetScript('OnEnter', function() sendToFrame:Show() end)
     sendToButton:SetScript('OnLeave', function() sendToFrame:Hide() end)
 
-    local function setColorGold(texture)
-        texture:SetColorTexture(0.9,0.7,0,1)
-        -- texture:SetColorTexture(1,0.85,0,1)
+    local function setBorderColor(texture)
+        texture:SetColorTexture(0.9,0.9,0.9,1) -- white
+        -- texture:SetColorTexture(0,0,0,1) -- black
+        -- texture:SetColorTexture(0.9,0.7,0,1) -- dark gold
+        -- texture:SetColorTexture(1,0.85,0,1) -- gold
     end
 
     local sendToFrameBorder=CreateFrame("frame",nil,sendToFrame)
@@ -200,22 +202,22 @@ local function RenderSendTo(contextModule, sendToButton)
     sendToFrameBorder.left=sendToFrameBorder:CreateTexture(nil,"BORDER")
     sendToFrameBorder.left:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMLEFT",-2,-1)
     sendToFrameBorder.left:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPLEFT",-1,1)
-    setColorGold(sendToFrameBorder.left)
+    setBorderColor(sendToFrameBorder.left)
     sendToFrameBorder.right=sendToFrameBorder:CreateTexture(nil,"BORDER")
     sendToFrameBorder.right:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMRIGHT",1,-1)
     sendToFrameBorder.right:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPRIGHT",2,1)
-    setColorGold(sendToFrameBorder.right)
+    setBorderColor(sendToFrameBorder.right)
     sendToFrameBorder.top=sendToFrameBorder:CreateTexture(nil,"BORDER")
     sendToFrameBorder.top:SetPoint("BOTTOMLEFT",sendToFrameBorder,"TOPLEFT",-1,1)
     sendToFrameBorder.top:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPRIGHT",1,2)
-    setColorGold(sendToFrameBorder.top)
+    setBorderColor(sendToFrameBorder.top)
     sendToFrameBorder.bottom=sendToFrameBorder:CreateTexture(nil,"BORDER")
     sendToFrameBorder.bottom:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMLEFT",-1,-1)
     sendToFrameBorder.bottom:SetPoint("TOPRIGHT",sendToFrameBorder,"BOTTOMRIGHT",1,-2)
-    setColorGold(sendToFrameBorder.bottom)
+    setBorderColor(sendToFrameBorder.bottom)
 
     local sendToFrameTexture = sendToFrame:CreateTexture(nil, "BACKGROUND")
-    sendToFrameTexture:SetColorTexture(0,0,0,1)
+    sendToFrameTexture:SetColorTexture(0.1,0.1,0.1,1)
     sendToFrameTexture:SetAllPoints(sendToFrame)
     
     -- TITLE
@@ -235,7 +237,7 @@ local function RenderSendTo(contextModule, sendToButton)
         local sendOption = CreateFrame("Button", "SendOption"..thisOpt, sendToFrame, "OptionsListButtonTemplate")
         sendOption:SetWidth(sendOptionWidth)
         sendOption:SetHeight(sendToOptionHeight)
-        sendOption:SetText(thisOpt)
+        sendOption:SetText("/"..thisOpt:lower())
         sendOption:RegisterForClicks("AnyUp")
         sendOption:SetScript("OnClick", function(self, button, down) -- TRY: OnMouseUp
             BaseModule:SendTo(contextModule, thisOpt)
@@ -272,18 +274,18 @@ local function RenderButtons(contextModule)
     local Frame = contextModule.Frame
 
     -- configure buttons
-    local toggleStartButtom = CreateFrame("Button", "StartXPPerHour", Frame, "UIGoldBorderButtonTemplate")
+    local toggleStartButtom = CreateFrame("Button", "$parent-start-button", Frame, "UIMenuButtonStretchTemplate")
     contextModule.ToggleStartButtom = toggleStartButtom
     toggleStartButtom:SetWidth(FrameWidth - (Margin * 2))
-    toggleStartButtom:SetHeight(22)
-    toggleStartButtom:SetPoint("BOTTOM", 0, GetMarginBottom())
+    toggleStartButtom:SetHeight(24)
+    toggleStartButtom:SetPoint("BOTTOM", Frame, "BOTTOM", 0, GetMarginBottom())
     toggleStartButtom:SetText("Start") -- when save state, we gonna change this
     toggleStartButtom:RegisterForClicks("AnyUp")
     toggleStartButtom:SetScript("OnClick", function(self, button, down)
         ToggleStartOnClick(contextModule)
     end)
     
-    local resetButtom = CreateFrame("Button", "ResetXPPerHour", Frame, "UIMenuButtonStretchTemplate")
+    local resetButtom = CreateFrame("Button", "$parent-reset-button", Frame, "UIMenuButtonStretchTemplate")
     resetButtom:SetWidth((FrameWidth/2) - Margin)
     resetButtom:SetHeight(20)
     resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, PaddingBottom(Padding))
@@ -293,10 +295,10 @@ local function RenderButtons(contextModule)
         ButtonResetOnClick(contextModule)
     end)
 
-    local sendToButton = CreateFrame("Button", "sendPerHour", Frame, "SecureActionButtonTemplate")
+    local sendToButton = CreateFrame("Button", "$parent-sendto-button", Frame, "SecureActionButtonTemplate")
     sendToButton:SetSize(14,14)
     sendToButton:SetPoint("BOTTOMRIGHT", resetButtom, "TOPRIGHT", PaddingLeft(PaddingIcon), PaddingBottom(Padding))
-    sendToButton:SetNormalTexture([[Interface\AddOns\per-hour\src\textures\announcement_gold_dark]])
+    sendToButton:SetNormalTexture([[Interface\AddOns\per-hour\src\textures\announcement_black_white]])
     sendToButton:SetHighlightTexture([[Interface\AddOns\per-hour\src\textures\announcement_gold_dark]])
     
     RenderSendTo(contextModule, sendToButton)

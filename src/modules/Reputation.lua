@@ -9,7 +9,7 @@ PerHour.Modules.Reputation = Module
 
 -- properties
 Module.Name = "Reputation"
-Module.TagName = "Reputation"
+Module.TagName = "reputation"
 Module.ShortName = "Rep"
 Module.RegisteredEvents = {}
 
