@@ -9,6 +9,62 @@ local CONTROL_SIZE = 24
 local DETAIL_ROW_HEIGHT = 18
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
+local PANEL_GAP = 4
+local modules = {}
+
+local function FindFreePosition(module, x, y)
+    local frame = module.Frame
+    local width, height = frame:GetWidth(), frame:GetHeight()
+    local maxX, maxY = UIParent:GetWidth() - width, UIParent:GetHeight()
+    local function ClampX(value) return math.max(0, math.min(maxX, value)) end
+    local function ClampY(value) return math.max(height, math.min(maxY, value)) end
+    x, y = ClampX(x), ClampY(y)
+    local xs, ys = { x, 0, maxX }, { y, height, maxY }
+    local obstacles = {}
+    if frame:IsShown() then
+        for _, other in ipairs(modules) do
+            if other ~= module and other.Frame:IsShown() and other:IsShown() then
+                local obstacle = {
+                    x = other.Frame:GetLeft(), y = other.Frame:GetTop(),
+                    width = other.Frame:GetWidth(), height = other.Frame:GetHeight(),
+                }
+                table.insert(obstacles, obstacle)
+                table.insert(xs, ClampX(obstacle.x - width - PANEL_GAP))
+                table.insert(xs, ClampX(obstacle.x + obstacle.width + PANEL_GAP))
+                table.insert(ys, ClampY(obstacle.y + height + PANEL_GAP))
+                table.insert(ys, ClampY(obstacle.y - obstacle.height - PANEL_GAP))
+            end
+        end
+    end
+    -- A nearest free rectangle touches either the requested position, a panel, or the screen.
+    local bestX, bestY, bestDistance
+    for _, left in ipairs(xs) do
+        for _, top in ipairs(ys) do
+            local free = left >= 0 and left + width <= UIParent:GetWidth()
+                and top <= maxY and top - height >= 0
+            for _, obstacle in ipairs(obstacles) do
+                if left < obstacle.x + obstacle.width + PANEL_GAP and left + width + PANEL_GAP > obstacle.x
+                    and top > obstacle.y - obstacle.height - PANEL_GAP and top - height - PANEL_GAP < obstacle.y then
+                    free = false
+                    break
+                end
+            end
+            local distance = (left - x) ^ 2 + (top - y) ^ 2
+            if free and (not bestDistance or distance < bestDistance) then
+                bestX, bestY, bestDistance = left, top, distance
+            end
+        end
+    end
+    return bestX, bestY
+end
+
+local function PlaceShownPanel(module)
+    if not Displayer:SavePosition(module) then
+        module:SetIsShown(false)
+        module.Frame:Hide()
+        Utils:AddonMessage("No room to show " .. module.Name .. ".")
+    end
+end
 
 local function ToggleTracking(module)
     if module.HasStarted then
@@ -60,10 +116,21 @@ local function CreatePanel(module, index, count)
     header:SetHeight(22)
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
-    header:SetScript("OnDragStart", function() frame:StartMoving() end)
-    header:SetScript("OnDragStop", function()
-        frame:StopMovingOrSizing()
+    header:SetScript("OnDragStart", function(self)
+        local cursorX, cursorY = GetCursorPosition()
+        local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
+        self:SetScript("OnUpdate", function()
+            local x, y = GetCursorPosition()
+            Displayer:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale)
+        end)
+    end)
+    header:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
         Displayer:SavePosition(module)
+    end)
+    frame:HookScript("OnHide", function() header:SetScript("OnUpdate", nil) end)
+    frame:HookScript("OnShow", function()
+        if PerHourAccount_Settings and PerHourAccount_Settings[module.Name] then PlaceShownPanel(module) end
     end)
 end
 
@@ -187,6 +254,10 @@ local function CreateControls(module)
         local shown = not module.DetailsFrame:IsShown()
         module.DetailsFrame:SetShown(shown)
         frame:SetHeight(HEIGHT + (shown and module.DetailsFrame:GetHeight() or 0))
+        if not Displayer:SavePosition(module) then
+            module.DetailsFrame:SetShown(not shown)
+            frame:SetHeight(HEIGHT + (not shown and module.DetailsFrame:GetHeight() or 0))
+        end
         GameTooltip:Hide()
     end)
     module.DetailsButton = details
@@ -213,12 +284,14 @@ local function CreateTracker(module)
     for _, event in ipairs(module.RegisteredEvents) do tracker:RegisterEvent(event) end
 end
 
-function Displayer:SavePosition(module)
+function Displayer:SavePosition(module, x, y)
     local frame = module.Frame
-    local x, y = frame:GetLeft(), frame:GetTop()
+    x, y = FindFreePosition(module, x or frame:GetLeft(), y or frame:GetTop())
+    if not x then return false end
     frame:ClearAllPoints()
     frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
     PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y }
+    return true
 end
 
 function Displayer:RefreshTrackingState(module)
@@ -244,17 +317,19 @@ function Displayer:RefreshRate(module)
 end
 
 function Displayer:RestorePositions()
-    for _, module in pairs(PerHour.Modules) do
+    for _, module in ipairs(modules) do
         local position = PerHourAccount_Settings[module.Name].position
         if position then
             module.Frame:ClearAllPoints()
             module.Frame:SetPoint(position.point, UIParent, position.relativePoint, position.x, position.y)
         end
     end
+    for _, module in ipairs(modules) do
+        if module.Frame:IsShown() and module:IsShown() then PlaceShownPanel(module) end
+    end
 end
 
 function Displayer:Init()
-    local modules = {}
     for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
     table.sort(modules, function(a, b) return a.Name < b.Name end)
     for index, module in ipairs(modules) do

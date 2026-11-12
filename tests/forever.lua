@@ -20,10 +20,18 @@ function methods:HookScript(event, callback)
 end
 function methods:RegisterEvent(event) self.events[event] = true end
 function methods:UnregisterEvent(event) self.events[event] = nil end
-function methods:Show() self.shown = true end
-function methods:Hide() self.shown = false end
+function methods:Show()
+    if self.shown then return end
+    self.shown = true
+    if self.scripts.OnShow then self.scripts.OnShow(self) end
+end
+function methods:Hide()
+    if not self.shown then return end
+    self.shown = false
+    if self.scripts.OnHide then self.scripts.OnHide(self) end
+end
 function methods:IsShown() return self.shown end
-function methods:SetShown(value) self.shown = value end
+function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:SetText(value) self.text = value end
 function methods:GetText() return self.text end
 function methods:GetFontString() return self.fontString end
@@ -205,17 +213,17 @@ equal(experience.Frame:IsShown(), true, "saved visibility")
 equal(reputation.Frame:IsShown(), false, "default visibility")
 equal(experience.Frame.point[1], "TOPLEFT", "saved window anchor restored")
 equal(experience.Frame.point[4], 90, "saved window X restored")
-equal(experience.Frame.point[5], -160, "saved window Y restored")
+equal(experience.Frame:GetTop(), 920, "saved window Y restored")
 equal(reputation.Frame.point[4] - honor.Frame.point[4] > honor.Frame:GetWidth(), true, "default panels do not overlap")
 local header
 for _, frame in ipairs(frames) do
     if frame.parent == experience.Frame and frame.scripts.OnDragStop then header = frame end
 end
-header.scripts.OnDragStart()
-equal(experience.Frame.moving, true, "title bar starts dragging")
+header.scripts.OnDragStart(header)
+equal(type(header.scripts.OnUpdate), "function", "title bar starts cursor tracking")
 experience.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
-header.scripts.OnDragStop()
-equal(experience.Frame.moving, false, "title bar stops dragging")
+header.scripts.OnDragStop(header)
+equal(header.scripts.OnUpdate, nil, "title bar stops cursor tracking")
 equal(PerHourAccount_Settings.Experience.position.x, 1700, "drag saves window X")
 equal(PerHourAccount_Settings.Experience.position.y, 166, "drag saves window Y")
 experience.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
@@ -439,4 +447,109 @@ equal(honor.HasStarted, false, "Options reset stops tracking")
 equal(honor.ToggleStartButton:GetText(), "Start", "Options reset restores Start action")
 equal(indicatorColor(honor), "0.5,0.5,0.5", "Options reset restores gray indicator")
 equal(Utils:DisplayTimer(90061), "25:01:01", "timers longer than 24 hours")
+
+local panels = { experience, honor, reputation }
+local function setPanelPosition(module, x, y)
+    module.Frame:ClearAllPoints()
+    module.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+end
+local function showPanel(module, shown)
+    module:SetIsShown(shown)
+    module.Frame:SetShown(shown)
+end
+local function assertPanelLayout(label)
+    for index, module in ipairs(panels) do
+        local frame = module.Frame
+        if frame:IsShown() then
+            equal(frame:GetLeft() >= 0 and frame:GetLeft() + frame:GetWidth() <= UIParent:GetWidth()
+                and frame:GetTop() <= UIParent:GetHeight() and frame:GetTop() - frame:GetHeight() >= 0,
+                true, label .. ": " .. module.Name .. " stays on screen")
+            for otherIndex = index + 1, #panels do
+                local other = panels[otherIndex].Frame
+                if other:IsShown() then
+                    equal(frame:GetLeft() + frame:GetWidth() <= other:GetLeft()
+                        or other:GetLeft() + other:GetWidth() <= frame:GetLeft()
+                        or frame:GetTop() <= other:GetTop() - other:GetHeight()
+                        or other:GetTop() <= frame:GetTop() - frame:GetHeight(),
+                        true, label .. ": " .. module.Name .. " avoids " .. panels[otherIndex].Name)
+                end
+            end
+        end
+    end
+end
+for index, module in ipairs(panels) do
+    showPanel(module, false)
+    setPanelPosition(module, 100 + (index - 1) * 400, 500)
+end
+for _, module in ipairs(panels) do showPanel(module, true) end
+local honorLeft, honorTop = honor.Frame:GetLeft(), honor.Frame:GetTop()
+cursorX, cursorY = 400, 400
+header.scripts.OnDragStart(header)
+for _, target in ipairs({
+    { 500, 500 }, { 900, 500 }, { 680, 500 }, { 500, 420 },
+    { -500, 1600 }, { 2400, -300 }, { 1740, 86 }, { 100, 500 },
+}) do
+    cursorX, cursorY = 400 + (target[1] - 100) * 2, 400 + (target[2] - 500) * 2
+    header.scripts.OnUpdate(header)
+    assertPanelLayout("drag target " .. target[1] .. "," .. target[2])
+end
+header.scripts.OnDragStop(header)
+equal(honor.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
+equal(honor.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
+equal(PerHourAccount_Settings.Experience.position.x, experience.Frame:GetLeft(), "drag persists collision-free X")
+equal(PerHourAccount_Settings.Experience.position.y, experience.Frame:GetTop(), "drag persists collision-free Y")
+
+showPanel(honor, false)
+setPanelPosition(honor, experience.Frame:GetLeft(), experience.Frame:GetTop())
+showPanel(honor, true)
+assertPanelLayout("reopening an overlapping panel")
+for _, module in ipairs(panels) do
+    PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = 750, y = 700 }
+end
+PerHour.Displayer:RestorePositions()
+assertPanelLayout("restoring three identical saved positions")
+local resolvedPositions = {}
+for index, module in ipairs(panels) do
+    resolvedPositions[index] = module.Frame:GetLeft() .. "," .. module.Frame:GetTop()
+end
+PerHour.Displayer:RestorePositions()
+for index, module in ipairs(panels) do
+    equal(module.Frame:GetLeft() .. "," .. module.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
+end
+PerHourAccount_Settings.Experience.position.x, PerHourAccount_Settings.Experience.position.y = 5000, -100
+PerHour.Displayer:RestorePositions()
+assertPanelLayout("restoring off-screen positions")
+
+for _, module in ipairs(panels) do showPanel(module, false) end
+setPanelPosition(experience, 300, 500)
+setPanelPosition(honor, 300, 400)
+setPanelPosition(reputation, 800, 500)
+for _, module in ipairs(panels) do showPanel(module, true) end
+experience.DetailsButton.scripts.OnClick()
+equal(experience.Frame:GetHeight(), 126, "details expand near another panel")
+equal(honor.Frame:GetTop(), 400, "expanding details leaves neighbor in place")
+assertPanelLayout("expanding details into occupied space")
+reputation.DetailsButton.scripts.OnClick()
+equal(reputation.Frame:GetHeight(), 144, "expanded reputation participates in collision layout")
+assertPanelLayout("expanded reputation")
+experience.DetailsButton.scripts.OnClick()
+reputation.DetailsButton.scripts.OnClick()
+assertPanelLayout("collapsing details")
+
+header.scripts.OnDragStart(header)
+showPanel(experience, false)
+equal(header.scripts.OnUpdate, nil, "hiding a dragged panel stops cursor tracking")
+showPanel(honor, false)
+showPanel(reputation, false)
+UIParent:SetSize(180, 86)
+setPanelPosition(experience, 0, 86)
+showPanel(experience, true)
+showPanel(honor, true)
+equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
+equal(honor:IsShown(), false, "no free space saves hidden visibility")
+experience.DetailsButton.scripts.OnClick()
+equal(experience.DetailsFrame:IsShown(), false, "no free space cancels details expansion")
+equal(experience.Frame:GetHeight(), 86, "failed expansion keeps compact size")
+assertPanelLayout("screen only fits one compact panel")
+UIParent:SetSize(1920, 1080)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
