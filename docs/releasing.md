@@ -26,4 +26,8 @@ The GitHub token is provided automatically. Only `CF_API_KEY` needs manual setup
 Use this workflow as the publishing path; if an older CurseForge packaging webhook
 is active, disable it before publishing to avoid duplicate uploads.
 
+The project name, summary and description live in [curseforge-listing.md](curseforge-listing.md).
+Copy each section into the corresponding CurseForge field when updating the listing;
+the release workflow does not synchronize these fields.
+
 Reference: [WoW Packager](https://github.com/BigWigsMods/packager).
