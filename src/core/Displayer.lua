@@ -4,7 +4,7 @@ local BaseModule = BaseModule
 local Displayer = {}
 PerHour.Displayer = Displayer
 
-local WIDTH, HEIGHT = 200, 86
+local WIDTH, HEIGHT = 180, 86
 local CONTROL_SIZE = 24
 local DETAIL_ROW_HEIGHT = 18
 local UPDATE_INTERVAL = 1
@@ -46,6 +46,10 @@ local function CreatePanel(module, index, count)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
     frame.TitleText:SetText("Per Hour - " .. module.Name)
+    frame.TitleText:ClearAllPoints()
+    frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -5)
+    frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -26, -5)
+    frame.TitleText:SetJustifyH("LEFT")
     frame.CloseButton:SetScript("OnClick", function()
         module:SetIsShown(false)
         frame:Hide()
