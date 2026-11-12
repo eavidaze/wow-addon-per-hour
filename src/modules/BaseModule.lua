@@ -10,8 +10,8 @@ function BaseModule:SendTo(contextModule, chatType)
 
     local dottedLine = "................"
     local dottedLineLength = string.len(dottedLine)
-    local perHourLabel = contextModule.ElementPerHourText:GetText()
-    local perMinuteLabel = contextModule.ElementPerMinuteText:GetText()
+    local perHourLabel = contextModule.ShortName .. "/h"
+    local perMinuteLabel = contextModule.ShortName .. "/min"
 
     local function GetDottedLineByWordSize(wordSize)
         return string.sub(dottedLine, 0, dottedLineLength - wordSize)
@@ -44,8 +44,10 @@ end
 function BaseModule:RefreshDisplayedValues(contextModule)
     contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
     contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
-    contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 0))
-    contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 0))
+    PerHour.Displayer:RefreshRate(contextModule)
+    if contextModule.ContextText then
+        contextModule.ContextText:SetText(contextModule.CustomGetContext())
+    end
 end
 
 function BaseModule:UpdateRates(contextModule)
@@ -84,8 +86,8 @@ function BaseModule:ResetModule(contextModule)
     end
 
     -- reset the button
-    if contextModule.ToggleStartButtom~=nil then
-        contextModule.ToggleStartButtom:SetText("Start")
+    if contextModule.ToggleStartButton~=nil then
+        contextModule.ToggleStartButton:SetText("Start")
     end
     
     BaseModule:RefreshDisplayedValues(contextModule)

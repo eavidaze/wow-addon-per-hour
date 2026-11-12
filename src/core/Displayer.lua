@@ -1,384 +1,238 @@
--- import
 local PerHour = PerHour
 local Utils = Utils
 local BaseModule = BaseModule
-local Modules = PerHour.Modules
+local Displayer = {}
+PerHour.Displayer = Displayer
 
--- class declaration
-PerHour.Displayer = {}
-Displayer = PerHour.Displayer
+local WIDTH, HEIGHT = 200, 86
+local CONTROL_SIZE = 24
+local DETAIL_ROW_HEIGHT = 18
+local UPDATE_INTERVAL = 1
+local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
 
--- private properties
-local Padding = 2
-local PaddingIcon = 7
-local function PaddingTop(padding) return padding*-1 end
-local function PaddingBottom(padding) return padding end
-local function PaddingLeft(padding) return padding*-1 end
-local function PaddingRight(padding) return padding end
-local Margin = 5
-local function GetMarginTop() return Margin*-1 end
-local function GetMarginBottom() return Margin end
+local function ToggleTracking(module)
+    if module.HasStarted then
+        -- Sample before changing state so pause/resume excludes the right gains.
+        if module.CustomOnUpdate then module.CustomOnUpdate(nil, 0) end
+        if not module.HasStarted then return end
 
-local FrameWidth = 140
-local FrameHeight = 150
-
-local STATIC_UPDATE_INTERVAL = 1
-
--- private display functions
-
-
--- private buttons functions
-local function ToggleStartOnClick(contextModule)
-    
-    if contextModule.HasStarted and not contextModule.HasPaused then
-        -- Account for the interval since the last timer tick before pausing.
-        if contextModule.CustomOnUpdate then
-            contextModule.CustomOnUpdate(nil, 0)
+        if module.HasPaused then
+            module.PausedTime = module.PausedTime + GetTime() - module.PausedAt
+            module.HasPaused = false
+            Utils:AddonMessage(module.Name .. " resumed.")
+        else
+            module.HasPaused = true
+            module.PausedAt = GetTime()
+            Utils:AddonMessage(module.Name .. " paused.")
         end
-        if not contextModule.HasStarted then return end
-        -- if started and not paused > then pause
-        contextModule.HasPaused = true
-        -- and set the pause time
-        contextModule.PausedAt = GetTime()
-        BaseModule:UpdateRates(contextModule)
-
-        contextModule.ToggleStartButtom:SetText("Start")
-        Utils:AddonMessage(contextModule.Name.." paused.")
-
-    elseif contextModule.HasStarted and contextModule.HasPaused then
-        -- Refresh the baseline while paused to exclude gains during the pause.
-        if contextModule.CustomOnUpdate then
-            contextModule.CustomOnUpdate(nil, 0)
-        end
-        if not contextModule.HasStarted then return end
-        -- if started and paused
-        -- unpause
-        contextModule.HasPaused = false
-        -- and sum the time paused
-        contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
-        BaseModule:UpdateRates(contextModule)
-
-        contextModule.ToggleStartButtom:SetText("Pause")
-        Utils:AddonMessage(contextModule.Name.." was unpaused.")
-
-    elseif not contextModule.HasStarted then
-        if contextModule.CustomStart and contextModule.CustomStart() == false then
-            return
-        end
-        -- if not started
-        -- start
-        contextModule.HasStarted = true
-        -- and set the start time
-        contextModule.StartedAt = GetTime()
-
-        contextModule.ToggleStartButtom:SetText("Pause")
-        
-        local startedMessage = " started."
-        if contextModule.CustomStartedMessage~=nil then
-            startedMessage = contextModule.CustomStartedMessage()
-        end
-        Utils:AddonMessage(contextModule.Name..startedMessage)
-        
+        BaseModule:UpdateRates(module)
     else
-
+        if module.CustomStart and module.CustomStart() == false then return end
+        module.HasStarted = true
+        module.StartedAt = GetTime()
+        local message = module.CustomStartedMessage and module.CustomStartedMessage() or " started."
+        Utils:AddonMessage(module.Name .. message)
+        BaseModule:RefreshDisplayedValues(module)
     end
-    
+    module.ToggleStartButton:SetText(module.HasPaused and "Resume" or "Pause")
 end
 
-local function ButtonResetOnClick(contextModule)
-    BaseModule:ResetModule(contextModule)
-    Utils:AddonMessage(contextModule.Name.." reseted.")
-end
-
--- private render functions
-local function RenderFrame(contextModule)
-    -- create frame
-    local Frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. contextModule.TagName .. "-frame", UIParent)
-    contextModule.Frame = Frame
-    
-    -- set frame size
-    Frame:SetFrameStrata("HIGH")
-    Frame:SetWidth(FrameWidth)
-    Frame:SetHeight(FrameHeight)
-
-    -- set it movable
-    Frame:SetMovable(true)
-    Frame:EnableMouse(true)
-    Frame:SetClampedToScreen(true)
-    Frame:SetScript("OnMouseDown", function(self, button)
-        self:StartMoving()
+local function CreatePanel(module, index, count)
+    local frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. module.TagName .. "-frame", UIParent, "BasicFrameTemplate")
+    module.Frame = frame
+    frame:SetSize(WIDTH, HEIGHT)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:SetClampedToScreen(true)
+    frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
+    frame.TitleText:SetText("Per Hour - " .. module.Name)
+    frame.CloseButton:SetScript("OnClick", function()
+        module:SetIsShown(false)
+        frame:Hide()
     end)
-    Frame:SetScript("OnMouseUp", function(self, button)
-        self:StopMovingOrSizing()
+
+    local header = CreateFrame("Frame", nil, frame)
+    header:SetPoint("TOPLEFT")
+    header:SetPoint("TOPRIGHT", -26, 0)
+    header:SetHeight(22)
+    header:EnableMouse(true)
+    header:RegisterForDrag("LeftButton")
+    header:SetScript("OnDragStart", function() frame:StartMoving() end)
+    header:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        Displayer:SavePosition(module)
     end)
-    Frame:SetPoint("CENTER",0,0)
-    
-    -- Frame:Show() or Frame:Hide() will be later
-    -- we have a config for that #display0192364
-
-    -- set texture
-    local FrameTexture = Frame:CreateTexture(nil,"BACKGROUND")
-    FrameTexture:SetColorTexture(0,0,0,0.2)
-    FrameTexture:SetAllPoints(Frame)
 end
 
-local function RenderElements(contextModule)
-    local Frame = contextModule.Frame
+local function CreateValueRow(frame, label, y)
+    local text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    text:SetPoint("TOPLEFT", 12, y)
+    text:SetText(label)
 
-    -- time             | [left]       |
-    local timeText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    timeText:SetPoint("TOP", (FrameWidth/4)*-1, GetMarginTop())
-    timeText:SetText("TIME")
-    -- time valeu       | [left]       |
-    local timeValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    timeValue:SetPoint("TOP", timeText, "BOTTOM", 0, PaddingTop(Padding))
-
-    -- element          |       [right] |
-    local elementText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    elementText:SetPoint("TOP", (FrameWidth/4), GetMarginTop())
-    if string.len(contextModule.Name) <= 6 then
-        elementText:SetText(contextModule.Name:upper())
-    else
-        elementText:SetText(contextModule.ShortName:upper())
-    end
-    -- element value    |       [right] |
-    local elementValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    elementValue:SetPoint("TOP", elementText, "BOTTOM", 0, PaddingTop(Padding))
-
-    -- element/h        |   [center]   |
-    local elementPerHourText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    elementPerHourText:SetPoint("TOP", 0, -39)
-    elementPerHourText:SetText(contextModule.ShortName.."/h")
-    -- element/h value  |   [center]   |
-    local elementPerHourValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    elementPerHourValue:SetPoint("TOP", elementPerHourText, "BOTTOM", 0, PaddingTop(Padding))
-    elementPerHourValue:SetFont("Fonts\\ARIALN.TTF", 32)
-
-    -- element/m        | [left]       |
-    local elementPerMinuteText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    elementPerMinuteText:SetPoint("TOP", (FrameWidth/4)*-1, -91)
-    elementPerMinuteText:SetText(contextModule.ShortName.."/min")
-    -- element/m value  | [left]       |
-    local elementPerMinuteValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    elementPerMinuteValue:SetPoint("TOP", elementPerMinuteText, "BOTTOM", 0, PaddingTop(Padding))
-
-    -- set module texts
-    contextModule.TimeText = timeText
-    contextModule.ElementText = elementText
-    contextModule.ElementPerHourText = elementPerHourText
-    contextModule.ElementPerMinuteText = elementPerMinuteText
-
-    -- set module values
-    contextModule.TimeValue = timeValue
-    contextModule.ElementValue = elementValue
-    contextModule.ElementPerHourValue = elementPerHourValue
-    contextModule.ElementPerMinuteValue = elementPerMinuteValue
+    local value = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    value:SetPoint("TOPRIGHT", -12, y)
+    return value
 end
 
-local function RenderSendTo(contextModule, sendToButton)
+local function CreateValues(module)
+    local frame = module.Frame
+    local rateFrame = CreateFrame("Frame", nil, frame)
+    rateFrame:SetPoint("TOP", 0, -33)
+    rateFrame:SetHeight(24)
+    module.RateFrame = rateFrame
 
-    local sendToOptionHeight = 18
-    local sendOptionWidth = (FrameWidth-(Margin*4))/2
+    local rate = rateFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    rate:SetPoint("LEFT")
+    rate:SetWordWrap(false)
+    module.ElementPerHourValue = rate
 
-    local sendToOptions = {
-        "Say",
-        "Yell",
-        "Party",
-        "Guild",
-        "Raid",
-    }
+    local unit = rateFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    unit:SetPoint("BOTTOMLEFT", rate, "BOTTOMRIGHT", 4, 0)
+    unit:SetText(module.ShortName .. "/h")
+    module.RateUnit = unit
 
-    local sendToOptionsLength = Utils:RoundValue(Utils:GetTableSize(sendToOptions) / 2, 0)
-    local sendToFrameHeight = (sendToOptionsLength * sendToOptionHeight) + (sendToOptionHeight + Margin * 2)
-    
-    -- FRAME
-    local sendToFrame = CreateFrame("Frame", "SendToFrame"..contextModule.TagName, sendToButton)
-    sendToFrame:SetWidth(FrameWidth)
-    sendToFrame:SetHeight(sendToFrameHeight)
-    sendToFrame:SetPoint("BOTTOMRIGHT", sendToButton, "TOPRIGHT", PaddingRight(PaddingIcon + Margin), PaddingBottom(0))
-    sendToFrame:Hide()
-    sendToFrame:SetScript('OnEnter', function(self, motion) if motion then self:Show() end end)
-    sendToFrame:SetScript('OnLeave', function(self) self:Hide() end)
+    local details = CreateFrame("Frame", nil, frame)
+    details:SetPoint("TOPLEFT", 0, -(HEIGHT - CONTROL_SIZE))
+    details:SetPoint("TOPRIGHT", 0, -(HEIGHT - CONTROL_SIZE))
+    details:SetHeight(4 + DETAIL_ROW_HEIGHT * (module.CustomGetContext and 3 or 2))
+    details:Hide()
+    module.DetailsFrame = details
+    module.ElementValue = CreateValueRow(details, "Total", -4)
+    module.TimeValue = CreateValueRow(details, "Time", -4 - DETAIL_ROW_HEIGHT)
 
-    -- set button show/hide on mouse over
-    sendToButton:SetScript('OnEnter', function() sendToFrame:Show() end)
-    sendToButton:SetScript('OnLeave', function() sendToFrame:Hide() end)
-
-    local function setBorderColor(texture)
-        texture:SetColorTexture(0.9,0.9,0.9,1) -- white
-        -- texture:SetColorTexture(0,0,0,1) -- black
-        -- texture:SetColorTexture(0.9,0.7,0,1) -- dark gold
-        -- texture:SetColorTexture(1,0.85,0,1) -- gold
+    if module.CustomGetContext then
+        module.ContextText = details:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        module.ContextText:SetPoint("TOP", 0, -4 - DETAIL_ROW_HEIGHT * 2)
+        module.ContextText:SetWidth(WIDTH - 24)
+        module.ContextText:SetWordWrap(false)
     end
 
-    local sendToFrameBorder=CreateFrame("frame",nil,sendToFrame)
-    sendToFrameBorder:SetAllPoints(sendToFrame)
-    -- sendToFrameBorder:SetFrameStrata("BACKGROUND")
-    -- sendToFrameBorder:SetFrameLevel(1)
-    sendToFrameBorder.left=sendToFrameBorder:CreateTexture(nil,"BORDER")
-    sendToFrameBorder.left:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMLEFT",-2,-1)
-    sendToFrameBorder.left:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPLEFT",-1,1)
-    setBorderColor(sendToFrameBorder.left)
-    sendToFrameBorder.right=sendToFrameBorder:CreateTexture(nil,"BORDER")
-    sendToFrameBorder.right:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMRIGHT",1,-1)
-    sendToFrameBorder.right:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPRIGHT",2,1)
-    setBorderColor(sendToFrameBorder.right)
-    sendToFrameBorder.top=sendToFrameBorder:CreateTexture(nil,"BORDER")
-    sendToFrameBorder.top:SetPoint("BOTTOMLEFT",sendToFrameBorder,"TOPLEFT",-1,1)
-    sendToFrameBorder.top:SetPoint("TOPRIGHT",sendToFrameBorder,"TOPRIGHT",1,2)
-    setBorderColor(sendToFrameBorder.top)
-    sendToFrameBorder.bottom=sendToFrameBorder:CreateTexture(nil,"BORDER")
-    sendToFrameBorder.bottom:SetPoint("BOTTOMLEFT",sendToFrameBorder,"BOTTOMLEFT",-1,-1)
-    sendToFrameBorder.bottom:SetPoint("TOPRIGHT",sendToFrameBorder,"BOTTOMRIGHT",1,-2)
-    setBorderColor(sendToFrameBorder.bottom)
+    frame:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Per Hour - " .. module.Name)
+        if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 1, 1, 1) end
+        GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.ElementPerHour, 0))
+        GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.ElementPerMinute, 0))
+        GameTooltip:Show()
+    end)
+    frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
 
-    local sendToFrameTexture = sendToFrame:CreateTexture(nil, "BACKGROUND")
-    sendToFrameTexture:SetColorTexture(0.1,0.1,0.1,1)
-    sendToFrameTexture:SetAllPoints(sendToFrame)
-    
-    -- TITLE
-    local sendToTitle = sendToFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    sendToTitle:SetHeight(sendToOptionHeight)
-    sendToTitle:SetPoint("TOPLEFT", PaddingRight(Margin), PaddingTop(Padding))
-    sendToTitle:SetText("Send to:")
+local function SetButtonTooltip(button, getText)
+    button:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(getText())
+        GameTooltip:Show()
+    end)
+    button:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
 
-    local pointLeftReference = nil
-    local pointRightReference = nil
-    local pointIndex = 1
-    local firstSendToOptionPadding = sendToOptionHeight+(Padding*2)
-    
-    for key,thisOpt in pairs(sendToOptions) do
+local function CreateControls(module)
+    local frame = module.Frame
+    local start = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    start:SetHeight(CONTROL_SIZE)
+    start:SetPoint("BOTTOMLEFT")
+    start:SetScript("OnClick", function() ToggleTracking(module) end)
+    module.ToggleStartButton = start
 
-        -- for each module registred, we render a button
-        local sendOption = CreateFrame("Button", "$parent-"..thisOpt, sendToFrame, "UIPanelButtonTemplate")
-        sendOption:SetWidth(sendOptionWidth)
-        sendOption:SetHeight(sendToOptionHeight)
-        sendOption:SetText("/"..thisOpt:lower())
-        sendOption:RegisterForClicks("AnyUp")
-        sendOption:SetScript("OnClick", function(self, button, down) -- TRY: OnMouseUp
-            BaseModule:SendTo(contextModule, thisOpt)
-            sendToFrame:Hide()
+    local options = CreateFrame("DropdownButton", nil, frame, "UIPanelSquareButton")
+    options:SetSize(CONTROL_SIZE, CONTROL_SIZE)
+    options:SetPoint("BOTTOMRIGHT")
+    options.icon:SetTexture("Interface\\Icons\\Trade_Engineering")
+    options.icon:SetTexCoord(0, 1, 0, 1)
+    options.icon:SetSize(16, 16)
+    SetButtonTooltip(options, function() return "Options" end)
+    options:SetupMenu(function(_, rootDescription)
+        rootDescription:CreateTitle(module.Name)
+        rootDescription:CreateButton("Reset", function()
+            BaseModule:ResetModule(module)
+            Utils:AddonMessage(module.Name .. " reset.")
         end)
-        sendOption:SetScript('OnEnter', function() sendToFrame:Show() end)
-        sendOption:SetScript('OnLeave', function() sendToFrame:Hide() end)
-
-        local function sideDeciderToPoint(pointReference, sideDecider)
-            if pointReference == nil then
-                sendOption:SetPoint("TOP", (FrameWidth/4)*sideDecider, PaddingTop(firstSendToOptionPadding))
-            else
-                sendOption:SetPoint("TOP", pointReference, "BOTTOM", 0, PaddingTop(Padding))
-            end
+        local announce = rootDescription:CreateButton("Announce")
+        for _, channel in ipairs(CHANNELS) do
+            announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)
         end
+    end)
+    module.OptionsButton = options
 
-        if pointIndex % 2 == 0 then
-            -- RIGHT
-            sideDeciderToPoint(pointRightReference, 1)
-            pointRightReference = sendOption
-        else -- LEFT
-            sideDeciderToPoint(pointLeftReference, -1)
-            pointLeftReference = sendOption
+    local details = CreateFrame("Button", nil, frame, "UIPanelSquareButton")
+    details:SetSize(CONTROL_SIZE, CONTROL_SIZE)
+    details:SetPoint("RIGHT", options, "LEFT")
+    details.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+    details.icon:SetTexCoord(0, 1, 0, 1)
+    details.icon:SetSize(16, 16)
+    SetButtonTooltip(details, function()
+        return module.DetailsFrame:IsShown() and "Hide run details" or "Show run details"
+    end)
+    details:SetScript("OnClick", function(self)
+        Displayer:SavePosition(module)
+        local shown = not module.DetailsFrame:IsShown()
+        module.DetailsFrame:SetShown(shown)
+        frame:SetHeight(HEIGHT + (shown and module.DetailsFrame:GetHeight() or 0))
+        GameTooltip:Hide()
+    end)
+    module.DetailsButton = details
+    start:SetPoint("RIGHT", details, "LEFT")
+end
+
+local function CreateTracker(module)
+    -- Tracking continues when the panel is hidden.
+    local tracker = CreateFrame("Frame", nil, UIParent)
+    module.TrackerFrame = tracker
+    tracker:SetScript("OnEvent", function(self, event, ...)
+        if module.HasStarted and module.CustomOnEvent then module.CustomOnEvent(self, event, ...) end
+    end)
+    tracker:SetScript("OnUpdate", function(self, elapsed)
+        if not module.HasStarted then return end
+        module.TimeSinceLastUpdate = module.TimeSinceLastUpdate + elapsed
+        if module.TimeSinceLastUpdate > UPDATE_INTERVAL then
+            local updateElapsed = module.TimeSinceLastUpdate
+            module.TimeSinceLastUpdate = 0
+            if module.CustomOnUpdate then module.CustomOnUpdate(self, updateElapsed) end
+            if module.HasStarted and not module.HasPaused then BaseModule:UpdateRates(module) end
         end
-        
-        pointIndex = pointIndex + 1
+    end)
+    for _, event in ipairs(module.RegisteredEvents) do tracker:RegisterEvent(event) end
+end
+
+function Displayer:SavePosition(module)
+    local frame = module.Frame
+    local x, y = frame:GetLeft(), frame:GetTop()
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+    PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y }
+end
+
+function Displayer:RefreshRate(module)
+    local rate, unit = module.ElementPerHourValue, module.RateUnit
+    rate:SetText(Utils:DisplayRoundedNumber(module.ElementPerHour, 0))
+    if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.Frame:GetWidth() - 16 then
+        rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(module.ElementPerHour, 0)))
     end
-
-    -- submenu items end
+    module.RateFrame:SetWidth(rate:GetStringWidth() + unit:GetStringWidth() + 4)
 end
 
-
-local function RenderButtons(contextModule)
-    local Frame = contextModule.Frame
-
-    -- configure buttons
-    local toggleStartButtom = CreateFrame("Button", "$parent-start-button", Frame, "UIPanelButtonTemplate")
-    contextModule.ToggleStartButtom = toggleStartButtom
-    toggleStartButtom:SetWidth(FrameWidth - (Margin * 2))
-    toggleStartButtom:SetHeight(24)
-    toggleStartButtom:SetPoint("BOTTOM", Frame, "BOTTOM", 0, GetMarginBottom())
-    toggleStartButtom:SetText("Start") -- when save state, we gonna change this
-    toggleStartButtom:RegisterForClicks("AnyUp")
-    toggleStartButtom:SetScript("OnClick", function(self, button, down)
-        ToggleStartOnClick(contextModule)
-    end)
-    
-    local resetButtom = CreateFrame("Button", "$parent-reset-button", Frame, "UIPanelButtonTemplate")
-    resetButtom:SetWidth((FrameWidth/2) - Margin)
-    resetButtom:SetHeight(20)
-    resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, PaddingBottom(Padding))
-    resetButtom:SetText("Reset")
-    resetButtom:RegisterForClicks("AnyUp")
-    resetButtom:SetScript("OnClick", function(self, button, down)
-        ButtonResetOnClick(contextModule)
-    end)
-
-    local sendToButton = CreateFrame("Button", "$parent-sendto-button", Frame)
-    sendToButton:SetSize(14,14)
-    sendToButton:SetPoint("BOTTOMRIGHT", resetButtom, "TOPRIGHT", PaddingLeft(PaddingIcon), PaddingBottom(Padding))
-    sendToButton:SetNormalTexture([[Interface\AddOns\per-hour\src\textures\announcement_black_white]])
-    sendToButton:SetHighlightTexture([[Interface\AddOns\per-hour\src\textures\announcement_gold_dark]])
-    
-    RenderSendTo(contextModule, sendToButton)
-end
-
-local function RegisterScripts(contextModule)
-    -- OnUpdate only runs on shown frames. Keep tracking when a window is hidden.
-    local Frame = CreateFrame("Frame", nil, UIParent)
-    contextModule.TrackerFrame = Frame
-    
-    Frame:SetScript("OnEvent", function(self, event, ...)
-        if contextModule.HasStarted then
-            -- run custom
-            if contextModule.CustomOnEvent~=nil then
-                contextModule.CustomOnEvent(self, event, ...)
-            end
+function Displayer:RestorePositions()
+    for _, module in pairs(PerHour.Modules) do
+        local position = PerHourAccount_Settings[module.Name].position
+        if position then
+            module.Frame:ClearAllPoints()
+            module.Frame:SetPoint(position.point, UIParent, position.relativePoint, position.x, position.y)
         end
-    end)
-
-    Frame:SetScript("OnUpdate", function(self, elapsed)
-        if contextModule.HasStarted then
-            -- check if displayer is started
-
-            contextModule.TimeSinceLastUpdate = contextModule.TimeSinceLastUpdate + elapsed
-            if (contextModule.TimeSinceLastUpdate > STATIC_UPDATE_INTERVAL) then
-                local updateElapsed = contextModule.TimeSinceLastUpdate
-                contextModule.TimeSinceLastUpdate = 0
-
-                -- run custom
-                if contextModule.CustomOnUpdate~=nil then
-                    contextModule.CustomOnUpdate(self, updateElapsed)
-                end
-
-                if contextModule.HasStarted and not contextModule.HasPaused then
-                    -- check if the custom event does not stop the displayer
-                    BaseModule:UpdateRates(contextModule)
-                end
-            end
-        end
-    end)
-end
-
-local function RegisterEvents(contextModule)
-    local Frame = contextModule.TrackerFrame
-    for k,value in pairs(contextModule.RegisteredEvents) do
-        Frame:RegisterEvent(value)
     end
 end
 
--- public functions
 function Displayer:Init()
-    -- for each module I render 1 addon
-    for key,contextModule in pairs(Modules) do
-        
-        RenderFrame(contextModule)
-        RenderElements(contextModule)
-        RenderButtons(contextModule)
-        RegisterScripts(contextModule)
-        RegisterEvents(contextModule)
-
-        -- startup addon
-        ButtonResetOnClick(contextModule)
+    local modules = {}
+    for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
+    table.sort(modules, function(a, b) return a.Name < b.Name end)
+    for index, module in ipairs(modules) do
+        CreatePanel(module, index, #modules)
+        CreateValues(module)
+        CreateControls(module)
+        CreateTracker(module)
+        BaseModule:ResetModule(module)
     end
-    -- Frame:SetScript("OnEvent", Displayer.OnEvent)
 end
 
 Displayer:Init()

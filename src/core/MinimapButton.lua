@@ -59,6 +59,7 @@ button:SetScript("OnEvent", function(self, event, name)
     if name ~= PerHour.AddonName then return end
     self:UnregisterEvent("ADDON_LOADED")
     PerHour.Settings:Init()
+    PerHour.Displayer:RestorePositions()
     PerHour.ToggleMenu:Init(self)
     UpdatePosition()
 end)
