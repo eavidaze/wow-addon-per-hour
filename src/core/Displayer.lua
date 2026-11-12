@@ -6,7 +6,6 @@ PerHour.Displayer = Displayer
 
 local WIDTH, HEIGHT = 180, 86
 local CONTROL_SIZE = 24
-local DETAIL_ROW_HEIGHT = 18
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
 local PANEL_GAP = 4
@@ -128,20 +127,36 @@ local function CreatePanel(module, index, count)
         self:SetScript("OnUpdate", nil)
         Displayer:SavePosition(module)
     end)
-    frame:HookScript("OnHide", function() header:SetScript("OnUpdate", nil) end)
+    frame:HookScript("OnHide", function()
+        header:SetScript("OnUpdate", nil)
+        if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
+    end)
     frame:HookScript("OnShow", function()
         if PerHourAccount_Settings and PerHourAccount_Settings[module.Name] then PlaceShownPanel(module) end
     end)
 end
 
-local function CreateValueRow(frame, label, y)
-    local text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    text:SetPoint("TOPLEFT", 12, y)
-    text:SetText(label)
+local function GetTrackingState(module)
+    if not module.HasStarted then return "Start", "Not started", 0.5, 0.5, 0.5 end
+    if module.HasPaused then return "Resume", "Paused", 1, 0.8, 0 end
+    return "Pause", "Running", 0.2, 1, 0.2
+end
 
-    local value = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    value:SetPoint("TOPRIGHT", -12, y)
-    return value
+local function ShowRunTooltip(module)
+    local _, status, r, g, b = GetTrackingState(module)
+    local totalUnit = module.Name == "Experience" and "XP" or module.Name
+    GameTooltip:SetText(module.Name, 1, 0.82, 0)
+    GameTooltip:AddLine(status, r, g, b)
+    if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 0.8, 0.8, 0.8, true) end
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Session", 1, 0.82, 0)
+    GameTooltip:AddDoubleLine("Duration", Utils:DisplayTimer(module.Time), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine("Total " .. totalUnit, Utils:DisplayNumber(module.Element), 0.7, 0.7, 0.7, 1, 0.82, 0)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Rates", 1, 0.82, 0)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.ElementPerHour, 0), 0.7, 0.7, 0.7, 1, 0.82, 0)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.ElementPerMinute, 0), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:Show()
 end
 
 local function CreateValues(module)
@@ -161,31 +176,13 @@ local function CreateValues(module)
     unit:SetText(module.ShortName .. "/h")
     module.RateUnit = unit
 
-    local details = CreateFrame("Frame", nil, frame)
-    details:SetPoint("TOPLEFT", 0, -(HEIGHT - CONTROL_SIZE))
-    details:SetPoint("TOPRIGHT", 0, -(HEIGHT - CONTROL_SIZE))
-    details:SetHeight(4 + DETAIL_ROW_HEIGHT * (module.CustomGetContext and 3 or 2))
-    details:Hide()
-    module.DetailsFrame = details
-    module.ElementValue = CreateValueRow(details, "Total", -4)
-    module.TimeValue = CreateValueRow(details, "Time", -4 - DETAIL_ROW_HEIGHT)
-
-    if module.CustomGetContext then
-        module.ContextText = details:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        module.ContextText:SetPoint("TOP", 0, -4 - DETAIL_ROW_HEIGHT * 2)
-        module.ContextText:SetWidth(WIDTH - 24)
-        module.ContextText:SetWordWrap(false)
-    end
-
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Per Hour - " .. module.Name)
-        if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 1, 1, 1) end
-        GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.ElementPerHour, 0))
-        GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.ElementPerMinute, 0))
-        GameTooltip:Show()
+        ShowRunTooltip(module)
     end)
-    frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame:SetScript("OnLeave", function()
+        if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
+    end)
 end
 
 local function SetButtonTooltip(button, getText)
@@ -207,11 +204,11 @@ local function CreateControls(module)
 
     local label = start:GetFontString()
     label:ClearAllPoints()
-    -- Center the label together with the 16 px notification atlas.
-    label:SetPoint("CENTER", start, "CENTER", 8, 0)
+    -- Center the label together with the 20 px notification atlas.
+    label:SetPoint("CENTER", start, "CENTER", 10, 0)
 
     local indicator = start:CreateTexture(nil, "OVERLAY")
-    indicator:SetSize(16, 16)
+    indicator:SetSize(20, 20)
     indicator:SetPoint("RIGHT", label, "LEFT", 0, 0)
     indicator:SetAtlas("UI-HUD-MicroMenu-Communities-Icon-Notification")
     indicator:SetDesaturated(true)
@@ -237,28 +234,7 @@ local function CreateControls(module)
     end)
     module.OptionsButton = options
 
-    local details = CreateFrame("Button", nil, frame, "UIPanelSquareButton")
-    details:SetSize(CONTROL_SIZE, CONTROL_SIZE)
-    details:SetPoint("RIGHT", options, "LEFT")
-    details.icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
-    details.icon:SetTexCoord(0, 1, 0, 1)
-    details.icon:SetSize(16, 16)
-    SetButtonTooltip(details, function()
-        return module.DetailsFrame:IsShown() and "Hide run details" or "Show run details"
-    end)
-    details:SetScript("OnClick", function(self)
-        Displayer:SavePosition(module)
-        local shown = not module.DetailsFrame:IsShown()
-        module.DetailsFrame:SetShown(shown)
-        frame:SetHeight(HEIGHT + (shown and module.DetailsFrame:GetHeight() or 0))
-        if not Displayer:SavePosition(module) then
-            module.DetailsFrame:SetShown(not shown)
-            frame:SetHeight(HEIGHT + (not shown and module.DetailsFrame:GetHeight() or 0))
-        end
-        GameTooltip:Hide()
-    end)
-    module.DetailsButton = details
-    start:SetPoint("RIGHT", details, "LEFT")
+    start:SetPoint("RIGHT", options, "LEFT")
 end
 
 local function CreateTracker(module)
@@ -292,16 +268,13 @@ function Displayer:SavePosition(module, x, y)
 end
 
 function Displayer:RefreshTrackingState(module)
-    local text, r, g, b = "Start", 0.5, 0.5, 0.5
-    if module.HasStarted then
-        if module.HasPaused then
-            text, r, g, b = "Resume", 1, 0.8, 0
-        else
-            text, r, g, b = "Pause", 0.2, 1, 0.2
-        end
-    end
+    local text, _, r, g, b = GetTrackingState(module)
     module.ToggleStartButton:SetText(text)
     module.ActiveIndicator:SetVertexColor(r, g, b)
+end
+
+function Displayer:RefreshTooltip(module)
+    if GameTooltip:IsShown() and GameTooltip:IsOwned(module.Frame) then ShowRunTooltip(module) end
 end
 
 function Displayer:RefreshRate(module)

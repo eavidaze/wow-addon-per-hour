@@ -19,9 +19,8 @@ code changes only need `/reload`.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag a window's title bar to move it; its close button hides it without stopping tracking.
-- Click the note icon to show or hide session details (total, time and tracked faction).
 - The gear menu offers **Reset** (clear and stop) and **Announce** (share results to chat).
-- Hover over a window to see the rate per minute.
+- Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
 - **Reputation** requires a watched faction; switching factions resets it.
 
 Window visibility, window positions and minimap button position are saved.

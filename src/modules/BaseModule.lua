@@ -42,13 +42,9 @@ function BaseModule:SendTo(contextModule, chatType)
 end
 
 function BaseModule:RefreshDisplayedValues(contextModule)
-    contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
-    contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     PerHour.Displayer:RefreshRate(contextModule)
     PerHour.Displayer:RefreshTrackingState(contextModule)
-    if contextModule.ContextText then
-        contextModule.ContextText:SetText(contextModule.CustomGetContext())
-    end
+    PerHour.Displayer:RefreshTooltip(contextModule)
 end
 
 function BaseModule:UpdateRates(contextModule)
