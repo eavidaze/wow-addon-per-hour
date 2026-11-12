@@ -6,3 +6,5 @@ ignore: # Files and directories beginning with a dot (such as .git) are automati
     - tests/
     - scripts/
     - dist/
+    - docs/
+    - AGENTS.md

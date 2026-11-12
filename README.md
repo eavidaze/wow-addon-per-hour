@@ -32,6 +32,8 @@ lua tests/forever.lua      # Lua 5.1 simulation checks
 .\scripts\package.ps1     # Generate the release ZIP in dist\
 ```
 
+See [Publishing a release](docs/releasing.md) for CurseForge setup.
+
 ## Credits
 
 Original author: José Júnior. Thanks to Zwietabak and AssisrMatheus.
