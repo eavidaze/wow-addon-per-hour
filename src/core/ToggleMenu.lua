@@ -34,6 +34,7 @@ local function RenderFrame()
 
     -- set it movable
     ToggleMenuFrame:SetMovable(true)
+    ToggleMenuFrame:EnableMouse(true)
     ToggleMenuFrame:SetClampedToScreen(true)
     ToggleMenuFrame:SetScript("OnMouseDown", function(self, button)
         self:StartMoving()
@@ -56,7 +57,7 @@ local function RenderButton(contextModule)
     local name = contextModule.Name
     local frame = contextModule.Frame
     
-    local toggleButton = CreateFrame("Button", "$parent-".. contextModule.TagName .. "-button", ToggleMenuFrame, "UIMenuButtonStretchTemplate")
+    local toggleButton = CreateFrame("Button", "$parent-".. contextModule.TagName .. "-button", ToggleMenuFrame, "UIPanelButtonTemplate")
     toggleButton:SetWidth(ElementWidth)
     toggleButton:SetHeight(ElementHeight)
     toggleButton:SetPoint("TOP", pointReference, "BOTTOM", 0, FirstMenuElementOffset)
@@ -80,12 +81,12 @@ end
 
 local function RenderElements()
     -- render toggle menu title
-    local titlePerHonor = ToggleMenuFrame:CreateFontString(ToggleMenuFrame, nil, "GameFontHighlightSmall")
+    local titlePerHonor = ToggleMenuFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     titlePerHonor:SetHeight(TitleHeight)
     titlePerHonor:SetPoint("TOP", 0, -2)
     titlePerHonor:SetText("Per Hour")
     
-    local titleToggle = ToggleMenuFrame:CreateFontString(ToggleMenuFrame, nil, "GameFontNormalSmall")
+    local titleToggle = ToggleMenuFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     titleToggle:SetHeight(TitleHeight)
     titleToggle:SetPoint("TOP", titlePerHonor, "BOTTOM")
     titleToggle:SetText("Toggle Menu")
@@ -112,6 +113,7 @@ function ToggleMenu:OnEvent(event, name)
     if name ~= PerHour.AddonName then
         return
     end
+    ToggleMenuFrame:UnregisterEvent("ADDON_LOADED")
     Settings:Init()
     RenderFrame()
     RenderElements()

@@ -11,21 +11,21 @@ function Utils:Log(text)
 end
 
 function Utils:DisplayTimer(time)
-    local hours = floor(mod(time, 86400)/3600)
-    local minutes = floor(mod(time,3600)/60)
-    local seconds = floor(mod(time,60))
+    local hours = math.floor(time/3600)
+    local minutes = math.floor((time % 3600)/60)
+    local seconds = math.floor(time % 60)
     local time_formated = ""
     -- if the time has hours
     if hours >= 1 then
-        time_formated = format("%02d:",hours)
+        time_formated = string.format("%02d:",hours)
     end
     -- if the time has minutes
     -- I set TRUE to disable this verification
     if true or minutes >= 1 or hours >= 1 then
-        time_formated = time_formated .. format("%02d:",minutes)
+        time_formated = time_formated .. string.format("%02d:",minutes)
     end
     -- doest metter if have hours or minutes, I just concat seconds
-    time_formated = time_formated .. format("%02d",seconds)
+    time_formated = time_formated .. string.format("%02d",seconds)
     return time_formated
 end
 
@@ -47,8 +47,13 @@ function Utils:RoundValue(num, numDecimals)
 end
 
 function Utils:DisplayNumber(n) -- credit http://richard.warburton.it
-	local left,num,right = string.match(n,'^([^%d]*%d)(%d*)(.-)$')
+	local left,num,right = string.match(tostring(n),'^([^%d]*%d)(%d*)(.-)$')
 	return left..(num:reverse():gsub('(%d%d%d)','%1,'):reverse())..right
+end
+
+-- Secret values must never be compared, parsed or used in arithmetic.
+function Utils:IsReadableNumber(value)
+    return not (issecretvalue and issecretvalue(value)) and type(value) == "number"
 end
 
 function Utils:DisplayRoundedNumber(num, numDecimals)

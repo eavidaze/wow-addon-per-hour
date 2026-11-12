@@ -2,6 +2,8 @@
 BaseModule = {}
 
 function BaseModule:SendTo(contextModule, chatType)
+    chatType = chatType:upper()
+    local SendChatMessage = C_ChatInfo.SendChatMessage
 
     -- chatType = chatType:upper()
     local addonNamePrepend = "Per Hour || "
@@ -44,6 +46,18 @@ function BaseModule:RefreshDisplayedValues(contextModule)
     contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     contextModule.ElementPerHourValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 0))
     contextModule.ElementPerMinuteValue:SetText(Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 0))
+end
+
+function BaseModule:UpdateRates(contextModule)
+    local sampledAt = contextModule.HasPaused and contextModule.PausedAt or GetTime()
+    contextModule.Time = math.max(0, sampledAt - contextModule.StartedAt - contextModule.PausedTime)
+    local perMinute = 0
+    if contextModule.Time > 0 then
+        perMinute = contextModule.Element / (contextModule.Time / 60)
+    end
+    contextModule.ElementPerMinute = Utils:RoundValue(perMinute, 2)
+    contextModule.ElementPerHour = Utils:RoundValue(perMinute * 60, 2)
+    self:RefreshDisplayedValues(contextModule)
 end
 
 -- public functions

@@ -7,10 +7,11 @@ local COMMAND = "/perhour"
 -- public functions
 function CommandLine:Init()
 
-    -- SLASH_PerHour1 = COMMAND
-    -- SlashCmdList["PerHour"] = function(text)
-    --     -- Honor:Toggle()
-    -- end
+    SLASH_PERHOUR1 = COMMAND
+    SlashCmdList["PERHOUR"] = function()
+        local frame = PerHour.ToggleMenu.Frame
+        frame:SetShown(not frame:IsShown())
+    end
      
 end
 
