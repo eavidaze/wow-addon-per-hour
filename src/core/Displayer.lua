@@ -34,7 +34,6 @@ local function ToggleTracking(module)
         Utils:AddonMessage(module.Name .. message)
         BaseModule:RefreshDisplayedValues(module)
     end
-    module.ToggleStartButton:SetText(module.HasPaused and "Resume" or "Pause")
 end
 
 local function CreatePanel(module, index, count)
@@ -139,6 +138,21 @@ local function CreateControls(module)
     start:SetScript("OnClick", function() ToggleTracking(module) end)
     module.ToggleStartButton = start
 
+    local label = start:GetFontString()
+    label:ClearAllPoints()
+    -- Center the label together with the 6 px indicator and 6 px gap.
+    label:SetPoint("CENTER", start, "CENTER", 6, 0)
+
+    local indicator = start:CreateTexture(nil, "OVERLAY")
+    indicator:SetSize(6, 6)
+    indicator:SetPoint("RIGHT", label, "LEFT", -6, 0)
+    indicator:SetColorTexture(1, 1, 1)
+    local mask = start:CreateMaskTexture()
+    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(indicator)
+    indicator:AddMaskTexture(mask)
+    module.ActiveIndicator = indicator
+
     local options = CreateFrame("DropdownButton", nil, frame, "UIPanelSquareButton")
     options:SetSize(CONTROL_SIZE, CONTROL_SIZE)
     options:SetPoint("BOTTOMRIGHT")
@@ -205,6 +219,19 @@ function Displayer:SavePosition(module)
     frame:ClearAllPoints()
     frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
     PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y }
+end
+
+function Displayer:RefreshTrackingState(module)
+    local text, r, g, b = "Start", 0.5, 0.5, 0.5
+    if module.HasStarted then
+        if module.HasPaused then
+            text, r, g, b = "Resume", 1, 0.8, 0
+        else
+            text, r, g, b = "Pause", 0.2, 1, 0.2
+        end
+    end
+    module.ToggleStartButton:SetText(text)
+    module.ActiveIndicator:SetVertexColor(r, g, b)
 end
 
 function Displayer:RefreshRate(module)

@@ -26,6 +26,9 @@ function methods:IsShown() return self.shown end
 function methods:SetShown(value) self.shown = value end
 function methods:SetText(value) self.text = value end
 function methods:GetText() return self.text end
+function methods:GetFontString() return self.fontString end
+function methods:SetVertexColor(...) self.vertexColor = { ... } end
+function methods:AddMaskTexture(mask) self.mask = mask end
 function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetWidth(value) self.width = value end
@@ -102,6 +105,7 @@ function methods:CreateFontString(name, layer, template)
     return fontString
 end
 function methods:CreateTexture() return object() end
+function methods:CreateMaskTexture() return object() end
 function methods:AddDoubleLine(label, value)
     self.lines = rawget(self, "lines") or {}
     self.lines[label] = value
@@ -122,6 +126,7 @@ function CreateFrame(kind, name, parent, template)
     end
     local frame = object(name)
     frame.parent, frame.template = parent, template
+    if template == "UIPanelButtonTemplate" then frame.fontString = object() end
     if template == "BasicFrameTemplate" then
         frame.TitleText, frame.CloseButton = object(), object()
     end
@@ -189,8 +194,13 @@ local function tick(seconds)
 end
 local function click(module) module.ToggleStartButton.scripts.OnClick() end
 local experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
+local function indicatorColor(module)
+    return table.concat(module.ActiveIndicator.vertexColor, ",")
+end
 event("ADDON_LOADED", "another-addon")
 event("ADDON_LOADED", "per-hour")
+
+equal(indicatorColor(experience), "0.5,0.5,0.5", "idle indicator is gray")
 equal(experience.Frame:IsShown(), true, "saved visibility")
 equal(reputation.Frame:IsShown(), false, "default visibility")
 equal(experience.Frame.point[1], "TOPLEFT", "saved window anchor restored")
@@ -293,6 +303,7 @@ equal(GameTooltip:IsShown(), false, "minimap tooltip hidden")
 
 click(experience)
 equal(experience.ToggleStartButton:GetText(), "Pause", "running action is Pause")
+equal(indicatorColor(experience), "0.2,1,0.2", "running indicator is green")
 xp = 150
 tick(2)
 equal(experience.Element, 50, "first XP gain")
@@ -314,12 +325,14 @@ click(experience)
 equal(experience.Element, 150, "gain immediately before pause")
 equal(experience.ElementValue:GetText(), "150", "pause refreshes display immediately")
 equal(experience.ToggleStartButton:GetText(), "Resume", "paused action is Resume")
+equal(indicatorColor(experience), "1,0.8,0", "paused indicator is yellow")
 xp = 300
 tick(2)
 xp = 350
 click(experience)
 tick(2)
 equal(experience.ToggleStartButton:GetText(), "Pause", "resume restores Pause action")
+equal(indicatorColor(experience), "0.2,1,0.2", "resuming restores green indicator")
 equal(experience.Element, 150, "paused XP excluded on resume")
 equal(experience.Time, 6, "pause duration excluded")
 level, xp, xpMax = 11, 50, 900
@@ -335,6 +348,7 @@ BaseModule:ResetModule(experience)
 equal(experience.Element, 0, "reset XP")
 equal(experience.HasStarted, false, "reset stops tracker")
 equal(experience.ToggleStartButton:GetText(), "Start", "reset restores Start action")
+equal(indicatorColor(experience), "0.5,0.5,0.5", "reset restores gray indicator")
 experience.ElementPerHour = 1000000000000
 BaseModule:RefreshDisplayedValues(experience)
 equal(abbreviatedValue, experience.ElementPerHour, "overflow uses native number abbreviation")
@@ -372,6 +386,7 @@ tick(2)
 equal(reputation.HasStarted, false, "faction change stops tracker")
 equal(reputation.Element, 0, "faction change resets totals")
 equal(reputation.ToggleStartButton:GetText(), "Start", "automatic reset restores Start action")
+equal(indicatorColor(reputation), "0.5,0.5,0.5", "automatic reset restores gray indicator")
 equal(reputation.ContextText:GetText(), "No active session", "reset clears tracked faction")
 click(reputation)
 watched = nil
@@ -379,6 +394,7 @@ tick(10)
 equal(reputation.HasStarted, false, "missing faction timeout in real seconds")
 click(reputation)
 equal(reputation.HasStarted, false, "start requires watched faction")
+equal(indicatorColor(reputation), "0.5,0.5,0.5", "failed start keeps gray indicator")
 
 click(honor)
 equal(honor.ElementPerHour, 0, "zero-time start has finite rate")
@@ -421,5 +437,6 @@ reset.callback()
 equal(honor.Element, 0, "Options reset clears results")
 equal(honor.HasStarted, false, "Options reset stops tracking")
 equal(honor.ToggleStartButton:GetText(), "Start", "Options reset restores Start action")
+equal(indicatorColor(honor), "0.5,0.5,0.5", "Options reset restores gray indicator")
 equal(Utils:DisplayTimer(90061), "25:01:01", "timers longer than 24 hours")
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")

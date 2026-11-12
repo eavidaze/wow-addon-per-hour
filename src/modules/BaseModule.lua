@@ -45,6 +45,7 @@ function BaseModule:RefreshDisplayedValues(contextModule)
     contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
     contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     PerHour.Displayer:RefreshRate(contextModule)
+    PerHour.Displayer:RefreshTrackingState(contextModule)
     if contextModule.ContextText then
         contextModule.ContextText:SetText(contextModule.CustomGetContext())
     end
@@ -85,11 +86,6 @@ function BaseModule:ResetModule(contextModule)
         contextModule.CustomReset()
     end
 
-    -- reset the button
-    if contextModule.ToggleStartButton~=nil then
-        contextModule.ToggleStartButton:SetText("Start")
-    end
-    
     BaseModule:RefreshDisplayedValues(contextModule)
 end
 
