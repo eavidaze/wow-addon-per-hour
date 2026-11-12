@@ -25,6 +25,10 @@ function Settings:Init()
         PerHourAccount_Settings = {}
     end
 
+    if not PerHourAccount_Settings.minimap then
+        PerHourAccount_Settings.minimap = { angle = math.rad(225) }
+    end
+
     for key,contextModule in pairs(modules) do
 
         -- for each module I have to initialize if does not exists

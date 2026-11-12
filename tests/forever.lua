@@ -11,6 +11,13 @@ end
 
 local methods = {}
 function methods:SetScript(event, callback) self.scripts[event] = callback end
+function methods:HookScript(event, callback)
+    local previous = self.scripts[event]
+    self.scripts[event] = function(...)
+        if previous then previous(...) end
+        callback(...)
+    end
+end
 function methods:RegisterEvent(event) self.events[event] = true end
 function methods:UnregisterEvent(event) self.events[event] = nil end
 function methods:Show() self.shown = true end
@@ -19,6 +26,26 @@ function methods:IsShown() return self.shown end
 function methods:SetShown(value) self.shown = value end
 function methods:SetText(value) self.text = value end
 function methods:GetText() return self.text end
+function methods:SetSize(width, height) self.width, self.height = width, height end
+function methods:GetWidth() return self.width end
+function methods:GetHeight() return self.height end
+function methods:SetPoint(...) self.point = { ... } end
+function methods:GetCenter() return 100, 200 end
+function methods:GetEffectiveScale() return 2 end
+function methods:SetupMenu(generator) self.menuGenerator = generator end
+function methods:IsMenuOpen() return self.menuOpen == true end
+function methods:CloseMenu() self.menuOpen = false end
+function methods:SetMenuOpen(open)
+    self.menuOpen = open
+    if not open then return end
+    local root = { items = {} }
+    function root:CreateTitle(text) self.title = text end
+    function root:CreateCheckbox(text, isSelected, callback, data)
+        self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
+    end
+    self.menuGenerator(self, root)
+    self.menuDescription = root
+end
 local function object(name)
     assert(name == nil or type(name) == "string", "UI object name must be a string")
     return setmetatable({ name = name, scripts = {}, events = {}, shown = true }, {
@@ -31,6 +58,11 @@ function methods:CreateFontString(name, layer, template)
 end
 function methods:CreateTexture() return object() end
 UIParent = object("UIParent")
+Minimap = object("Minimap")
+Minimap:SetSize(140, 140)
+GameTooltip = object("GameTooltip")
+local cursorX, cursorY = 400, 400
+function GetCursorPosition() return cursorX, cursorY end
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate", "unsupported legacy template")
     if name then
@@ -38,6 +70,9 @@ function CreateFrame(kind, name, parent, template)
         assert(not names[name], "duplicate frame name: "..name)
     end
     local frame = object(name)
+    if kind == "DropdownButton" then
+        frame.scripts.OnMouseDown = function(self) self:SetMenuOpen(not self:IsMenuOpen()) end
+    end
     frames[#frames + 1] = frame
     if name then names[name] = frame end
     return frame
@@ -92,11 +127,49 @@ event("ADDON_LOADED", "another-addon")
 event("ADDON_LOADED", "per-hour")
 equal(experience.Frame:IsShown(), true, "saved visibility")
 equal(reputation.Frame:IsShown(), false, "default visibility")
-equal(PerHour.ToggleMenu.Frame.events.ADDON_LOADED, nil, "initialize once")
+local minimapButton = PerHour.MinimapButton
+equal(minimapButton.events.ADDON_LOADED, nil, "initialize once")
+equal(minimapButton:IsShown(), true, "minimap button visible")
+equal(minimapButton:IsMenuOpen(), false, "menu starts closed")
+equal(PerHourAccount_Settings.minimap.angle, math.rad(225), "default minimap position")
 SlashCmdList.PERHOUR()
-equal(PerHour.ToggleMenu.Frame:IsShown(), false, "slash hide")
+equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
+equal(minimapButton.menuDescription.title, "Per Hour", "native menu title")
+equal(#minimapButton.menuDescription.items, 3, "all modules in menu")
+local experienceItem = minimapButton.menuDescription.items[1]
+equal(experienceItem.text, "Experience", "stable alphabetical menu order")
+equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
+experienceItem.callback(experienceItem.data)
+equal(experience.Frame:IsShown(), false, "menu hides module")
+equal(experience:IsShown(), false, "menu saves hidden module")
+equal(experienceItem.isSelected(experienceItem.data), false, "menu check updates after hide")
+experienceItem.callback(experienceItem.data)
+equal(experience.Frame:IsShown(), true, "menu shows module")
+equal(experience:IsShown(), true, "menu saves visible module")
 SlashCmdList.PERHOUR()
-equal(PerHour.ToggleMenu.Frame:IsShown(), true, "slash show")
+equal(minimapButton:IsMenuOpen(), false, "slash closes menu")
+minimapButton.scripts.OnMouseDown(minimapButton)
+equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
+minimapButton.scripts.OnMouseDown(minimapButton)
+equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
+SlashCmdList.PERHOUR()
+minimapButton.scripts.OnDragStart(minimapButton)
+equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
+minimapButton.scripts.OnUpdate(minimapButton)
+equal(PerHourAccount_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
+equal(minimapButton.point[4], 75, "drag stays on minimap edge")
+equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
+cursorX, cursorY = 200, 600
+minimapButton.scripts.OnDragStop(minimapButton)
+equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
+equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
+PerHour.Settings:Init()
+equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
+minimapButton.scripts.OnEnter(minimapButton)
+equal(GameTooltip:GetText(), "Per Hour", "minimap tooltip title")
+equal(GameTooltip:IsShown(), true, "minimap tooltip shown")
+minimapButton.scripts.OnLeave(minimapButton)
+equal(GameTooltip:IsShown(), false, "minimap tooltip hidden")
 
 click(experience)
 xp = 150

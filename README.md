@@ -15,13 +15,14 @@ code changes only need `/reload`.
 
 ## Use
 
-- `/perhour` shows or hides the menu.
+- Click the minimap clock or use `/perhour` to toggle the module menu.
+- Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause** controls tracking; paused gains and time are excluded.
 - **Reset** clears and stops the tracker. Hidden windows keep tracking.
 - **Reputation** requires a watched faction; switching factions resets it.
 - The announcement icon shares results to a chat channel.
 
-Window visibility is saved. Sessions restart after a reload or login.
+Window visibility and minimap button position are saved. Sessions restart after a reload or login.
 
 ## Development
 
