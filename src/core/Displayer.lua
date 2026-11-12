@@ -207,17 +207,14 @@ local function CreateControls(module)
 
     local label = start:GetFontString()
     label:ClearAllPoints()
-    -- Center the label together with the 6 px indicator and 6 px gap.
-    label:SetPoint("CENTER", start, "CENTER", 6, 0)
+    -- Center the label together with the 16 px notification atlas.
+    label:SetPoint("CENTER", start, "CENTER", 8, 0)
 
     local indicator = start:CreateTexture(nil, "OVERLAY")
-    indicator:SetSize(6, 6)
-    indicator:SetPoint("RIGHT", label, "LEFT", -6, 0)
-    indicator:SetColorTexture(1, 1, 1)
-    local mask = start:CreateMaskTexture()
-    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    mask:SetAllPoints(indicator)
-    indicator:AddMaskTexture(mask)
+    indicator:SetSize(16, 16)
+    indicator:SetPoint("RIGHT", label, "LEFT", 0, 0)
+    indicator:SetAtlas("UI-HUD-MicroMenu-Communities-Icon-Notification")
+    indicator:SetDesaturated(true)
     module.ActiveIndicator = indicator
 
     local options = CreateFrame("DropdownButton", nil, frame, "UIPanelSquareButton")
