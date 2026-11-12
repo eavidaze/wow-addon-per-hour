@@ -15,6 +15,12 @@
   Questions about whether a commit would publish the addon are not authorization to commit.
 - Preserve the user's existing changes and staging choices; leave edits available for review and testing.
 - Follow the branch name requested by the user.
+- Name working branches `<type>/<short-description>`, using the same types and purposes as commits:
+  `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`.
+- Write branch descriptions in English, in lowercase, with words separated by hyphens.
+  Examples: `feat/addon-improvements`, `fix/honor-tracking`, `docs/update-installation`.
+- Choose the branch type by the main purpose of the work; individual commits may use other types.
+- Never use `codex` in branch names.
 
 ## Code and documentation
 
