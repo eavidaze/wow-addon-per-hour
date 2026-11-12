@@ -20,12 +20,25 @@ function methods:HookScript(event, callback)
 end
 function methods:RegisterEvent(event) self.events[event] = true end
 function methods:UnregisterEvent(event) self.events[event] = nil end
-function methods:Show() self.shown = true end
-function methods:Hide() self.shown = false end
+function methods:Show()
+    if self.shown then return end
+    self.shown = true
+    if self.scripts.OnShow then self.scripts.OnShow(self) end
+end
+function methods:Hide()
+    if not self.shown then return end
+    self.shown = false
+    if self.scripts.OnHide then self.scripts.OnHide(self) end
+end
 function methods:IsShown() return self.shown end
-function methods:SetShown(value) self.shown = value end
+function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:SetText(value) self.text = value end
 function methods:GetText() return self.text end
+function methods:SetOwner(owner) self.owner = owner end
+function methods:IsOwned(owner) return self.owner == owner end
+function methods:GetFontString() return self.fontString end
+function methods:SetVertexColor(...) self.vertexColor = { ... } end
+function methods:AddMaskTexture(mask) self.mask = mask end
 function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetWidth(value) self.width = value end
@@ -102,6 +115,11 @@ function methods:CreateFontString(name, layer, template)
     return fontString
 end
 function methods:CreateTexture() return object() end
+function methods:CreateMaskTexture() return object() end
+function methods:AddLine(text)
+    self.singleLines = rawget(self, "singleLines") or {}
+    table.insert(self.singleLines, text)
+end
 function methods:AddDoubleLine(label, value)
     self.lines = rawget(self, "lines") or {}
     self.lines[label] = value
@@ -111,6 +129,9 @@ UIParent:SetSize(1920, 1080)
 Minimap = object("Minimap")
 Minimap:SetSize(140, 140)
 GameTooltip = object("GameTooltip")
+function GameTooltip:SetText(text)
+    self.text, self.lines, self.singleLines = text, {}, {}
+end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
 function CreateFrame(kind, name, parent, template)
@@ -122,6 +143,7 @@ function CreateFrame(kind, name, parent, template)
     end
     local frame = object(name)
     frame.parent, frame.template = parent, template
+    if template == "UIPanelButtonTemplate" then frame.fontString = object() end
     if template == "BasicFrameTemplate" then
         frame.TitleText, frame.CloseButton = object(), object()
     end
@@ -189,59 +211,58 @@ local function tick(seconds)
 end
 local function click(module) module.ToggleStartButton.scripts.OnClick() end
 local experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
+local function indicatorColor(module)
+    return table.concat(module.ActiveIndicator.vertexColor, ",")
+end
 event("ADDON_LOADED", "another-addon")
 event("ADDON_LOADED", "per-hour")
+
+equal(indicatorColor(experience), "0.5,0.5,0.5", "idle indicator is gray")
 equal(experience.Frame:IsShown(), true, "saved visibility")
 equal(reputation.Frame:IsShown(), false, "default visibility")
 equal(experience.Frame.point[1], "TOPLEFT", "saved window anchor restored")
 equal(experience.Frame.point[4], 90, "saved window X restored")
-equal(experience.Frame.point[5], -160, "saved window Y restored")
+equal(experience.Frame:GetTop(), 920, "saved window Y restored")
 equal(reputation.Frame.point[4] - honor.Frame.point[4] > honor.Frame:GetWidth(), true, "default panels do not overlap")
 local header
 for _, frame in ipairs(frames) do
     if frame.parent == experience.Frame and frame.scripts.OnDragStop then header = frame end
 end
-header.scripts.OnDragStart()
-equal(experience.Frame.moving, true, "title bar starts dragging")
+header.scripts.OnDragStart(header)
+equal(type(header.scripts.OnUpdate), "function", "title bar starts cursor tracking")
 experience.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
-header.scripts.OnDragStop()
-equal(experience.Frame.moving, false, "title bar stops dragging")
-equal(PerHourAccount_Settings.Experience.position.x, 1680, "drag saves window X")
+header.scripts.OnDragStop(header)
+equal(header.scripts.OnUpdate, nil, "title bar stops cursor tracking")
+equal(PerHourAccount_Settings.Experience.position.x, 1700, "drag saves window X")
 equal(PerHourAccount_Settings.Experience.position.y, 166, "drag saves window Y")
 experience.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 PerHour.Displayer:RestorePositions()
 equal(experience.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
-equal(experience.Frame.point[4], 1680, "dragged window position restored")
+equal(experience.Frame.point[4], 1700, "dragged window position restored")
 equal(experience.Frame.TitleText:GetText(), "Per Hour - Experience", "panel title includes addon name")
 equal(honor.Frame.TitleText:GetText(), "Per Hour - Honor", "honor title includes addon name")
 equal(reputation.Frame.TitleText:GetText(), "Per Hour - Reputation", "reputation title includes addon name")
-equal(experience.Frame:GetWidth(), 200, "compact panel width")
+equal(experience.Frame:GetWidth(), 180, "compact panel width")
 equal(experience.Frame:GetHeight(), 86, "compact panel height")
-equal(experience.DetailsFrame:IsShown(), false, "run details start collapsed")
+equal(experience.DetailsButton, nil, "details toggle removed")
+equal(experience.DetailsFrame, nil, "expandable details removed")
+equal(experience.ToggleStartButton.point[2], experience.OptionsButton, "start button fills space up to gear")
 local panelTop, panelLeft = experience.Frame:GetTop(), experience.Frame:GetLeft()
-experience.DetailsButton.scripts.OnEnter(experience.DetailsButton)
-equal(GameTooltip:GetText(), "Show run details", "collapsed details hint")
-experience.DetailsButton.scripts.OnClick()
-equal(experience.DetailsFrame:IsShown(), true, "note expands run details")
-equal(experience.Frame:GetHeight(), 126, "expanded panel fits details")
-local rowSpacing = experience.ElementValue.point[3] - experience.TimeValue.point[3]
-equal(experience.DetailsFrame:GetHeight() + experience.TimeValue.point[3], rowSpacing, "Time to actions matches Total to Time spacing")
-equal(experience.Frame:GetTop(), panelTop, "expanding keeps panel top fixed")
-equal(experience.Frame:GetLeft(), panelLeft, "expanding keeps panel left fixed")
-experience.DetailsButton.scripts.OnEnter(experience.DetailsButton)
-equal(GameTooltip:GetText(), "Hide run details", "expanded details hint")
-experience.DetailsButton.scripts.OnClick()
-equal(experience.DetailsFrame:IsShown(), false, "note collapses run details")
-equal(experience.Frame:GetHeight(), 86, "collapse restores compact height")
-equal(experience.Frame:GetTop(), panelTop, "collapsing keeps panel top fixed")
+experience.Frame.scripts.OnEnter(experience.Frame)
+equal(GameTooltip:GetText(), "Experience", "session tooltip title")
+equal(GameTooltip.singleLines[1], "Not started", "idle session status")
+equal(GameTooltip.lines.Duration, "00:00", "idle duration")
+equal(GameTooltip.lines["Total XP"], "0", "idle XP total")
+equal(GameTooltip.lines["XP/h"], "0", "idle hourly rate")
+equal(GameTooltip.lines["XP/min"], "0", "idle minute rate")
+equal(experience.Frame:GetHeight(), 86, "hover keeps compact height")
+equal(experience.Frame:GetTop(), panelTop, "hover preserves panel top")
+equal(experience.Frame:GetLeft(), panelLeft, "hover preserves panel left")
+experience.Frame.scripts.OnLeave()
+equal(GameTooltip:IsShown(), false, "leaving panel hides session tooltip")
 experience.OptionsButton.scripts.OnEnter(experience.OptionsButton)
 equal(GameTooltip:GetText(), "Options", "gear tooltip identifies options")
 equal(table.concat(experience.OptionsButton.icon.texCoords, ","), "0,1,0,1", "gear displays its entire texture")
-equal(table.concat(experience.DetailsButton.icon.texCoords, ","), "0,1,0,1", "note displays its entire texture")
-reputation.DetailsButton.scripts.OnClick()
-equal(reputation.Frame:GetHeight(), 144, "reputation details include space for faction")
-equal(reputation.DetailsFrame:GetHeight() + reputation.ContextText.point[3], rowSpacing, "faction to actions keeps consistent spacing")
-reputation.DetailsButton.scripts.OnClick()
 experience.Frame.CloseButton.scripts.OnClick()
 equal(experience.Frame:IsShown(), false, "close button hides panel")
 equal(experience:IsShown(), false, "close button saves visibility")
@@ -293,14 +314,17 @@ equal(GameTooltip:IsShown(), false, "minimap tooltip hidden")
 
 click(experience)
 equal(experience.ToggleStartButton:GetText(), "Pause", "running action is Pause")
+equal(indicatorColor(experience), "0.2,1,0.2", "running indicator is green")
+experience.Frame.scripts.OnEnter(experience.Frame)
+equal(GameTooltip.singleLines[1], "Running", "running session status")
 xp = 150
 tick(2)
 equal(experience.Element, 50, "first XP gain")
 equal(experience.ElementPerHour, 90000, "XP per hour")
 equal(experience.ElementPerHourValue:GetText(), "90,000", "fitting rates retain full precision")
 equal(experience.RateUnit:GetText(), "XP/h", "inline rate unit")
-equal(experience.DetailsFrame:IsShown(), false, "tracking keeps details collapsed")
-equal(experience.ElementValue:GetText(), "50", "collapsed details stay current")
+equal(GameTooltip.lines.Duration, "00:02", "hovered duration updates live")
+equal(GameTooltip.lines["Total XP"], "50", "hovered XP total updates live")
 experience.Frame.scripts.OnEnter(experience.Frame)
 equal(GameTooltip.lines["XP/min"], "1,500", "tooltip shows per-minute rate")
 equal(GameTooltip.lines["XP/h"], "90,000", "tooltip shows full hourly rate")
@@ -309,19 +333,29 @@ experience.Frame:Hide()
 xp = 200
 tick(2)
 equal(experience.Element, 100, "XP tracks while hidden")
+equal(GameTooltip:IsShown(), false, "tracking does not reopen a dismissed tooltip")
+experience.Frame:Show()
+experience.Frame.scripts.OnEnter(experience.Frame)
 xp = 250
 click(experience)
 equal(experience.Element, 150, "gain immediately before pause")
-equal(experience.ElementValue:GetText(), "150", "pause refreshes display immediately")
+equal(GameTooltip.lines["Total XP"], "150", "pause refreshes tooltip immediately")
+equal(GameTooltip.singleLines[1], "Paused", "tooltip reflects pause immediately")
 equal(experience.ToggleStartButton:GetText(), "Resume", "paused action is Resume")
+equal(indicatorColor(experience), "1,0.8,0", "paused indicator is yellow")
 xp = 300
 tick(2)
+equal(GameTooltip.lines.Duration, "00:04", "paused tooltip duration stays frozen")
+equal(GameTooltip.lines["Total XP"], "150", "paused tooltip excludes gains")
 xp = 350
 click(experience)
 tick(2)
 equal(experience.ToggleStartButton:GetText(), "Pause", "resume restores Pause action")
+equal(indicatorColor(experience), "0.2,1,0.2", "resuming restores green indicator")
 equal(experience.Element, 150, "paused XP excluded on resume")
 equal(experience.Time, 6, "pause duration excluded")
+equal(GameTooltip.lines.Duration, "00:06", "resumed tooltip excludes paused time")
+equal(GameTooltip.singleLines[1], "Running", "resumed tooltip status")
 level, xp, xpMax = 11, 50, 900
 tick(2)
 equal(experience.Element, 850, "level up with lower XP requirement")
@@ -335,6 +369,10 @@ BaseModule:ResetModule(experience)
 equal(experience.Element, 0, "reset XP")
 equal(experience.HasStarted, false, "reset stops tracker")
 equal(experience.ToggleStartButton:GetText(), "Start", "reset restores Start action")
+equal(indicatorColor(experience), "0.5,0.5,0.5", "reset restores gray indicator")
+equal(GameTooltip.lines["Total XP"], "0", "reset clears hovered total")
+equal(GameTooltip.lines.Duration, "00:00", "reset clears hovered duration")
+equal(GameTooltip.singleLines[1], "Not started", "reset updates hovered status")
 experience.ElementPerHour = 1000000000000
 BaseModule:RefreshDisplayedValues(experience)
 equal(abbreviatedValue, experience.ElementPerHour, "overflow uses native number abbreviation")
@@ -347,13 +385,17 @@ BaseModule:ResetModule(experience)
 equal(experience.ElementPerHourValue:GetText(), "0", "reset restores full rate formatting")
 
 click(reputation)
-equal(reputation.ContextText:GetText(), "Stormwind", "panel identifies tracked faction")
+reputation:SetIsShown(true)
+reputation.Frame:Show()
+reputation.Frame.scripts.OnEnter(reputation.Frame)
+equal(GameTooltip.singleLines[2], "Stormwind", "tooltip identifies tracked faction")
 watched.currentStanding = 100
 tick(2)
 equal(reputation.Element, 100, "reputation gain from zero")
 watched.currentStanding = -50
 tick(2)
 equal(reputation.Element, -50, "reputation loss")
+equal(GameTooltip.lines["Total Reputation"], "-50", "tooltip includes negative reputation total")
 click(reputation)
 watched.currentStanding = 200
 click(reputation)
@@ -372,19 +414,29 @@ tick(2)
 equal(reputation.HasStarted, false, "faction change stops tracker")
 equal(reputation.Element, 0, "faction change resets totals")
 equal(reputation.ToggleStartButton:GetText(), "Start", "automatic reset restores Start action")
-equal(reputation.ContextText:GetText(), "No active session", "reset clears tracked faction")
+equal(indicatorColor(reputation), "0.5,0.5,0.5", "automatic reset restores gray indicator")
+equal(GameTooltip.singleLines[2], "No active session", "reset clears tooltip faction")
 click(reputation)
 watched = nil
 tick(10)
 equal(reputation.HasStarted, false, "missing faction timeout in real seconds")
 click(reputation)
 equal(reputation.HasStarted, false, "start requires watched faction")
+equal(indicatorColor(reputation), "0.5,0.5,0.5", "failed start keeps gray indicator")
 
+minimapButton.scripts.OnEnter(minimapButton)
 click(honor)
 equal(honor.ElementPerHour, 0, "zero-time start has finite rate")
 honorValue = 125
 tick(2)
 equal(honor.Element, 25, "honor from modern API")
+equal(GameTooltip:GetText(), "Per Hour", "tracker updates preserve another owner's tooltip")
+minimapButton.scripts.OnLeave(minimapButton)
+honor:SetIsShown(true)
+honor.Frame:Show()
+honor.Frame.scripts.OnEnter(honor.Frame)
+equal(GameTooltip.lines["Total Honor"], "25", "honor tooltip uses its own unit")
+honor.Frame.scripts.OnLeave()
 honorValue = 225
 tick(2)
 equal(honor.Element, 125, "bonus honor")
@@ -421,5 +473,111 @@ reset.callback()
 equal(honor.Element, 0, "Options reset clears results")
 equal(honor.HasStarted, false, "Options reset stops tracking")
 equal(honor.ToggleStartButton:GetText(), "Start", "Options reset restores Start action")
+equal(indicatorColor(honor), "0.5,0.5,0.5", "Options reset restores gray indicator")
 equal(Utils:DisplayTimer(90061), "25:01:01", "timers longer than 24 hours")
+
+local panels = { experience, honor, reputation }
+local function setPanelPosition(module, x, y)
+    module.Frame:ClearAllPoints()
+    module.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+end
+local function showPanel(module, shown)
+    module:SetIsShown(shown)
+    module.Frame:SetShown(shown)
+end
+local function assertPanelLayout(label)
+    for index, module in ipairs(panels) do
+        local frame = module.Frame
+        if frame:IsShown() then
+            equal(frame:GetLeft() >= 0 and frame:GetLeft() + frame:GetWidth() <= UIParent:GetWidth()
+                and frame:GetTop() <= UIParent:GetHeight() and frame:GetTop() - frame:GetHeight() >= 0,
+                true, label .. ": " .. module.Name .. " stays on screen")
+            for otherIndex = index + 1, #panels do
+                local other = panels[otherIndex].Frame
+                if other:IsShown() then
+                    equal(frame:GetLeft() + frame:GetWidth() <= other:GetLeft()
+                        or other:GetLeft() + other:GetWidth() <= frame:GetLeft()
+                        or frame:GetTop() <= other:GetTop() - other:GetHeight()
+                        or other:GetTop() <= frame:GetTop() - frame:GetHeight(),
+                        true, label .. ": " .. module.Name .. " avoids " .. panels[otherIndex].Name)
+                end
+            end
+        end
+    end
+end
+for index, module in ipairs(panels) do
+    showPanel(module, false)
+    setPanelPosition(module, 100 + (index - 1) * 400, 500)
+end
+for _, module in ipairs(panels) do showPanel(module, true) end
+local honorLeft, honorTop = honor.Frame:GetLeft(), honor.Frame:GetTop()
+cursorX, cursorY = 400, 400
+header.scripts.OnDragStart(header)
+for _, target in ipairs({
+    { 500, 500 }, { 900, 500 }, { 680, 500 }, { 500, 420 },
+    { -500, 1600 }, { 2400, -300 }, { 1740, 86 }, { 100, 500 },
+}) do
+    cursorX, cursorY = 400 + (target[1] - 100) * 2, 400 + (target[2] - 500) * 2
+    header.scripts.OnUpdate(header)
+    assertPanelLayout("drag target " .. target[1] .. "," .. target[2])
+end
+header.scripts.OnDragStop(header)
+equal(honor.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
+equal(honor.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
+equal(PerHourAccount_Settings.Experience.position.x, experience.Frame:GetLeft(), "drag persists collision-free X")
+equal(PerHourAccount_Settings.Experience.position.y, experience.Frame:GetTop(), "drag persists collision-free Y")
+
+showPanel(honor, false)
+setPanelPosition(honor, experience.Frame:GetLeft(), experience.Frame:GetTop())
+showPanel(honor, true)
+assertPanelLayout("reopening an overlapping panel")
+for _, module in ipairs(panels) do
+    PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = 750, y = 700 }
+end
+PerHour.Displayer:RestorePositions()
+assertPanelLayout("restoring three identical saved positions")
+local resolvedPositions = {}
+for index, module in ipairs(panels) do
+    resolvedPositions[index] = module.Frame:GetLeft() .. "," .. module.Frame:GetTop()
+end
+PerHour.Displayer:RestorePositions()
+for index, module in ipairs(panels) do
+    equal(module.Frame:GetLeft() .. "," .. module.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
+end
+PerHourAccount_Settings.Experience.position.x, PerHourAccount_Settings.Experience.position.y = 5000, -100
+PerHour.Displayer:RestorePositions()
+assertPanelLayout("restoring off-screen positions")
+
+for _, module in ipairs(panels) do showPanel(module, false) end
+setPanelPosition(experience, 300, 500)
+setPanelPosition(honor, 300, 400)
+setPanelPosition(reputation, 800, 500)
+for _, module in ipairs(panels) do showPanel(module, true) end
+experience.Frame.scripts.OnEnter(experience.Frame)
+assertPanelLayout("hover near another panel")
+equal(experience.Frame:GetHeight(), 86, "hover does not resize panels")
+equal(honor.Frame:GetTop(), 400, "hover leaves neighbor in place")
+experience.Frame.scripts.OnLeave()
+
+header.scripts.OnDragStart(header)
+showPanel(experience, false)
+equal(header.scripts.OnUpdate, nil, "hiding a dragged panel stops cursor tracking")
+showPanel(honor, false)
+showPanel(reputation, false)
+UIParent:SetSize(180, 86)
+setPanelPosition(experience, 0, 86)
+showPanel(experience, true)
+showPanel(honor, true)
+equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
+equal(honor:IsShown(), false, "no free space saves hidden visibility")
+experience.Frame.scripts.OnEnter(experience.Frame)
+equal(experience.Frame:GetHeight(), 86, "hover fits compact screen")
+experience.Time = 90061
+BaseModule:RefreshDisplayedValues(experience)
+equal(GameTooltip.lines.Duration, "25:01:01", "tooltip supports sessions longer than 24 hours")
+showPanel(experience, false)
+equal(GameTooltip:IsShown(), false, "hiding a panel dismisses its tooltip")
+showPanel(experience, true)
+assertPanelLayout("screen only fits one compact panel")
+UIParent:SetSize(1920, 1080)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")

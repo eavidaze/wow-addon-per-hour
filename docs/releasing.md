@@ -6,14 +6,29 @@
    using the account that manages project **486717** (Per Hour).
 2. Open the repository's [Actions secrets](https://github.com/eavidaze/wow-addon-per-hour/settings/secrets/actions),
    choose **New repository secret**, name it **CF_API_KEY**, and paste the token as its value.
-3. Commit and push the workflow changes, then merge `feat/forever-revive` into `main`.
+
+## Prepare a version
+
+1. Review the changes since the previous published Forever release. Update
+   `## Version` in `per-hour.toc` if a new version has not already been prepared.
+   Keep `## Interface` unchanged unless the target client changes.
+2. Update the usage instructions in `README.md`, the text in
+   [curseforge-listing.md](curseforge-listing.md), and the release notes in
+   `docs/releases/<version>.md` to match the new behavior.
+3. Run `lua tests/forever.lua` with Lua 5.1 and generate the local package with
+   `.\scripts\package.ps1`. Check the ZIP version, folder layout and load references.
+   Validate the addon in game; simulation results alone do not establish gameplay compatibility.
+4. Review and commit the prepared changes, then merge the release branch into `main`.
+   Merge only the version and behavior intended for this release.
 
 ## Publish
 
-1. Test the addon in game and update `## Version` in `per-hour.toc` when needed.
+1. Confirm that `main` contains the prepared version and reviewed release notes.
+   The next prepared version is `1.1.0-forever`; its notes are in
+   [releases/1.1.0-forever.md](releases/1.1.0-forever.md).
 2. On [New release](https://github.com/eavidaze/wow-addon-per-hour/releases/new),
-   create a tag matching the addon version (for example `v1.0.0-forever`),
-   select `main` as the target, add release notes, and click **Publish release**.
+   create a tag matching the addon version (`v1.1.0-forever` for this version),
+   select `main` as the target, copy the user-facing release notes, and click **Publish release**.
 3. Follow **Release Addon** in [Actions](https://github.com/eavidaze/wow-addon-per-hour/actions).
    It runs the Lua checks, packages the addon, uploads it to CurseForge,
    and attaches the ZIP to the GitHub release.

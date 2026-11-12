@@ -19,7 +19,8 @@ per hour and per minute.
 
 - Compact tracker windows with native WoW controls.
 - Independent **Start**, **Pause** and **Resume** controls for each tracker.
-- Expandable session details showing totals, elapsed time and the watched faction.
+- Live session tooltips showing duration, totals, hourly and per-minute rates, and the watched faction.
+- Tracker windows stay apart when moved or reopened, preventing overlapping panels.
 - A draggable minimap clock with a menu to show or hide each tracker.
 - Saved window visibility, window positions and minimap button position.
 - An **Announce** option to share your results in chat.
@@ -28,8 +29,8 @@ per hour and per minute.
 
 Click the minimap clock or type `/perhour`, select a tracker, and click **Start**.
 
-Hover over a tracker to see its rate per minute. Click the note icon to expand
-session details, or open the gear menu for **Reset** and **Announce**.
+Hover over a tracker: **Session** shows duration and total gained, while **Rates**
+shows gains per hour and per minute. Open the gear menu for **Reset** and **Announce**.
 
 Paused time and gains are excluded. Closing a tracker window keeps an active
 session running; **Reset** clears and stops it. Sessions restart when you reload

@@ -42,12 +42,9 @@ function BaseModule:SendTo(contextModule, chatType)
 end
 
 function BaseModule:RefreshDisplayedValues(contextModule)
-    contextModule.TimeValue:SetText(Utils:DisplayTimer(contextModule.Time))
-    contextModule.ElementValue:SetText(Utils:DisplayNumber(contextModule.Element))
     PerHour.Displayer:RefreshRate(contextModule)
-    if contextModule.ContextText then
-        contextModule.ContextText:SetText(contextModule.CustomGetContext())
-    end
+    PerHour.Displayer:RefreshTrackingState(contextModule)
+    PerHour.Displayer:RefreshTooltip(contextModule)
 end
 
 function BaseModule:UpdateRates(contextModule)
@@ -85,11 +82,6 @@ function BaseModule:ResetModule(contextModule)
         contextModule.CustomReset()
     end
 
-    -- reset the button
-    if contextModule.ToggleStartButton~=nil then
-        contextModule.ToggleStartButton:SetText("Start")
-    end
-    
     BaseModule:RefreshDisplayedValues(contextModule)
 end
 

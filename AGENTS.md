@@ -10,11 +10,18 @@
   `test` for tests, `ci` for workflows, and `chore` for maintenance.
   Example: `feat: revive Per Hour for WoW Forever`.
 - Keep unrelated changes in separate commits, such as addon changes and local installation tooling.
-- When suggesting commits, provide both `git add` and `git commit` commands.
-- Create commits, push, create tags or publish releases only when explicitly requested.
-  Questions about whether a commit would publish the addon are not authorization to commit.
+- Never create commits, including when the user asks to commit.
+- When the user mentions committing, stage only the related changes and provide only
+  the `git commit` command for the user to review and execute.
+- Push, create tags or publish releases only when explicitly requested.
 - Preserve the user's existing changes and staging choices; leave edits available for review and testing.
 - Follow the branch name requested by the user.
+- Name working branches `<type>/<short-description>`, using the same types and purposes as commits:
+  `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, and `chore`.
+- Write branch descriptions in English, in lowercase, with words separated by hyphens.
+  Examples: `feat/addon-improvements`, `fix/honor-tracking`, `docs/update-installation`.
+- Choose the branch type by the main purpose of the work; individual commits may use other types.
+- Never use `codex` in branch names.
 
 ## Code and documentation
 
