@@ -2,5 +2,6 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<Script file="Displayer.lua" />
     <Script file="ToggleMenu.lua" />
+    <Script file="MinimapButton.lua" />
     <Script file="CommandLine.lua" />
 </Ui>

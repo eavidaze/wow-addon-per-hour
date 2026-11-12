@@ -30,6 +30,10 @@ local function Snapshot(data)
     Module.MissingFactionTime = 0
 end
 
+Module.CustomGetContext = function()
+    return Module.LastReputationName ~= "" and Module.LastReputationName or "No active session"
+end
+
 Module.CustomStart = function()
     local data = GetWatchedFaction()
     if not data then

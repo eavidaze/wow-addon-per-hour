@@ -15,13 +15,17 @@ code changes only need `/reload`.
 
 ## Use
 
-- `/perhour` shows or hides the menu.
-- **Start / Pause** controls tracking; paused gains and time are excluded.
-- **Reset** clears and stops the tracker. Hidden windows keep tracking.
+- Click the minimap clock or use `/perhour` to toggle the module menu.
+- Check a module to show its window. Drag the minimap button to reposition it.
+- **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
+- Drag a window's title bar to move it; its close button hides it without stopping tracking.
+- Click the note icon to show or hide session details (total, time and tracked faction).
+- The gear menu offers **Reset** (clear and stop) and **Announce** (share results to chat).
+- Hover over a window to see the rate per minute.
 - **Reputation** requires a watched faction; switching factions resets it.
-- The announcement icon shares results to a chat channel.
 
-Window visibility is saved. Sessions restart after a reload or login.
+Window visibility, window positions and minimap button position are saved.
+Sessions restart after a reload or login.
 
 ## Development
 
