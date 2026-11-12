@@ -1,0 +1,42 @@
+name: Release Addon
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check CurseForge credentials
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_KEY }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error::Create the CF_API_KEY repository secret before publishing a release."
+            exit 1
+          fi
+
+      - name: Run Lua checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua5.1
+          lua5.1 tests/forever.lua
+
+      - name: Package and upload to CurseForge and GitHub
+        uses: BigWigsMods/packager@v2.7.0
+        with:
+          args: -m pkgmeta.yaml -g forever
+          pandoc: 'false'
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_KEY }}
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}

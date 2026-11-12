@@ -1,104 +1,72 @@
--- import
-local PerHour = PerHour
-local Utils = Utils
-local BaseModule = BaseModule
-
--- declaretion
-local Module = {}
+local Module = {
+    Name = "Reputation",
+    TagName = "reputation",
+    ShortName = "Rep",
+    RegisteredEvents = {},
+}
 PerHour.Modules.Reputation = Module
 
--- properties
-Module.Name = "Reputation"
-Module.TagName = "reputation"
-Module.ShortName = "Rep"
-Module.RegisteredEvents = {}
+local MISSING_FACTION_GRACE_SECONDS = 10
 
--- custom properties
-Module.LastReputationName = ""
-Module.LastReputationValue = 0
-
--- custom messages
-Module.CustomSendToMessages = {
-    ["message1"] = function()
-        local reputationName = ""
-        if Module.LastReputationName ~= "" then
-            reputationName = Module.LastReputationName
-        end
-        return "Reputation: ...... "..reputationName
-    end
-    
-}
-
--- bugfix:  sometimes, when the screen is reloaded (a portal for example)
---          the GetWatchedFactionInfo() returns null witch means without faction.
---          because of that we have to tolerate some seconds util reset.
-Module.HasWaitingWithoutFaction = false
-Module.WaitingWithoutFactionTime = 0
-
--- toleration time is considering the "outside elapsed" (Displayer elapse)
--- here "0.1" is almost 10 seconds.
-local STATIC_TOLERATION_INTERVAL = 0.1
-
--- custom functions
-Module.CustomOnUpdate = function(self, elapsed)
-    local reputationReceived = 0
-    local currentName, standing, minBound, maxBound, currentValue, factionID = GetWatchedFactionInfo()
-
-    if currentName~=nil then
-
-        -- wait condition is true because the tracker is working
-        Module.HasWaitingWithoutFaction = true
-        Module.WaitingWithoutFactionTime = 0
-
-        if Module.LastReputationName ~= "" and Module.LastReputationName ~= currentName then
-            -- Reputation changed
-            Utils:AddonMessage(Module.Name.." was changed from "..Module.LastReputationName.." to "..currentName..".")
-            Utils:AddonMessage(Module.Name.." reseted.")
-            BaseModule:ResetModule(Module)
-        else
-            -- still in the Reputation
-            if Module.LastReputationValue ~= 0 then
-                reputationReceived = currentValue - Module.LastReputationValue
-            end
-        
-            -- update lasts
-            Module.LastReputationValue = currentValue
-            Module.LastReputationName = currentName
-            
-            -- Element is the amount of Reputation
-            if not Module.HasPaused then
-                Module.Element = Module.Element + reputationReceived
-            end
-
-        end
-
-    else
-        if Module.HasWaitingWithoutFaction then
-            -- wait condition is reached
-            Module.WaitingWithoutFactionTime = Module.WaitingWithoutFactionTime + elapsed
-            if Module.WaitingWithoutFactionTime > STATIC_TOLERATION_INTERVAL then
-                -- time tolerated is reached
-                Module.HasWaitingWithoutFaction = false
-            end
-        else
-            Utils:AddonMessage(Module.Name.." must be selected to be displayed as Experience Bar.")
-            BaseModule:ResetModule(Module)
-        end
+local function GetWatchedFaction()
+    local data = C_Reputation.GetWatchedFactionData()
+    if data and not (issecretvalue and (issecretvalue(data.name) or issecretvalue(data.factionID)))
+        and Utils:IsReadableNumber(data.currentStanding) then
+        return data
     end
 end
 
 Module.CustomReset = function()
     Module.LastReputationName = ""
-    Module.LastReputationValue = 0
-    Module.HasWaitingWithoutFaction = false
-    Module.WaitingWithoutFactionTime = 0
+    Module.LastFactionID = nil
+    Module.LastReputationValue = nil
+    Module.MissingFactionTime = 0
 end
 
-Module.CustomStartedMessage = function ()
-    local startedMessage = " was not selected."
-    local currentName, standing, minBound, maxBound, currentValue, factionID = GetWatchedFactionInfo()
-    if currentName~=nil then
-        startedMessage = " ["..currentName.."] monitoring started."
-    end
-    return startedMessage
+local function Snapshot(data)
+    Module.LastReputationName = data.name
+    Module.LastFactionID = data.factionID
+    Module.LastReputationValue = data.currentStanding
+    Module.MissingFactionTime = 0
 end
+
+Module.CustomStart = function()
+    local data = GetWatchedFaction()
+    if not data then
+        Utils:AddonMessage("Select a watched reputation before starting the tracker.")
+        return false
+    end
+    Snapshot(data)
+end
+
+Module.CustomOnUpdate = function(self, elapsed)
+    local data = GetWatchedFaction()
+    if not data then
+        -- The watched faction can temporarily disappear during a loading screen.
+        Module.MissingFactionTime = Module.MissingFactionTime + elapsed
+        if Module.MissingFactionTime >= MISSING_FACTION_GRACE_SECONDS then
+            Utils:AddonMessage("Select a watched reputation before starting the tracker.")
+            BaseModule:ResetModule(Module)
+        end
+        return
+    end
+
+    if Module.LastFactionID and Module.LastFactionID ~= data.factionID then
+        Utils:AddonMessage("Watched reputation changed; reputation tracker reset.")
+        BaseModule:ResetModule(Module)
+        return
+    end
+
+    if Module.LastReputationValue ~= nil and not Module.HasPaused then
+        Module.Element = Module.Element + data.currentStanding - Module.LastReputationValue
+    end
+    Snapshot(data)
+end
+
+Module.CustomStartedMessage = function()
+    return " ["..Module.LastReputationName.."] monitoring started."
+end
+
+Module.CustomSendToMessages = {
+    function() return "Reputation: ...... "..Module.LastReputationName end,
+}

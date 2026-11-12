@@ -31,25 +31,40 @@ local STATIC_UPDATE_INTERVAL = 1
 local function ToggleStartOnClick(contextModule)
     
     if contextModule.HasStarted and not contextModule.HasPaused then
+        -- Account for the interval since the last timer tick before pausing.
+        if contextModule.CustomOnUpdate then
+            contextModule.CustomOnUpdate(nil, 0)
+        end
+        if not contextModule.HasStarted then return end
         -- if started and not paused > then pause
         contextModule.HasPaused = true
         -- and set the pause time
         contextModule.PausedAt = GetTime()
+        BaseModule:UpdateRates(contextModule)
 
         contextModule.ToggleStartButtom:SetText("Start")
         Utils:AddonMessage(contextModule.Name.." paused.")
 
     elseif contextModule.HasStarted and contextModule.HasPaused then
+        -- Refresh the baseline while paused to exclude gains during the pause.
+        if contextModule.CustomOnUpdate then
+            contextModule.CustomOnUpdate(nil, 0)
+        end
+        if not contextModule.HasStarted then return end
         -- if started and paused
         -- unpause
         contextModule.HasPaused = false
         -- and sum the time paused
         contextModule.PausedTime = contextModule.PausedTime + GetTime() - contextModule.PausedAt
+        BaseModule:UpdateRates(contextModule)
 
         contextModule.ToggleStartButtom:SetText("Pause")
         Utils:AddonMessage(contextModule.Name.." was unpaused.")
 
     elseif not contextModule.HasStarted then
+        if contextModule.CustomStart and contextModule.CustomStart() == false then
+            return
+        end
         -- if not started
         -- start
         contextModule.HasStarted = true
@@ -88,6 +103,7 @@ local function RenderFrame(contextModule)
 
     -- set it movable
     Frame:SetMovable(true)
+    Frame:EnableMouse(true)
     Frame:SetClampedToScreen(true)
     Frame:SetScript("OnMouseDown", function(self, button)
         self:StartMoving()
@@ -110,15 +126,15 @@ local function RenderElements(contextModule)
     local Frame = contextModule.Frame
 
     -- time             | [left]       |
-    local timeText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
+    local timeText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     timeText:SetPoint("TOP", (FrameWidth/4)*-1, GetMarginTop())
     timeText:SetText("TIME")
     -- time valeu       | [left]       |
-    local timeValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
+    local timeValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     timeValue:SetPoint("TOP", timeText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- element          |       [right] |
-    local elementText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
+    local elementText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     elementText:SetPoint("TOP", (FrameWidth/4), GetMarginTop())
     if string.len(contextModule.Name) <= 6 then
         elementText:SetText(contextModule.Name:upper())
@@ -126,24 +142,24 @@ local function RenderElements(contextModule)
         elementText:SetText(contextModule.ShortName:upper())
     end
     -- element value    |       [right] |
-    local elementValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
+    local elementValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     elementValue:SetPoint("TOP", elementText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- element/h        |   [center]   |
-    local elementPerHourText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
+    local elementPerHourText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     elementPerHourText:SetPoint("TOP", 0, -39)
     elementPerHourText:SetText(contextModule.ShortName.."/h")
     -- element/h value  |   [center]   |
-    local elementPerHourValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
+    local elementPerHourValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     elementPerHourValue:SetPoint("TOP", elementPerHourText, "BOTTOM", 0, PaddingTop(Padding))
     elementPerHourValue:SetFont("Fonts\\ARIALN.TTF", 32)
 
     -- element/m        | [left]       |
-    local elementPerMinuteText = Frame:CreateFontString(Frame, "OVERLAY", "GameFontHighlightSmall")
+    local elementPerMinuteText = Frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     elementPerMinuteText:SetPoint("TOP", (FrameWidth/4)*-1, -91)
     elementPerMinuteText:SetText(contextModule.ShortName.."/min")
     -- element/m value  | [left]       |
-    local elementPerMinuteValue = Frame:CreateFontString(Frame, "OVERLAY", "GameFontNormal")
+    local elementPerMinuteValue = Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     elementPerMinuteValue:SetPoint("TOP", elementPerMinuteText, "BOTTOM", 0, PaddingTop(Padding))
 
     -- set module texts
@@ -221,7 +237,7 @@ local function RenderSendTo(contextModule, sendToButton)
     sendToFrameTexture:SetAllPoints(sendToFrame)
     
     -- TITLE
-    local sendToTitle = sendToFrame:CreateFontString(sendToFrame, nil, "GameFontHighlightSmall")
+    local sendToTitle = sendToFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     sendToTitle:SetHeight(sendToOptionHeight)
     sendToTitle:SetPoint("TOPLEFT", PaddingRight(Margin), PaddingTop(Padding))
     sendToTitle:SetText("Send to:")
@@ -234,7 +250,7 @@ local function RenderSendTo(contextModule, sendToButton)
     for key,thisOpt in pairs(sendToOptions) do
 
         -- for each module registred, we render a button
-        local sendOption = CreateFrame("Button", "SendOption"..thisOpt, sendToFrame, "OptionsListButtonTemplate")
+        local sendOption = CreateFrame("Button", "$parent-"..thisOpt, sendToFrame, "UIPanelButtonTemplate")
         sendOption:SetWidth(sendOptionWidth)
         sendOption:SetHeight(sendToOptionHeight)
         sendOption:SetText("/"..thisOpt:lower())
@@ -274,7 +290,7 @@ local function RenderButtons(contextModule)
     local Frame = contextModule.Frame
 
     -- configure buttons
-    local toggleStartButtom = CreateFrame("Button", "$parent-start-button", Frame, "UIMenuButtonStretchTemplate")
+    local toggleStartButtom = CreateFrame("Button", "$parent-start-button", Frame, "UIPanelButtonTemplate")
     contextModule.ToggleStartButtom = toggleStartButtom
     toggleStartButtom:SetWidth(FrameWidth - (Margin * 2))
     toggleStartButtom:SetHeight(24)
@@ -285,7 +301,7 @@ local function RenderButtons(contextModule)
         ToggleStartOnClick(contextModule)
     end)
     
-    local resetButtom = CreateFrame("Button", "$parent-reset-button", Frame, "UIMenuButtonStretchTemplate")
+    local resetButtom = CreateFrame("Button", "$parent-reset-button", Frame, "UIPanelButtonTemplate")
     resetButtom:SetWidth((FrameWidth/2) - Margin)
     resetButtom:SetHeight(20)
     resetButtom:SetPoint("BOTTOMRIGHT", toggleStartButtom, "TOPRIGHT", 0, PaddingBottom(Padding))
@@ -295,7 +311,7 @@ local function RenderButtons(contextModule)
         ButtonResetOnClick(contextModule)
     end)
 
-    local sendToButton = CreateFrame("Button", "$parent-sendto-button", Frame, "SecureActionButtonTemplate")
+    local sendToButton = CreateFrame("Button", "$parent-sendto-button", Frame)
     sendToButton:SetSize(14,14)
     sendToButton:SetPoint("BOTTOMRIGHT", resetButtom, "TOPRIGHT", PaddingLeft(PaddingIcon), PaddingBottom(Padding))
     sendToButton:SetNormalTexture([[Interface\AddOns\per-hour\src\textures\announcement_black_white]])
@@ -305,7 +321,9 @@ local function RenderButtons(contextModule)
 end
 
 local function RegisterScripts(contextModule)
-    local Frame = contextModule.Frame
+    -- OnUpdate only runs on shown frames. Keep tracking when a window is hidden.
+    local Frame = CreateFrame("Frame", nil, UIParent)
+    contextModule.TrackerFrame = Frame
     
     Frame:SetScript("OnEvent", function(self, event, ...)
         if contextModule.HasStarted then
@@ -322,21 +340,17 @@ local function RegisterScripts(contextModule)
 
             contextModule.TimeSinceLastUpdate = contextModule.TimeSinceLastUpdate + elapsed
             if (contextModule.TimeSinceLastUpdate > STATIC_UPDATE_INTERVAL) then
+                local updateElapsed = contextModule.TimeSinceLastUpdate
                 contextModule.TimeSinceLastUpdate = 0
 
                 -- run custom
                 if contextModule.CustomOnUpdate~=nil then
-                    contextModule.CustomOnUpdate(self, elapsed)
+                    contextModule.CustomOnUpdate(self, updateElapsed)
                 end
 
                 if contextModule.HasStarted and not contextModule.HasPaused then
                     -- check if the custom event does not stop the displayer
-                    contextModule.Time = GetTime() - contextModule.StartedAt - contextModule.PausedTime
-                    local elementPerMinute = contextModule.Element / (contextModule.Time / 60)
-                    contextModule.ElementPerMinute = Utils:RoundValue(elementPerMinute, 2)
-                    contextModule.ElementPerHour = Utils:RoundValue(elementPerMinute * 60, 2)
-                    
-                    BaseModule:RefreshDisplayedValues(contextModule)
+                    BaseModule:UpdateRates(contextModule)
                 end
             end
         end
@@ -344,8 +358,7 @@ local function RegisterScripts(contextModule)
 end
 
 local function RegisterEvents(contextModule)
-    local Frame = contextModule.Frame
-    Frame:RegisterEvent("ADDON_LOADED")
+    local Frame = contextModule.TrackerFrame
     for k,value in pairs(contextModule.RegisteredEvents) do
         Frame:RegisterEvent(value)
     end

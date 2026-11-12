@@ -15,25 +15,32 @@ Module.RegisteredEvents = {}
 -- custom properties
 Module.LastMaxXp = 0
 Module.LastXp = 0
+Module.LastLevel = 0
 
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
     local xpReceived = 0
     local currentMaxXp = UnitXPMax("player")
     local currentXp = UnitXP("player")
+    local currentLevel = UnitLevel("player")
 
-    if Module.LastMaxXp == currentMaxXp then
-        xpReceived = currentXp - Module.LastXp
-    elseif Module.LastMaxXp ~= 0 and Module.LastMaxXp < currentMaxXp then
-        -- if last max xp is zero, we are in the first loop
-        -- else not, just lvl up :) gratz
-        local levelUpDiff = Module.LastMaxXp - Module.LastXp
-        xpReceived = levelUpDiff + currentXp
+    if not Utils:IsReadableNumber(currentXp) or not Utils:IsReadableNumber(currentMaxXp)
+        or not Utils:IsReadableNumber(currentLevel) then
+        return
+    end
+
+    if Module.LastLevel ~= 0 then
+        if currentLevel > Module.LastLevel then
+            xpReceived = Module.LastMaxXp - Module.LastXp + currentXp
+        else
+            xpReceived = math.max(0, currentXp - Module.LastXp)
+        end
     end
 
     -- update lasts
     Module.LastMaxXp = currentMaxXp
     Module.LastXp = currentXp
+    Module.LastLevel = currentLevel
     
     -- Element is the amount of XP
     if not Module.HasPaused then
@@ -44,4 +51,11 @@ end
 Module.CustomReset = function()
     Module.LastMaxXp = 0
     Module.LastXp = 0
+    Module.LastLevel = 0
+end
+
+-- Snapshot at the click, so the first gain after Start is included.
+Module.CustomStart = function()
+    Module.CustomReset()
+    Module.CustomOnUpdate()
 end
