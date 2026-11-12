@@ -3,4 +3,6 @@ ignore: # Files and directories beginning with a dot (such as .git) are automati
     - img/
     - README.md
     - document.md
-    - LICENSE
+    - tests/
+    - scripts/
+    - dist/

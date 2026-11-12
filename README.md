@@ -1,39 +1,38 @@
-[![CurseForge downloads](http://cf.way2muchnoise.eu/full_486717_downloads.svg)](https://www.curseforge.com/wow/addons/per-hour)
+# Per Hour - WoW Forever
 
-# Per Hour
+Track experience, honor and watched reputation earned per minute and per hour.
+Targets **WoW Forever 1.60.1 (Interface 16001)**. In-game validation is pending.
 
-Do you want to know your performance? The Per Hour Addon is for you!
+## Install
 
-You will be able to measure your performance:
+1. Extract the addon into `_forever_\Interface\AddOns\per-hour`.
+   The folder must contain `per-hour.toc` directly.
+2. Restart WoW and enable **Per Hour - Forever** in the AddOns list.
 
-- Experience.
-- Honor.
-- Reputation.
+For local development on Windows, run `.\scripts\install.ps1` once to link this
+checkout to the game's AddOns folder. Keep the checkout in place; subsequent
+code changes only need `/reload`.
 
-  - A reputation must be selected to be displayed as Experience Bar.
+## Use
 
-    - `Character Info` window > `Reputation` tab > click in a reputation > check `Show as Experience Bar`.
+- `/perhour` shows or hides the menu.
+- **Start / Pause** controls tracking; paused gains and time are excluded.
+- **Reset** clears and stops the tracker. Hidden windows keep tracking.
+- **Reputation** requires a watched faction; switching factions resets it.
+- The announcement icon shares results to a chat channel.
 
-  - If you change your reputation selected, the tracker will be reseted.
+Window visibility is saved. Sessions restart after a reload or login.
 
-![This image shows the addon in game.](https://raw.githubusercontent.com/eavidaze/wow-addon-per-hour/main/img/ss1.png "Screenshot")
+## Development
 
-I'll soon add many other measurement options, such as:
+Run commands from the repository root:
 
-- Gold.
-- Etc.
+```powershell
+lua tests/forever.lua      # Lua 5.1 simulation checks
+.\scripts\package.ps1     # Generate the release ZIP in dist\
+```
 
-This is an experimental project and feedbacks are welcome!
+## Credits
 
-## How to install?
-
-- Download this repository.
-  - Then extract on **your** wow addons folder.
-    - Usually `C:\Program Files (x86)\World of Warcraft\_classic_\Interface\AddOns`
-  - Then rename the addon folder to `per-hour`.
-    - The folder must have the same name as the `.TOC` file.
-    - Must be like this: `{wow_folder}\Interface\AddOns\per-hour\per-hour.TOC`.
-
-- We are also on CurseForge <https://www.curseforge.com/wow/addons/per-hour>.
-
-- You can also search for **Per Hour** in your addon manager preferred.
+Original author: José Júnior. Thanks to Zwietabak and AssisrMatheus.
+[MIT license](LICENSE).
