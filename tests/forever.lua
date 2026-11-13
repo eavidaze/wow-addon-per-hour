@@ -164,12 +164,12 @@ function AbbreviateLargeNumbers(value)
     abbreviatedValue = value
     return "1T"
 end
-function UnitXP() return xp end
-function UnitXPMax() return xpMax end
-function UnitLevel() return level end
-function UnitHonor() return honorValue end
-function UnitHonorMax() return honorMax end
-function UnitHonorLevel() return honorLevel end
+function UnitXP(_unit) return xp end
+function UnitXPMax(_unit) return xpMax end
+function UnitLevel(_unit) return level end
+function UnitHonor(_unit) return honorValue end
+function UnitHonorMax(_unit) return honorMax end
+function UnitHonorLevel(_unit) return honorLevel end
 function issecretvalue(value) return type(value) == "table" and value.secret == true end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) messages[#messages + 1] = message end }
 C_Reputation = { GetWatchedFactionData = function() return watched end }
