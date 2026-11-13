@@ -1,0 +1,4 @@
+interface:
+  display_name: "Per Hour: preparar PR"
+  short_description: "Prepare o bump, valide o pacote e abra o PR"
+  default_prompt: "Use $per-hour-prepare-release para preparar o bump do Per Hour, atualizar a documentação, validar o pacote, fazer o commit, enviar a branch e criar o PR para main automaticamente."

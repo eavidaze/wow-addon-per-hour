@@ -10,10 +10,17 @@
   `test` for tests, `ci` for workflows, and `chore` for maintenance.
   Example: `feat: revive Per Hour for WoW Forever`.
 - Keep unrelated changes in separate commits, such as addon changes and local installation tooling.
-- Never create commits, including when the user asks to commit.
-- When the user mentions committing, stage only the related changes and provide only
-  the `git commit` command for the user to review and execute.
+- Never create commits outside the requested `per-hour-prepare-release` workflow,
+  including when the user otherwise asks to commit. That release workflow is an
+  authorized exception: commit only its release-preparation changes automatically.
+- Outside that workflow, when the user mentions committing, stage only the related
+  changes and provide only the `git commit` command for the user to execute.
 - Push, create tags or publish releases only when explicitly requested.
+- Invoking `per-hour-prepare-release` authorizes its commit, push and PR creation;
+  invoking `per-hour-publish-release` authorizes its merge, release publication
+  and workflow monitoring. Execute each requested stage automatically and ask only
+  about unresolved doubts or ambiguities. Discussing or editing these skills does
+  not invoke either workflow or resume an operation the user has stopped.
 - Preserve the user's existing changes and staging choices; leave edits available for review and testing.
 - Follow the branch name requested by the user.
 - Name working branches `<type>/<short-description>`, using the same types and purposes as commits:
@@ -30,6 +37,8 @@
 - Match filename casing exactly in TOC/XML references, including when working on Windows.
 - Keep the README short and focused on installation and use; put detailed instructions in `docs/`.
 - Keep development files out of release ZIPs using `pkgmeta.yaml`.
+- Keep Per Hour skills only in this repository's `.agents/skills/` directory;
+  do not install personal or global copies.
 
 ## Validation and releases
 

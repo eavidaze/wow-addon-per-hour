@@ -1,0 +1,4 @@
+interface:
+  display_name: "Per Hour: publicar release"
+  short_description: "Finalize o PR e publique a release do Per Hour"
+  default_prompt: "Use $per-hour-publish-release para verificar o PR preparado do Per Hour, fazer o merge, publicar a release e acompanhar o workflow automaticamente."

@@ -6,7 +6,7 @@ Per Hour - XP, Honor & Reputation Farming Tracker
 
 ## Summary
 
-Track XP for leveling, honor for PvP and reputation gains per hour in WoW Forever.
+Track XP for leveling, honor for PvP and reputation gains per hour in WoW Forever, with sessions preserved between logins.
 
 ## Description
 
@@ -23,7 +23,8 @@ per hour and per minute.
 - Tracker windows stay apart when moved or reopened, preventing overlapping panels.
 - A draggable minimap clock with a menu to show or hide each tracker.
 - Saved window visibility, window positions and minimap button position.
-- Per-character sessions preserved across UI reloads and logins, with a played-time continuity check.
+- Per-character sessions preserved between logins, including totals, active duration and manual pause state.
+- A shared continuity check flags restored sessions that may have missed progress.
 - An **Announce** option to share your results in chat.
 
 #### Getting started
@@ -32,17 +33,23 @@ Click the minimap clock or type `/perhour`, select a tracker, and click **Start*
 
 Hover over a tracker: **Session** shows duration and total gained, while **Rates**
 shows gains per hour and per minute. Open the gear menu for **Reset** and **Announce**.
+The close button appears while hovering over the panel.
 
 Paused time and gains are excluded. Closing a tracker window keeps an active
 session running; **Reset** clears and stops it. Sessions are saved per character
-when you reload the interface or log out normally. Offline time and gains are
-excluded; running sessions resume after verification, and manually paused
-sessions stay paused.
+when you log out normally. Offline time and gains are excluded; running sessions
+resume after verification, and manually paused sessions stay paused.
 
-The top-left restore icon reports the continuity check. Hover for details. If a
-session needs review, **Resume** accepts its saved totals or **Reset** clears and
-stops it.
-The check cannot recover progress lost after an interrupted save.
+The restore icon at the top-left of each panel is **yellow** while checking,
+**green** after a successful check, or **red** when the session needs review.
+Hover for details. The green confirmation disappears automatically. If a session
+needs review, it stays paused until **Resume** accepts its saved totals or
+**Reset** clears and stops it.
+
+The check compares total played time with the saved session, allowing a
+30-second tolerance for timing differences. It can flag unsaved playing time
+even without XP, honor or reputation gains. Short interruptions may go unnoticed,
+and lost progress cannot be recovered. Exit the game normally to save your sessions.
 
 Using a hearthstone or changing zones keeps the current XP session running.
 
