@@ -29,6 +29,16 @@ Module.CustomOnUpdate = function(self, elapsed)
         return
     end
 
+    -- Loading screens may expose empty or incomplete player progress.
+    -- Keep the last valid snapshot so restored XP is not counted again.
+    if currentMaxXp <= 0 or currentLevel <= 0 or currentXp < 0 then
+        return
+    end
+    if Module.LastLevel ~= 0 and (currentLevel < Module.LastLevel
+        or (currentLevel == Module.LastLevel and currentXp < Module.LastXp)) then
+        return
+    end
+
     if Module.LastLevel ~= 0 then
         if currentLevel > Module.LastLevel then
             xpReceived = Module.LastMaxXp - Module.LastXp + currentXp

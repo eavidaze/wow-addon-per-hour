@@ -365,6 +365,32 @@ equal(experience.Element, 850, "secret XP ignored")
 xp = 100
 tick(2)
 equal(experience.Element, 900, "XP resumes when readable")
+-- Loading screens can temporarily expose empty player progress.
+xp, xpMax = 0, 0
+tick(2)
+equal(experience.Element, 900, "loading screen adds no XP")
+xp, xpMax, level = 100, 900, 11
+tick(2)
+equal(experience.Element, 900, "hearthstone does not recount accumulated XP")
+xp = 125
+tick(2)
+equal(experience.Element, 925, "real XP after travel is counted")
+-- Also tolerate incomplete snapshots after the world has loaded.
+xp, xpMax, level = 0, 0, 0
+tick(2)
+xp, xpMax, level = 125, 900, 11
+tick(2)
+equal(experience.Element, 925, "empty player snapshot does not create XP")
+xp = 0
+tick(2)
+xp = 125
+tick(2)
+equal(experience.Element, 925, "temporary XP regression does not create XP")
+xpMax = 0
+tick(2)
+xp, xpMax, level = 25, 1000, 12
+tick(2)
+equal(experience.Element, 1725, "invalid maximum does not corrupt level-up XP")
 BaseModule:ResetModule(experience)
 equal(experience.Element, 0, "reset XP")
 equal(experience.HasStarted, false, "reset stops tracker")

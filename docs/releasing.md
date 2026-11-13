@@ -24,10 +24,10 @@
 ## Publish
 
 1. Confirm that `main` contains the prepared version and reviewed release notes.
-   The next prepared version is `1.1.0-forever`; its notes are in
-   [releases/1.1.0-forever.md](releases/1.1.0-forever.md).
+   The next prepared version is `1.1.1-forever`; its notes are in
+   [releases/1.1.1-forever.md](releases/1.1.1-forever.md).
 2. On [New release](https://github.com/eavidaze/wow-addon-per-hour/releases/new),
-   create a tag matching the addon version (`v1.1.0-forever` for this version),
+   create a tag matching the addon version (`v1.1.1-forever` for this version),
    select `main` as the target, copy the user-facing release notes, and click **Publish release**.
 3. Follow **Release Addon** in [Actions](https://github.com/eavidaze/wow-addon-per-hour/actions).
    It runs the Lua checks, packages the addon, uploads it to CurseForge,

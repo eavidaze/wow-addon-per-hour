@@ -17,7 +17,6 @@ try {
     $files = @(
         Get-Item -LiteralPath $tocFile
         Get-Item -LiteralPath (Join-Path $projectRoot 'LICENSE')
-        Get-Item -LiteralPath (Join-Path $projectRoot 'README.md')
         Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Recurse -File
     )
     foreach ($file in ($files | Sort-Object FullName)) {

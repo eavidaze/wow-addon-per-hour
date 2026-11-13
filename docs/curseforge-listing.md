@@ -36,6 +36,8 @@ Paused time and gains are excluded. Closing a tracker window keeps an active
 session running; **Reset** clears and stops it. Sessions restart when you reload
 the interface or log out.
 
+Using a hearthstone or changing zones keeps the current XP session running.
+
 #### Reputation tracking
 
 Select a faction to display on your reputation bar before starting the tracker.
