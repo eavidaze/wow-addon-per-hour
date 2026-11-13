@@ -1,15 +1,71 @@
 local PerHour = PerHour
 local Utils = Utils
 local BaseModule = BaseModule
+local Components = PerHour.Components
+local Theme = PerHour.Theme
 local Displayer = {}
 PerHour.Displayer = Displayer
 
-local WIDTH, HEIGHT = 180, 110
+local WIDTH, HEIGHT = 180, 94
 local CONTROL_SIZE = 28
+local FOOTER_PADDING = 8
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
 local PANEL_GAP = 4
+local RESTORE_SUCCESS_SECONDS = 5
+local RESTORE_ERROR_DELAY_SECONDS = 0.5
 local modules = {}
+local RESTORE_STATUS = {
+    pending = { atlas = READY_CHECK_WAITING_TEXTURE_RAID, title = "Checking saved session...", r = 1, g = 0.8, b = 0 },
+    success = { atlas = READY_CHECK_READY_TEXTURE_RAID, title = "Session restored successfully.", r = 0.2, g = 1, b = 0.2 },
+    error = { atlas = READY_CHECK_NOT_READY_TEXTURE_RAID, title = "Session integrity check failed.", r = 1, g = 0.2, b = 0.2 },
+}
+
+local function AnimateRestoreIndicator(module, delay)
+    local indicator = module.RestoreIndicator
+    local startedAt = GetTime()
+    local startAlpha = indicator:GetAlpha()
+    local fadeOutAt = delay and (startedAt + delay)
+    indicator.Fading = fadeOutAt ~= nil
+    indicator:SetScript("OnUpdate", function(self)
+        local now = GetTime()
+        local fadingOut = fadeOutAt and now >= fadeOutAt
+        local alpha
+        if fadingOut then
+            alpha = 1 - (now - fadeOutAt) / Theme.motion.fadeOut
+        else
+            alpha = startAlpha + (1 - startAlpha) * math.min(1, (now - startedAt) / Theme.motion.fadeIn)
+        end
+        alpha = math.max(0, math.min(1, alpha))
+        self:SetAlpha(alpha)
+        if fadingOut and alpha == 0 then
+            self.Fading = false
+            self:SetScript("OnUpdate", nil)
+            self:Hide()
+            self:SetAlpha(1)
+            module.RestoreStatus = nil
+            Displayer:RefreshRestoreStatus(module)
+        elseif not fadeOutAt and alpha == 1 then
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
+end
+
+local function ShowRestoreTooltip(module)
+    local status = RESTORE_STATUS[module.RestoreStatus]
+    if not status then return end
+    GameTooltip:SetText(status.title, status.r, status.g, status.b)
+    if module.RestoreStatus == "success" then
+        GameTooltip:AddLine("Played time matches the saved session (30-second tolerance).", 1, 1, 1, true)
+    elseif module.RestoreStatus == "pending" then
+        GameTooltip:AddLine("Waiting for played time or character data.", 1, 1, 1, true)
+    else
+        GameTooltip:AddLine(module.RestoreIssue, 1, 1, 1, true)
+        GameTooltip:AddLine("Reset for accurate results, or Resume to keep saved totals.", 1, 0.82, 0, true)
+        GameTooltip:AddLine("Exit the game normally to save your session.", 0.8, 0.8, 0.8, true)
+    end
+    GameTooltip:Show()
+end
 
 local function FindFreePosition(module, x, y)
     local frame = module.Frame
@@ -66,25 +122,31 @@ local function PlaceShownPanel(module)
 end
 
 local function ToggleTracking(module)
+    if module.PendingRestore then return end
     if module.HasStarted then
         -- Sample before changing state so pause/resume excludes the right gains.
         if module.CustomOnUpdate then module.CustomOnUpdate(nil, 0) end
         if not module.HasStarted then return end
+        BaseModule:UpdateRates(module)
 
         if module.HasPaused then
-            module.PausedTime = module.PausedTime + GetTime() - module.PausedAt
             module.HasPaused = false
+            if module.RestoreStatus == "error" then
+                module.RestoreStatus = nil
+                module.RestoreIssue = nil
+            end
             Utils:AddonMessage(module.Name .. " resumed.")
         else
             module.HasPaused = true
-            module.PausedAt = GetTime()
             Utils:AddonMessage(module.Name .. " paused.")
         end
-        BaseModule:UpdateRates(module)
+        BaseModule:RefreshDisplayedValues(module)
     else
         if module.CustomStart and module.CustomStart() == false then return end
+        module.RestoreStatus = nil
+        module.RestoreIssue = nil
         module.HasStarted = true
-        module.StartedAt = GetTime()
+        module.UpdatedAt = GetTime()
         local message = module.CustomStartedMessage and module.CustomStartedMessage() or " started."
         Utils:AddonMessage(module.Name .. message)
         BaseModule:RefreshDisplayedValues(module)
@@ -92,28 +154,16 @@ local function ToggleTracking(module)
 end
 
 local function CreatePanel(module, index, count)
-    local frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. module.TagName .. "-frame", UIParent)
+    local frame = Components:CreatePanel(UIParent, {
+        name = PerHour.AddonName .. "-" .. module.TagName .. "-frame",
+        title = module.Name .. " Per Hour",
+        width = WIDTH, height = HEIGHT, footerSize = CONTROL_SIZE,
+    })
     module.Frame = frame
-    frame:SetSize(WIDTH, HEIGHT)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
-    -- Use the same border and translucent background as Blizzard's Edit Mode.
-    frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
-    frame.Border:SetAllPoints(frame)
-
-    frame.TitleText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    frame.TitleText:SetText(module.Name .. " Per Hour")
-    frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
-    frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
-    frame.TitleText:SetJustifyH("CENTER")
-    frame.TitleText:SetWordWrap(false)
-    frame.TitleText:SetTextColor(1, 1, 1)
-
-    frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    frame.CloseButton:SetSize(24, 24)
-    frame.CloseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 2, 2)
     frame.CloseButton:SetScript("OnClick", function()
         module:SetIsShown(false)
         frame:Hide()
@@ -134,7 +184,7 @@ local function CreatePanel(module, index, count)
     end)
     frame:HookScript("OnHide", function()
         frame:SetScript("OnUpdate", nil)
-        if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
+        if GameTooltip:IsOwned(frame) or GameTooltip:IsOwned(module.RestoreIndicator) then GameTooltip:Hide() end
     end)
     frame:HookScript("OnShow", function()
         if PerHourAccount_Settings and PerHourAccount_Settings[module.Name] then PlaceShownPanel(module) end
@@ -168,21 +218,13 @@ local function CreateValues(module)
     local frame = module.Frame
     local content = CreateFrame("Frame", nil, frame)
     content:SetPoint("TOPLEFT", frame.TitleText, "BOTTOMLEFT")
-    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 16 + CONTROL_SIZE)
-    local rateFrame = CreateFrame("Frame", nil, frame)
+    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, CONTROL_SIZE)
+    local rateFrame = Components:CreateRateDisplay(frame, module.ShortName .. "/h")
     rateFrame:SetPoint("CENTER", content, "CENTER")
-    rateFrame:SetHeight(24)
     module.RateFrame = rateFrame
 
-    local rate = rateFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    rate:SetPoint("LEFT")
-    rate:SetWordWrap(false)
-    module.ElementPerHourValue = rate
-
-    local unit = rateFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    unit:SetPoint("BOTTOMLEFT", rate, "BOTTOMRIGHT", 4, 0)
-    unit:SetText(module.ShortName .. "/h")
-    module.RateUnit = unit
+    module.ElementPerHourValue = rateFrame.Value
+    module.RateUnit = rateFrame.Unit
 
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -193,57 +235,42 @@ local function CreateValues(module)
     end)
 end
 
-local function SetButtonTooltip(button, getText)
-    button:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(getText())
-        GameTooltip:Show()
+local function CreateRestoreIndicator(module)
+    local frame = module.Frame
+    local restore = CreateFrame("Frame", nil, frame)
+    module.RestoreIndicator = restore
+    Components:CreateCircularIcon(restore, { iconSize = 16, background = true })
+    restore:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
+    restore:SetIgnoreParentAlpha(true)
+    restore:EnableMouse(true)
+    restore:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        ShowRestoreTooltip(module)
     end)
-    button:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    local function HideRestoreTooltip()
+        if GameTooltip:IsOwned(restore) then GameTooltip:Hide() end
+    end
+    restore:SetScript("OnLeave", HideRestoreTooltip)
+    restore:SetScript("OnHide", HideRestoreTooltip)
+    restore:Hide()
 end
 
 local function CreateControls(module)
     local frame = module.Frame
-    local start = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    start:SetHeight(CONTROL_SIZE)
-    start:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 16)
+    local start = Components:CreateStatusButton(frame, "Start", CONTROL_SIZE)
+    start:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
     start:SetScript("OnClick", function() ToggleTracking(module) end)
     module.ToggleStartButton = start
 
-    local label = start:GetFontString()
-    label:ClearAllPoints()
-    -- Center the label together with the 20 px notification atlas.
-    label:SetPoint("CENTER", start, "CENTER", 10, 0)
-
-    local indicator = start:CreateTexture(nil, "OVERLAY")
-    indicator:SetSize(20, 20)
-    indicator:SetPoint("RIGHT", label, "LEFT", 0, 0)
-    indicator:SetAtlas("UI-HUD-MicroMenu-Communities-Icon-Notification")
-    indicator:SetDesaturated(true)
-    module.ActiveIndicator = indicator
+    module.ActiveIndicator = start.Indicator
 
     local options = CreateFrame("DropdownButton", nil, frame)
-    options:SetSize(24, 24)
-    -- Match the close button's right edge while sharing the footer's center line.
-    options:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, 18)
+    Components:CreateCircularIcon(options, { texture = "Interface\\Icons\\Trade_Engineering" })
+    -- Leave equal side padding while straddling the background's bottom boundary.
+    options:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
     start:SetPoint("RIGHT", options, "LEFT", -3, 0)
     options:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-    options.icon = options:CreateTexture(nil, "ARTWORK")
-    options.icon:SetTexture("Interface\\Icons\\Trade_Engineering")
-    options.icon:SetTexCoord(0, 1, 0, 1)
-    -- Keep the artwork inside the ring opening.
-    options.icon:SetSize(18, 18)
-    options.icon:SetPoint("CENTER")
-    local mask = options:CreateMaskTexture()
-    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    mask:SetAllPoints(options.icon)
-    options.icon:AddMaskTexture(mask)
-    local ring = options:CreateTexture(nil, "OVERLAY")
-    ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-    ring:SetSize(46, 46)
-    -- TrackingBorder includes transparent padding to the right and below its ring.
-    ring:SetPoint("CENTER", options, "CENTER", 9, -9)
-    SetButtonTooltip(options, function() return "Options" end)
+    Components:SetButtonTooltip(options, function() return "Options" end)
     options:SetupMenu(function(_, rootDescription)
         rootDescription:CreateTitle(module.Name)
         rootDescription:CreateButton("Reset", function()
@@ -267,10 +294,15 @@ local function CreateTracker(module)
     end)
     tracker:SetScript("OnUpdate", function(self, elapsed)
         if not module.HasStarted then return end
+        if not PerHour.Session.InWorld then return end
         module.TimeSinceLastUpdate = module.TimeSinceLastUpdate + elapsed
         if module.TimeSinceLastUpdate > UPDATE_INTERVAL then
             local updateElapsed = module.TimeSinceLastUpdate
             module.TimeSinceLastUpdate = 0
+            if module.PendingRestore then
+                PerHour.Session:ValidateRestore(module)
+                return
+            end
             if module.CustomOnUpdate then module.CustomOnUpdate(self, updateElapsed) end
             if module.HasStarted and not module.HasPaused then BaseModule:UpdateRates(module) end
         end
@@ -291,7 +323,38 @@ end
 function Displayer:RefreshTrackingState(module)
     local text, _, r, g, b = GetTrackingState(module)
     module.ToggleStartButton:SetText(text)
+    module.ToggleStartButton:SetEnabled(module.PendingRestore == nil)
     module.ActiveIndicator:SetVertexColor(r, g, b)
+end
+
+function Displayer:RefreshRestoreStatus(module)
+    local status = RESTORE_STATUS[module.RestoreStatus]
+    local indicator = module.RestoreIndicator
+    local currentStatus = module.RestoreStatus or "none"
+    if indicator.Status ~= currentStatus then
+        local dismissError = indicator.Status == "error" and currentStatus == "none"
+        indicator.Status = currentStatus
+        indicator.Fading = false
+        indicator:SetScript("OnUpdate", nil)
+        indicator:EnableMouse(true)
+        if dismissError then
+            indicator:EnableMouse(false)
+            if GameTooltip:IsOwned(indicator) then GameTooltip:Hide() end
+            AnimateRestoreIndicator(module, RESTORE_ERROR_DELAY_SECONDS)
+        elseif status then
+            if not indicator:IsShown() then indicator:SetAlpha(0) end
+            AnimateRestoreIndicator(module, currentStatus == "success" and RESTORE_SUCCESS_SECONDS or nil)
+        else
+            indicator:SetAlpha(1)
+        end
+    end
+    if not status then
+        if not indicator.Fading then indicator:Hide() end
+        return
+    end
+    indicator.Icon:SetAtlas(status.atlas)
+    indicator:Show()
+    if GameTooltip:IsShown() and GameTooltip:IsOwned(indicator) then ShowRestoreTooltip(module) end
 end
 
 function Displayer:RefreshTooltip(module)
@@ -325,6 +388,7 @@ function Displayer:Init()
     table.sort(modules, function(a, b) return a.Name < b.Name end)
     for index, module in ipairs(modules) do
         CreatePanel(module, index, #modules)
+        CreateRestoreIndicator(module)
         CreateValues(module)
         CreateControls(module)
         CreateTracker(module)

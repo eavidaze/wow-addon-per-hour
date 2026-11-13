@@ -22,6 +22,11 @@ Module.CustomOnUpdate = function()
         or not Utils:IsReadableNumber(level) then
         return
     end
+    if current < 0 or maximum <= 0 or level < 0 then return end
+    if Module.LastHonor ~= nil and (level < Module.LastHonorLevel
+        or (level == Module.LastHonorLevel and current < Module.LastHonor)) then
+        return
+    end
 
     local received = 0
     if Module.LastHonor ~= nil then
@@ -38,6 +43,7 @@ Module.CustomOnUpdate = function()
     if not Module.HasPaused then
         Module.Element = Module.Element + received
     end
+    return true
 end
 
 Module.CustomStart = function()

@@ -34,6 +34,18 @@ Module.CustomGetContext = function()
     return Module.LastReputationName ~= "" and Module.LastReputationName or "No active session"
 end
 
+Module.CustomSaveSession = function()
+    return { factionID = Module.LastFactionID, name = Module.LastReputationName }
+end
+
+Module.CustomRestoreSession = function(context)
+    if type(context) ~= "table" or type(context.factionID) ~= "number" or type(context.name) ~= "string" then
+        return false
+    end
+    Module.LastFactionID = context.factionID
+    Module.LastReputationName = context.name
+end
+
 Module.CustomStart = function()
     local data = GetWatchedFaction()
     if not data then
@@ -41,6 +53,7 @@ Module.CustomStart = function()
         return false
     end
     Snapshot(data)
+    return true
 end
 
 Module.CustomOnUpdate = function(self, elapsed)
@@ -65,6 +78,7 @@ Module.CustomOnUpdate = function(self, elapsed)
         Module.Element = Module.Element + data.currentStanding - Module.LastReputationValue
     end
     Snapshot(data)
+    return true
 end
 
 Module.CustomStartedMessage = function()
