@@ -18,14 +18,19 @@ code changes only need `/reload`.
 - Click the minimap clock or use `/perhour` to toggle the module menu.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
-- Drag a window's title bar to move it; its close button hides it without stopping tracking.
+- Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
 - Windows automatically stay apart when moved or reopened.
 - The gear menu offers **Reset** (clear and stop) and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
 - **Reputation** requires a watched faction; switching factions resets it.
 
 Window visibility, window positions and minimap button position are saved.
-Sessions restart after a reload or login.
+Sessions survive reloads and logins per character. Offline time and gains are excluded;
+running sessions resume automatically, and manually paused sessions stay paused.
+The top-left restore icon reports the continuity check. Hover for details; sessions
+that need review stay paused until you choose **Resume** or **Reset**.
+
+See [Session continuity](docs/session-continuity.md) for limitations and validation steps.
 
 ## Development
 

@@ -44,12 +44,16 @@ end
 function BaseModule:RefreshDisplayedValues(contextModule)
     PerHour.Displayer:RefreshRate(contextModule)
     PerHour.Displayer:RefreshTrackingState(contextModule)
+    PerHour.Displayer:RefreshRestoreStatus(contextModule)
     PerHour.Displayer:RefreshTooltip(contextModule)
 end
 
 function BaseModule:UpdateRates(contextModule)
-    local sampledAt = contextModule.HasPaused and contextModule.PausedAt or GetTime()
-    contextModule.Time = math.max(0, sampledAt - contextModule.StartedAt - contextModule.PausedTime)
+    local now = GetTime()
+    if contextModule.HasStarted and not contextModule.HasPaused then
+        contextModule.Time = contextModule.Time + math.max(0, now - contextModule.UpdatedAt)
+    end
+    contextModule.UpdatedAt = now
     local perMinute = 0
     if contextModule.Time > 0 then
         perMinute = contextModule.Element / (contextModule.Time / 60)
@@ -64,10 +68,11 @@ function BaseModule:ResetModule(contextModule)
     -- control values
     contextModule.HasStarted = false
     contextModule.HasPaused = false
+    contextModule.PendingRestore = nil
+    contextModule.RestoreStatus = nil
+    contextModule.RestoreIssue = nil
 
-    contextModule.StartedAt = 0
-    contextModule.PausedAt = 0
-    contextModule.PausedTime = 0
+    contextModule.UpdatedAt = GetTime()
 
     contextModule.TimeSinceLastUpdate = 0
 
@@ -81,6 +86,9 @@ function BaseModule:ResetModule(contextModule)
     if contextModule.CustomReset~=nil then
         contextModule.CustomReset()
     end
+
+    -- Session loads after the initial panel reset, before saved sessions are restored.
+    if PerHour.Session then PerHour.Session:Clear(contextModule) end
 
     BaseModule:RefreshDisplayedValues(contextModule)
 end

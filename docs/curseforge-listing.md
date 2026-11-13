@@ -23,6 +23,7 @@ per hour and per minute.
 - Tracker windows stay apart when moved or reopened, preventing overlapping panels.
 - A draggable minimap clock with a menu to show or hide each tracker.
 - Saved window visibility, window positions and minimap button position.
+- Per-character sessions preserved across UI reloads and logins, with a played-time continuity check.
 - An **Announce** option to share your results in chat.
 
 #### Getting started
@@ -33,8 +34,15 @@ Hover over a tracker: **Session** shows duration and total gained, while **Rates
 shows gains per hour and per minute. Open the gear menu for **Reset** and **Announce**.
 
 Paused time and gains are excluded. Closing a tracker window keeps an active
-session running; **Reset** clears and stops it. Sessions restart when you reload
-the interface or log out.
+session running; **Reset** clears and stops it. Sessions are saved per character
+when you reload the interface or log out normally. Offline time and gains are
+excluded; running sessions resume after verification, and manually paused
+sessions stay paused.
+
+The top-left restore icon reports the continuity check. Hover for details. If a
+session needs review, **Resume** accepts its saved totals or **Reset** clears and
+stops it.
+The check cannot recover progress lost after an interrupted save.
 
 Using a hearthstone or changing zones keeps the current XP session running.
 

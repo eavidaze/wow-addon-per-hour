@@ -19,7 +19,6 @@ Module.LastLevel = 0
 
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
-    local xpReceived = 0
     local currentMaxXp = UnitXPMax("player")
     local currentXp = UnitXP("player")
     local currentLevel = UnitLevel("player")
@@ -34,6 +33,7 @@ Module.CustomOnUpdate = function(self, elapsed)
     if currentMaxXp <= 0 or currentLevel <= 0 or currentXp < 0 then
         return
     end
+    local xpReceived = 0
     if Module.LastLevel ~= 0 and (currentLevel < Module.LastLevel
         or (currentLevel == Module.LastLevel and currentXp < Module.LastXp)) then
         return
@@ -56,6 +56,7 @@ Module.CustomOnUpdate = function(self, elapsed)
     if not Module.HasPaused then
         Module.Element = Module.Element + xpReceived
     end
+    return true
 end
 
 Module.CustomReset = function()
