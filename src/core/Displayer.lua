@@ -4,8 +4,8 @@ local BaseModule = BaseModule
 local Displayer = {}
 PerHour.Displayer = Displayer
 
-local WIDTH, HEIGHT = 180, 86
-local CONTROL_SIZE = 24
+local WIDTH, HEIGHT = 180, 110
+local CONTROL_SIZE = 28
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
 local PANEL_GAP = 4
@@ -92,33 +92,35 @@ local function ToggleTracking(module)
 end
 
 local function CreatePanel(module, index, count)
-    local frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. module.TagName .. "-frame", UIParent, "BasicFrameTemplate")
+    local frame = CreateFrame("Frame", PerHour.AddonName .. "-" .. module.TagName .. "-frame", UIParent)
     module.Frame = frame
     frame:SetSize(WIDTH, HEIGHT)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
-    frame.TitleText:SetText("Per Hour - " .. module.Name)
-    frame.TitleText:ClearAllPoints()
-    frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -5)
-    frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -26, -5)
-    frame.TitleText:SetJustifyH("LEFT")
-    frame.CloseButton:SetSize(21, 21)
-    frame.CloseButton:ClearAllPoints()
-    frame.CloseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -1)
+    -- Use the same border and translucent background as Blizzard's Edit Mode.
+    frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
+    frame.Border:SetAllPoints(frame)
+
+    frame.TitleText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    frame.TitleText:SetText(module.Name .. " Per Hour")
+    frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
+    frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
+    frame.TitleText:SetJustifyH("CENTER")
+    frame.TitleText:SetWordWrap(false)
+    frame.TitleText:SetTextColor(1, 1, 1)
+
+    frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    frame.CloseButton:SetSize(24, 24)
+    frame.CloseButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 2, 2)
     frame.CloseButton:SetScript("OnClick", function()
         module:SetIsShown(false)
         frame:Hide()
     end)
 
-    local header = CreateFrame("Frame", nil, frame)
-    header:SetPoint("TOPLEFT")
-    header:SetPoint("TOPRIGHT", -26, 0)
-    header:SetHeight(22)
-    header:EnableMouse(true)
-    header:RegisterForDrag("LeftButton")
-    header:SetScript("OnDragStart", function(self)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", function(self)
         local cursorX, cursorY = GetCursorPosition()
         local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
         self:SetScript("OnUpdate", function()
@@ -126,12 +128,12 @@ local function CreatePanel(module, index, count)
             Displayer:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale)
         end)
     end)
-    header:SetScript("OnDragStop", function(self)
+    frame:SetScript("OnDragStop", function(self)
         self:SetScript("OnUpdate", nil)
         Displayer:SavePosition(module)
     end)
     frame:HookScript("OnHide", function()
-        header:SetScript("OnUpdate", nil)
+        frame:SetScript("OnUpdate", nil)
         if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
     end)
     frame:HookScript("OnShow", function()
@@ -164,8 +166,11 @@ end
 
 local function CreateValues(module)
     local frame = module.Frame
+    local content = CreateFrame("Frame", nil, frame)
+    content:SetPoint("TOPLEFT", frame.TitleText, "BOTTOMLEFT")
+    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, 16 + CONTROL_SIZE)
     local rateFrame = CreateFrame("Frame", nil, frame)
-    rateFrame:SetPoint("TOP", 0, -33)
+    rateFrame:SetPoint("CENTER", content, "CENTER")
     rateFrame:SetHeight(24)
     module.RateFrame = rateFrame
 
@@ -201,7 +206,7 @@ local function CreateControls(module)
     local frame = module.Frame
     local start = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     start:SetHeight(CONTROL_SIZE)
-    start:SetPoint("BOTTOMLEFT")
+    start:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 16)
     start:SetScript("OnClick", function() ToggleTracking(module) end)
     module.ToggleStartButton = start
 
@@ -217,12 +222,27 @@ local function CreateControls(module)
     indicator:SetDesaturated(true)
     module.ActiveIndicator = indicator
 
-    local options = CreateFrame("DropdownButton", nil, frame, "UIPanelSquareButton")
-    options:SetSize(CONTROL_SIZE, CONTROL_SIZE)
-    options:SetPoint("BOTTOMRIGHT", -2, 0)
+    local options = CreateFrame("DropdownButton", nil, frame)
+    options:SetSize(24, 24)
+    -- Match the close button's right edge while sharing the footer's center line.
+    options:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 2, 18)
+    start:SetPoint("RIGHT", options, "LEFT", -3, 0)
+    options:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    options.icon = options:CreateTexture(nil, "ARTWORK")
     options.icon:SetTexture("Interface\\Icons\\Trade_Engineering")
     options.icon:SetTexCoord(0, 1, 0, 1)
-    options.icon:SetSize(16, 16)
+    -- Keep the artwork inside the ring opening.
+    options.icon:SetSize(18, 18)
+    options.icon:SetPoint("CENTER")
+    local mask = options:CreateMaskTexture()
+    mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(options.icon)
+    options.icon:AddMaskTexture(mask)
+    local ring = options:CreateTexture(nil, "OVERLAY")
+    ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    ring:SetSize(46, 46)
+    -- TrackingBorder includes transparent padding to the right and below its ring.
+    ring:SetPoint("CENTER", options, "CENTER", 9, -9)
     SetButtonTooltip(options, function() return "Options" end)
     options:SetupMenu(function(_, rootDescription)
         rootDescription:CreateTitle(module.Name)
@@ -236,8 +256,6 @@ local function CreateControls(module)
         end
     end)
     module.OptionsButton = options
-
-    start:SetPoint("RIGHT", options, "LEFT")
 end
 
 local function CreateTracker(module)
@@ -283,7 +301,7 @@ end
 function Displayer:RefreshRate(module)
     local rate, unit = module.ElementPerHourValue, module.RateUnit
     rate:SetText(Utils:DisplayRoundedNumber(module.ElementPerHour, 0))
-    if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.Frame:GetWidth() - 16 then
+    if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.Frame:GetWidth() - 30 then
         rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(module.ElementPerHour, 0)))
     end
     module.RateFrame:SetWidth(rate:GetStringWidth() + unit:GetStringWidth() + 4)

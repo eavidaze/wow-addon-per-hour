@@ -18,7 +18,7 @@ code changes only need `/reload`.
 - Click the minimap clock or use `/perhour` to toggle the module menu.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
-- Drag a window's title bar to move it; its close button hides it without stopping tracking.
+- Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
 - Windows automatically stay apart when moved or reopened.
 - The gear menu offers **Reset** (clear and stop) and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.

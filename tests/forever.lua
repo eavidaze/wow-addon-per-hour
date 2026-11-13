@@ -135,8 +135,8 @@ end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
 function CreateFrame(kind, name, parent, template)
-    assert(template == nil or template == "UIPanelButtonTemplate" or template == "BasicFrameTemplate"
-        or template == "UIPanelSquareButton", "unsupported template: "..tostring(template))
+    assert(template == nil or template == "UIPanelButtonTemplate" or template == "DialogBorderTranslucentTemplate"
+        or template == "UIPanelCloseButton" or template == "UIPanelSquareButton", "unsupported template: "..tostring(template))
     if name then
         name = name:gsub("%$parent", parent.name or "")
         assert(not names[name], "duplicate frame name: "..name)
@@ -144,9 +144,6 @@ function CreateFrame(kind, name, parent, template)
     local frame = object(name)
     frame.parent, frame.template = parent, template
     if template == "UIPanelButtonTemplate" then frame.fontString = object() end
-    if template == "BasicFrameTemplate" then
-        frame.TitleText, frame.CloseButton = object(), object()
-    end
     if template == "UIPanelSquareButton" then
         frame.icon = object()
         frame.icon:SetTexCoord(0.015625, 0.203125, 0.015625, 0.203125)
@@ -224,29 +221,26 @@ equal(experience.Frame.point[1], "TOPLEFT", "saved window anchor restored")
 equal(experience.Frame.point[4], 90, "saved window X restored")
 equal(experience.Frame:GetTop(), 920, "saved window Y restored")
 equal(reputation.Frame.point[4] - honor.Frame.point[4] > honor.Frame:GetWidth(), true, "default panels do not overlap")
-local header
-for _, frame in ipairs(frames) do
-    if frame.parent == experience.Frame and frame.scripts.OnDragStop then header = frame end
-end
-header.scripts.OnDragStart(header)
-equal(type(header.scripts.OnUpdate), "function", "title bar starts cursor tracking")
+local dragPanel = experience.Frame
+dragPanel.scripts.OnDragStart(dragPanel)
+equal(type(dragPanel.scripts.OnUpdate), "function", "panel starts cursor tracking")
 experience.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
-header.scripts.OnDragStop(header)
-equal(header.scripts.OnUpdate, nil, "title bar stops cursor tracking")
+dragPanel.scripts.OnDragStop(dragPanel)
+equal(dragPanel.scripts.OnUpdate, nil, "panel stops cursor tracking")
 equal(PerHourAccount_Settings.Experience.position.x, 1700, "drag saves window X")
-equal(PerHourAccount_Settings.Experience.position.y, 166, "drag saves window Y")
+equal(PerHourAccount_Settings.Experience.position.y, 190, "drag saves window Y")
 experience.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 PerHour.Displayer:RestorePositions()
 equal(experience.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
 equal(experience.Frame.point[4], 1700, "dragged window position restored")
-equal(experience.Frame.TitleText:GetText(), "Per Hour - Experience", "panel title includes addon name")
-equal(honor.Frame.TitleText:GetText(), "Per Hour - Honor", "honor title includes addon name")
-equal(reputation.Frame.TitleText:GetText(), "Per Hour - Reputation", "reputation title includes addon name")
+equal(experience.Frame.TitleText:GetText(), "Experience Per Hour", "panel title includes addon name")
+equal(honor.Frame.TitleText:GetText(), "Honor Per Hour", "honor title includes addon name")
+equal(reputation.Frame.TitleText:GetText(), "Reputation Per Hour", "reputation title includes addon name")
 equal(experience.Frame:GetWidth(), 180, "compact panel width")
-equal(experience.Frame:GetHeight(), 86, "compact panel height")
+equal(experience.Frame:GetHeight(), 110, "compact panel height")
 equal(experience.DetailsButton, nil, "details toggle removed")
 equal(experience.DetailsFrame, nil, "expandable details removed")
-equal(experience.ToggleStartButton.point[2], experience.OptionsButton, "start button fills space up to gear")
+equal(experience.ToggleStartButton.point[2], experience.OptionsButton, "start button leaves room for the footer gear")
 local panelTop, panelLeft = experience.Frame:GetTop(), experience.Frame:GetLeft()
 experience.Frame.scripts.OnEnter(experience.Frame)
 equal(GameTooltip:GetText(), "Experience", "session tooltip title")
@@ -255,7 +249,7 @@ equal(GameTooltip.lines.Duration, "00:00", "idle duration")
 equal(GameTooltip.lines["Total XP"], "0", "idle XP total")
 equal(GameTooltip.lines["XP/h"], "0", "idle hourly rate")
 equal(GameTooltip.lines["XP/min"], "0", "idle minute rate")
-equal(experience.Frame:GetHeight(), 86, "hover keeps compact height")
+equal(experience.Frame:GetHeight(), 110, "hover keeps compact height")
 equal(experience.Frame:GetTop(), panelTop, "hover preserves panel top")
 equal(experience.Frame:GetLeft(), panelLeft, "hover preserves panel left")
 experience.Frame.scripts.OnLeave()
@@ -538,16 +532,16 @@ end
 for _, module in ipairs(panels) do showPanel(module, true) end
 local honorLeft, honorTop = honor.Frame:GetLeft(), honor.Frame:GetTop()
 cursorX, cursorY = 400, 400
-header.scripts.OnDragStart(header)
+dragPanel.scripts.OnDragStart(dragPanel)
 for _, target in ipairs({
     { 500, 500 }, { 900, 500 }, { 680, 500 }, { 500, 420 },
     { -500, 1600 }, { 2400, -300 }, { 1740, 86 }, { 100, 500 },
 }) do
     cursorX, cursorY = 400 + (target[1] - 100) * 2, 400 + (target[2] - 500) * 2
-    header.scripts.OnUpdate(header)
+    dragPanel.scripts.OnUpdate(dragPanel)
     assertPanelLayout("drag target " .. target[1] .. "," .. target[2])
 end
-header.scripts.OnDragStop(header)
+dragPanel.scripts.OnDragStop(dragPanel)
 equal(honor.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
 equal(honor.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
 equal(PerHourAccount_Settings.Experience.position.x, experience.Frame:GetLeft(), "drag persists collision-free X")
@@ -576,28 +570,28 @@ assertPanelLayout("restoring off-screen positions")
 
 for _, module in ipairs(panels) do showPanel(module, false) end
 setPanelPosition(experience, 300, 500)
-setPanelPosition(honor, 300, 400)
+setPanelPosition(honor, 300, 380)
 setPanelPosition(reputation, 800, 500)
 for _, module in ipairs(panels) do showPanel(module, true) end
 experience.Frame.scripts.OnEnter(experience.Frame)
 assertPanelLayout("hover near another panel")
-equal(experience.Frame:GetHeight(), 86, "hover does not resize panels")
-equal(honor.Frame:GetTop(), 400, "hover leaves neighbor in place")
+equal(experience.Frame:GetHeight(), 110, "hover does not resize panels")
+equal(honor.Frame:GetTop(), 380, "hover leaves neighbor in place")
 experience.Frame.scripts.OnLeave()
 
-header.scripts.OnDragStart(header)
+dragPanel.scripts.OnDragStart(dragPanel)
 showPanel(experience, false)
-equal(header.scripts.OnUpdate, nil, "hiding a dragged panel stops cursor tracking")
+equal(dragPanel.scripts.OnUpdate, nil, "hiding a dragged panel stops cursor tracking")
 showPanel(honor, false)
 showPanel(reputation, false)
-UIParent:SetSize(180, 86)
-setPanelPosition(experience, 0, 86)
+UIParent:SetSize(180, 110)
+setPanelPosition(experience, 0, 110)
 showPanel(experience, true)
 showPanel(honor, true)
 equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
 equal(honor:IsShown(), false, "no free space saves hidden visibility")
 experience.Frame.scripts.OnEnter(experience.Frame)
-equal(experience.Frame:GetHeight(), 86, "hover fits compact screen")
+equal(experience.Frame:GetHeight(), 110, "hover fits compact screen")
 experience.Time = 90061
 BaseModule:RefreshDisplayedValues(experience)
 equal(GameTooltip.lines.Duration, "25:01:01", "tooltip supports sessions longer than 24 hours")
