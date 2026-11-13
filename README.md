@@ -27,10 +27,8 @@ code changes only need `/reload`.
 Window visibility, window positions and minimap button position are saved.
 Sessions survive reloads and logins per character. Offline time and gains are excluded;
 running sessions resume automatically, and manually paused sessions stay paused.
-The icon at the top-left corner of the panel reports the restore check: green means matching played time;
-red means the session needs review. Hover for details. Divergent sessions stay paused.
-Continuity uses one played-time reference per character, with a 30-second tolerance.
-Success fades after 5 seconds. Errors fade 0.5 seconds after Reset or Resume.
+The top-left restore icon reports the continuity check. Hover for details; sessions
+that need review stay paused until you choose **Resume** or **Reset**.
 
 See [Session continuity](docs/session-continuity.md) for limitations and validation steps.
 

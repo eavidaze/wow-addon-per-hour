@@ -22,8 +22,11 @@ server timing and time before the addon starts loading can affect it.
 - Resume accepts the saved totals; Reset clears and stops the session. Each module
   retains its own unresolved warning until the player makes that choice.
 
-The success indicator waits 5 seconds and fades over 0.5 seconds. After Resume or
-Reset resolves an error, its indicator waits 0.5 seconds and fades over 0.5 seconds.
+The top-left indicator is yellow while verification is pending, green after a
+successful check, and red when the session needs review. Hover for details.
+It fades in over 0.08 seconds. The success indicator waits 5 seconds and fades
+out over 0.08 seconds. After Resume or Reset resolves an error, its indicator
+waits 0.5 seconds and fades out over 0.08 seconds.
 
 ## Limits
 

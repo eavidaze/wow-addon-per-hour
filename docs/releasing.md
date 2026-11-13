@@ -24,14 +24,19 @@
 ## Publish
 
 1. Confirm that `main` contains the prepared version and reviewed release notes.
-   The next prepared version is `1.1.1-forever`; its notes are in
-   [releases/1.1.1-forever.md](releases/1.1.1-forever.md).
+   The next prepared version is `1.2.0-forever`; its notes are in
+   [releases/1.2.0-forever.md](releases/1.2.0-forever.md).
 2. On [New release](https://github.com/eavidaze/wow-addon-per-hour/releases/new),
-   create a tag matching the addon version (`v1.1.1-forever` for this version),
+   create a tag using `v` plus the base version, without `-forever`
+   (`v1.2.0` for this version),
    select `main` as the target, copy the user-facing release notes, and click **Publish release**.
 3. Follow **Release Addon** in [Actions](https://github.com/eavidaze/wow-addon-per-hour/actions).
    It runs the Lua checks, packages the addon, uploads it to CurseForge,
    and attaches the ZIP to the GitHub release.
+
+The workflow's `-g forever` option adds `-forever` to the package filename and
+upload label when absent. The GitHub release title and tag stay `v1.2.0`;
+the source TOC and release-notes filename retain `1.2.0-forever`.
 
 Only a published GitHub Release triggers this workflow; a normal commit, branch
 push, draft release or tag push alone does not publish the addon. CurseForge may

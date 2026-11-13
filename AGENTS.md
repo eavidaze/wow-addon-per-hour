@@ -36,5 +36,6 @@
 - After changing Lua behavior or load references, run `lua tests/forever.lua` with Lua 5.1.
 - Generate a local release ZIP with `.\scripts\package.ps1` when changing packaging.
 - Keep simulation results distinct from actual in-game validation.
-- Release tags use `v` followed by the version in `per-hour.toc`.
+- Release tags and titles use `v` followed by the base version in `per-hour.toc`,
+  without the trailing `-forever` (for example, `v1.2.0`).
 - Follow `docs/releasing.md` for publishing; publishing a GitHub Release triggers the upload workflow.
