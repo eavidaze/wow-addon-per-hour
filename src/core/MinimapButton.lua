@@ -10,7 +10,8 @@ button:RegisterForDrag("LeftButton")
 local icon = button:CreateTexture(nil, "BACKGROUND")
 icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
 icon:SetSize(20, 20)
-icon:SetPoint("CENTER")
+-- Align the watch with the visible ring rather than its padded texture bounds.
+icon:SetPoint("CENTER", button, "CENTER", 2, -1)
 
 local border = button:CreateTexture(nil, "OVERLAY")
 border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
