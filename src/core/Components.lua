@@ -9,8 +9,43 @@ local CIRCULAR_ICON = {
     borderSize = 46, borderOffset = 9,
 }
 local DIALOG_BORDER_INSET = 7
-local HEADER_HEIGHT, CONTENT_PADDING, FIELD_GAP = 40, 16, 8
+local CONTENT_PADDING, FIELD_GAP = 16, 8
 local FOOTER_PADDING, ACTION_GAP = 8, 3
+local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
+local TITLE_STYLES = {
+    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48 },
+    default = { font = "GameFontNormalLarge", headerHeight = 56 },
+}
+
+local function CreatePanelTitle(frame, settings, style)
+    if settings.titleBox then
+        -- Reuse Forever's Game Menu header, including its native corner artwork.
+        local box = CreateFrame("Frame", nil, frame, "DialogHeaderTemplate")
+        frame.TitleBox, frame.TitleText = box, box.Text
+        box.headerTextPadding = style.boxPadding or box.headerTextPadding
+        box:SetHeaderFont(style.font)
+        box:Setup(settings.title)
+        frame.TitleText:ClearAllPoints()
+        frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
+        local function LayoutTitleBox()
+            local padding = box.headerTextPadding
+            local width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
+                math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
+            box:SetWidth(width)
+            frame.TitleText:SetWidth(width - padding)
+        end
+        frame:HookScript("OnSizeChanged", LayoutTitleBox)
+        LayoutTitleBox()
+    else
+        frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
+        frame.TitleText:SetText(settings.title)
+        frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
+        frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
+    end
+    frame.TitleText:SetJustifyH("CENTER")
+    frame.TitleText:SetWordWrap(false)
+    frame.TitleText:SetTextColor(unpack(settings.titleBox and Theme.gold.text or Theme.text))
+end
 
 local function IsCursorOver(frame)
     if not frame:IsVisible() then return false end
@@ -72,9 +107,11 @@ function Components:SetupFieldStack(frame, content, baseHeight, gap)
 end
 
 function Components:CreatePanel(parent, settings)
+    local titleStyle = assert(TITLE_STYLES[settings.titleSize or "default"], "unsupported panel title size")
     local frame = CreateFrame("Frame", settings.name, parent)
     local footerSize = settings.footerSize or 28
-    local headerHeight = settings.form and 56 or HEADER_HEIGHT
+    -- The native box extends 28 px below the panel top; leave 12 px before content.
+    local headerHeight = settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
     frame:SetSize(settings.width, settings.height or headerHeight + CONTENT_PADDING + footerSize)
     frame.FooterSize = footerSize
     -- Use the same border and translucent background as Blizzard's Edit Mode.
@@ -83,13 +120,7 @@ function Components:CreatePanel(parent, settings)
     -- Keep half of the footer below the visible border, within the panel bounds.
     frame.Border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, footerSize / 2 - DIALOG_BORDER_INSET)
 
-    frame.TitleText = frame:CreateFontString(nil, "OVERLAY", settings.form and "GameFontNormalHuge" or "GameFontHighlight")
-    frame.TitleText:SetText(settings.title)
-    frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
-    frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
-    frame.TitleText:SetJustifyH("CENTER")
-    frame.TitleText:SetWordWrap(false)
-    frame.TitleText:SetTextColor(unpack(Theme.text))
+    CreatePanelTitle(frame, settings, titleStyle)
 
     frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     frame.CloseButton:SetSize(24, 24)

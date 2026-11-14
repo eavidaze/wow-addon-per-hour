@@ -14,7 +14,9 @@ function SettingsPanel:Show()
     if not self.Frame then
         local frame = Components:CreatePanel(UIParent, {
             name = "PerHourSettingsPanel",
-            title = PerHour.Theme:GoldText("Per Hour") .. " Settings",
+            title = "Per Hour Settings",
+            titleSize = "default",
+            titleBox = true,
             width = 560,
             form = true,
             closeAlwaysVisible = true,

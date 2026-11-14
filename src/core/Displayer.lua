@@ -158,7 +158,9 @@ end
 local function CreatePanel(module, index, count)
     local frame = Components:CreatePanel(UIParent, {
         name = PerHour.AddonName .. "-" .. module.TagName .. "-frame",
-        title = module.Name .. " Per Hour",
+        title = module.Name,
+        titleSize = "small",
+        titleBox = true,
         width = WIDTH, height = HEIGHT, footerSize = CONTROL_SIZE,
         onClose = function() module.Settings:Set("isShown", false) end,
     })
@@ -215,10 +217,13 @@ end
 local function CreateValues(module)
     local frame = module.View.Frame
     local content = CreateFrame("Frame", nil, frame)
-    content:SetPoint("TOPLEFT", frame.TitleText, "BOTTOMLEFT")
-    content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, CONTROL_SIZE)
+    -- Center the rate in the space between the full header box and footer controls.
+    content:SetPoint("TOP", frame.TitleBox, "BOTTOM", 0, 0)
+    content:SetPoint("BOTTOM", frame.ActionBar, "TOP", 0, 0)
+    content:SetPoint("LEFT", frame, "LEFT", 15, 0)
+    content:SetPoint("RIGHT", frame, "RIGHT", -15, 0)
     local rateFrame = Components:CreateRateDisplay(frame, module.ShortName .. "/h")
-    rateFrame:SetPoint("CENTER", content, "CENTER")
+    rateFrame:SetPoint("CENTER", content, "CENTER", 0, frame.TitleBox and 1 or 0)
     module.View.RateFrame = rateFrame
 
     module.View.RateValue = rateFrame.Value
@@ -387,8 +392,8 @@ function Displayer:Init()
     for index, module in ipairs(modules) do
         CreatePanel(module, index, #modules)
         CreateRestoreIndicator(module)
-        CreateValues(module)
         CreateControls(module)
+        CreateValues(module)
         CreateTracker(module)
         BaseModule:ResetModule(module, true)
     end

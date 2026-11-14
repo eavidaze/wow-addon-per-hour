@@ -5,7 +5,30 @@ border, background, typography and gold controls. Settings include `name`,
 `title`, `width`, optional `height`, `footerSize` (default 28),
 `closeAlwaysVisible` (default false), `onClose` and `draggable` (default false).
 The X calls `onClose(panel)` when supplied, then hides the panel.
-Set `form = true` for a large white panel title and spacing between form groups.
+`titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
+`"default"` (`GameFontNormalLarge`, the default). Titles are centered, with gold
+text inside boxes and white text when unboxed.
+Set `titleBox = true` to surround either size with Forever's native
+[`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
+as used by the Game Menu. The box sits over the top border, fits the text and
+shrinks to leave room for the panel corners and close button. `panel.TitleText`
+remains available; boxed titles also expose `panel.TitleBox`.
+Small boxes use 24 px of text padding on each side; default boxes retain the
+native 32 px per side. Both preserve the native corner textures.
+Boxed panels leave 12 px between the bottom of the title box and the content.
+The settings panel uses a boxed default title; trackers use boxed small titles.
+Tracker titles contain only the module name (Experience, Honor or Reputation).
+Their rate display is centered between the title box and footer controls.
+Set `form = true` for form content padding and spacing between groups,
+independently of the title size and box.
+
+```lua
+local panel = Components:CreatePanel(UIParent, {
+    title = "Example", width = 360,
+    titleSize = "small", -- or "default"
+    titleBox = true, -- omit for an unboxed title
+})
+```
 
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
@@ -107,7 +130,7 @@ can use `align = "CENTER"` to stay centered within that footer.
 
 The minimap left-click menu is titled **Panels**.
 `SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
-only **Per Hour** in DS gold and **Settings** in white. The
+the entire boxed title in DS gold. The
 **Panels** group has one row per module, sorted by name. Each row shares
 the module's label between a visibility checkbox and a native dropdown for
 **Per hour** or **Per minute**, defaulting to hourly display. Each selection immediately changes

@@ -64,6 +64,7 @@ function methods:GetText() return self.text end
 function methods:SetOwner(owner) self.owner = owner end
 function methods:IsOwned(owner) return self.owner == owner end
 function methods:GetFontString() return rawget(self, "fontString") end
+function methods:SetFontObject(font) self.template = font end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:SetTextColor(...) self.textColor = { ... } end
 function methods:SetTexture(texture)
@@ -240,6 +241,7 @@ SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
+        or template == "DialogHeaderTemplate"
         or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
         or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
         or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
@@ -253,6 +255,25 @@ function CreateFrame(kind, name, parent, template)
     frame.parent, frame.template, frame.kind = parent, template, kind
     if template == "DialogBorderTranslucentTemplate" then
         frame.Bg = object()
+    end
+    -- Mirror Forever's DialogHeaderTemplate sizing and font methods.
+    if template == "DialogHeaderTemplate" then
+        frame:SetSize(200, 39)
+        frame:SetPoint("TOP", parent, "TOP", 0, 11)
+        frame.headerTextPadding = 64
+        frame.Text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.Text:SetText("")
+        function frame:UpdateWidth()
+            self:SetWidth(self.Text:GetStringWidth() + self.headerTextPadding)
+        end
+        function frame:Setup(text)
+            self.Text:SetText(text)
+            self:UpdateWidth()
+        end
+        function frame:SetHeaderFont(font)
+            self.Text:SetFontObject(font)
+            self:UpdateWidth()
+        end
     end
     if template == "UIPanelButtonTemplate" then
         frame.fontString = object()
@@ -480,9 +501,9 @@ experience.View.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 PerHour.Displayer:RestorePositions()
 equal(experience.View.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
 equal(experience.View.Frame.point[4], 1700, "dragged window position restored")
-equal(experience.View.Frame.TitleText:GetText(), "Experience Per Hour", "panel title includes addon name")
-equal(honor.View.Frame.TitleText:GetText(), "Honor Per Hour", "honor title includes addon name")
-equal(reputation.View.Frame.TitleText:GetText(), "Reputation Per Hour", "reputation title includes addon name")
+equal(experience.View.Frame.TitleText:GetText(), "Experience", "experience title uses only the module name")
+equal(honor.View.Frame.TitleText:GetText(), "Honor", "honor title uses only the module name")
+equal(reputation.View.Frame.TitleText:GetText(), "Reputation", "reputation title uses only the module name")
 equal(experience.View.Frame:GetWidth(), 180, "compact panel width")
 equal(experience.View.Frame:GetHeight(), 94, "compact panel height")
 equal(experience.View.DetailsButton, nil, "details toggle removed")
@@ -605,13 +626,14 @@ do
     equal(panel:IsShown(), true, "right-click opens settings")
     equal(minimapButton:IsMenuOpen(), false, "opening settings closes module menu")
     equal(minimapButton.Tooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
-    equal(panel.TitleText:GetText(), "|cffffd100Per Hour|r Settings", "settings title uses DS gold only for the addon name")
+    equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
+    equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 252, "settings height follows the three panel rows")
+    equal(panel:GetHeight(), 236, "settings height follows the three panel rows and compact boxed header")
     equal(#panel.Fields, 1, "settings contains one form group")
     equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
     equal(#panel.Fields[1].Fields, 3, "panels contains one row per module")
-    equal(panel.TitleText.template, experience.View.RateValue.template, "form title uses the rate number font")
+    equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
     local row = panel.Fields[1].Fields[1]
@@ -914,11 +936,43 @@ do
     slider:Hide()
 end
 
+-- Title size and decoration are independent of the form layout.
+do
+    local default = PerHour.Components:CreatePanel(UIParent, { title = "Default", width = 360 })
+    equal(default.TitleText.template, "GameFontNormalLarge", "default title works without a form")
+    equal(rawget(default, "TitleBox"), nil, "title box is opt-in")
+    local small = PerHour.Components:CreatePanel(UIParent, {
+        title = "Small form", width = 360, form = true, titleSize = "small",
+    })
+    equal(small.TitleText.template, "GameFontHighlight", "form can use a small title")
+    equal(small:GetHeight(), default:GetHeight(), "small form retains room for form content")
+    for _, size in ipairs({ "small", "default" }) do
+        local panel = PerHour.Components:CreatePanel(UIParent, {
+            title = "A long title in a narrow panel", width = 180, titleSize = size, titleBox = true,
+        })
+        local box = panel.TitleBox
+        equal(panel.TitleText, box.Text, "boxed title exposes the native label")
+        equal(box:GetWidth() <= panel:GetWidth() - 48, true, "long box leaves room for corners and close button")
+        equal(panel.TitleText:GetWidth(), box:GetWidth() - box.headerTextPadding, "long label stays inside box")
+        equal(box.point[5], 11, "box overlaps the top border using the native anchor")
+        equal(panel.TitleText.template, size == "small" and "GameFontHighlight" or "GameFontNormalLarge",
+            "boxed title honors the selected size")
+        panel:SetSize(560, panel:GetHeight())
+        panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
+        equal(box:GetWidth(), panel.TitleText:GetStringWidth() + box.headerTextPadding,
+            "box expands to fit the text when the panel grows")
+        panel:Hide()
+    end
+    equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
+    default:Hide()
+    small:Hide()
+end
+
 -- Shared panels size multiple fields and support icon actions with or without a menu.
 do
     local enabled, directClicks, observedValue = false, 0, nil
     local panel = PerHour.Components:CreatePanel(UIParent, {
-        title = "Configurable panel", width = 360, closeAlwaysVisible = true,
+        title = "Configurable panel", width = 360, titleSize = "small", closeAlwaysVisible = true,
         actions = {
             { key = "direct", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
                 onClick = function() directClicks = directClicks + 1 end },
