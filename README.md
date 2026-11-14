@@ -27,7 +27,8 @@ code changes only need `/reload`.
 - Choose a watched faction in **Settings** or the game's reputation panel;
   switching factions resets the reputation tracker.
 
-Window visibility, window positions and minimap button position are saved.
+Window visibility, window positions and minimap button position are saved per character.
+Hourly/per-minute display preferences are shared by the account.
 Sessions survive reloads and logins per character. Offline time and gains are excluded;
 running sessions resume automatically, and manually paused sessions stay paused.
 The top-left restore icon reports the continuity check. Hover for details; sessions

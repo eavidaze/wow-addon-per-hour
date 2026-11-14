@@ -23,7 +23,8 @@ per hour and per minute.
 - Tracker windows stay apart when moved or reopened, preventing overlapping panels.
 - A draggable minimap clock with a menu to show or hide each tracker.
 - A shared settings panel for visibility, independent hourly/per-minute rates and the watched reputation.
-- Saved window visibility, window positions, display rates and minimap button position.
+- Per-character window visibility, window positions and minimap button position.
+- Saved hourly/per-minute display preferences shared by the account.
 - Per-character sessions preserved between logins, including totals, active duration and manual pause state.
 - A shared continuity check flags restored sessions that may have missed progress.
 - An **Announce** option to share your results in chat.
@@ -34,6 +35,8 @@ Click the minimap clock or type `/perhour`, select a tracker, and click **Start*
 Right-click the clock to open **Settings**, where each tracker has a visibility
 checkbox and its own **Per hour** or **Per minute** display choice. These choices
 are saved between logins and do not change session totals or tracking state.
+Window visibility and positions, including the minimap button, are independent
+for each character. Hourly/per-minute display choices are shared by the account.
 
 Hover over a tracker: **Session** shows duration and total gained, while **Rates**
 shows gains per hour and per minute. Open the **Options** gear menu for **Reset**,

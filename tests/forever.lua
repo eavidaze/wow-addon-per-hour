@@ -452,7 +452,7 @@ end }
 C_ChatInfo = { SendChatMessage = function(message, channel) sent[#sent + 1] = { message, channel } end }
 SlashCmdList = {}
 -- Ensure saved visibility survives ADDON_LOADED.
-PerHourAccount_Settings = {
+PerHourCharacter_Settings = {
     Experience = { isShown = true, position = { point = "TOPLEFT", relativePoint = "TOPLEFT", x = 90, y = -160 } },
 }
 
@@ -557,8 +557,8 @@ equal(type(dragPanel.scripts.OnUpdate), "function", "panel starts cursor trackin
 experience.View.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
 dragPanel.scripts.OnDragStop(dragPanel)
 equal(dragPanel.scripts.OnUpdate, nil, "panel stops cursor tracking")
-equal(PerHourAccount_Settings.Experience.position.x, 1700, "drag saves window X")
-equal(PerHourAccount_Settings.Experience.position.y, 174, "drag saves window Y")
+equal(PerHourCharacter_Settings.Experience.position.x, 1700, "drag saves window X")
+equal(PerHourCharacter_Settings.Experience.position.y, 174, "drag saves window Y")
 experience.View.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 PerHour.Displayer:RestorePositions()
 equal(experience.View.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
@@ -645,7 +645,7 @@ local minimapButton = PerHour.MinimapButton
 equal(minimapButton.events.ADDON_LOADED, nil, "initialize once")
 equal(minimapButton:IsShown(), true, "minimap button visible")
 equal(minimapButton:IsMenuOpen(), false, "menu starts closed")
-equal(PerHourAccount_Settings.minimap.angle, math.rad(225), "default minimap position")
+equal(PerHourCharacter_Settings.minimap.angle, math.rad(225), "default minimap position")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
 equal(minimapButton.menuDescription.title, "Panels", "native menu title")
@@ -1200,15 +1200,15 @@ SlashCmdList.PERHOUR()
 minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
 minimapButton.scripts.OnUpdate(minimapButton)
-equal(PerHourAccount_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
+equal(PerHourCharacter_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
 equal(minimapButton.point[4], 75, "drag stays on minimap edge")
 equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
 cursorX, cursorY = 200, 600
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
-equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
+equal(PerHourCharacter_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
 PerHour.Stores.Settings:Init()
-equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
+equal(PerHourCharacter_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
 minimapButton.scripts.OnEnter(minimapButton)
 equal(#minimapButton.Tooltip.singleLines, 3, "minimap tooltip has only three compact action lines")
 equal(minimapButton.Tooltip.singleLines[1], "|cffffd100Left-click:|r Menu", "minimap left-click action stays on the left")
@@ -1519,15 +1519,15 @@ end
 dragPanel.scripts.OnDragStop(dragPanel)
 equal(honor.View.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
 equal(honor.View.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
-equal(PerHourAccount_Settings.Experience.position.x, experience.View.Frame:GetLeft(), "drag persists collision-free X")
-equal(PerHourAccount_Settings.Experience.position.y, experience.View.Frame:GetTop(), "drag persists collision-free Y")
+equal(PerHourCharacter_Settings.Experience.position.x, experience.View.Frame:GetLeft(), "drag persists collision-free X")
+equal(PerHourCharacter_Settings.Experience.position.y, experience.View.Frame:GetTop(), "drag persists collision-free Y")
 
 showPanel(honor, false)
 setPanelPosition(honor, experience.View.Frame:GetLeft(), experience.View.Frame:GetTop())
 showPanel(honor, true)
 assertPanelLayout("reopening an overlapping panel")
 for _, module in ipairs(panels) do
-    PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = 750, y = 700 }
+    PerHourCharacter_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = 750, y = 700 }
 end
 PerHour.Displayer:RestorePositions()
 assertPanelLayout("restoring three identical saved positions")
@@ -1539,7 +1539,7 @@ PerHour.Displayer:RestorePositions()
 for index, module in ipairs(panels) do
     equal(module.View.Frame:GetLeft() .. "," .. module.View.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
 end
-PerHourAccount_Settings.Experience.position.x, PerHourAccount_Settings.Experience.position.y = 5000, -100
+PerHourCharacter_Settings.Experience.position.x, PerHourCharacter_Settings.Experience.position.y = 5000, -100
 PerHour.Displayer:RestorePositions()
 assertPanelLayout("restoring off-screen positions")
 
@@ -1593,6 +1593,7 @@ local function login(savedValues, clock, options)
     frames, names = {}, {}
     timers = {}
     GameTooltip:Hide()
+    PerHourCharacter_Settings = copy(PerHourCharacter_Settings)
     PerHourCharacter_Values = copy(savedValues)
     local loaded = PerHourCharacter_Values
     playedTotal = options.total or (savedValues and savedValues.playedAtSave) or 100000
@@ -2028,9 +2029,9 @@ do
         Honor = { x = 934, y = 492 },
         Reputation = { x = 1443, y = 729 },
     }
-    PerHourAccount_Settings = {}
+    PerHourCharacter_Settings = {}
     for name, position in pairs(positions) do
-        PerHourAccount_Settings[name] = {
+        PerHourCharacter_Settings[name] = {
             isShown = true,
             position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = position.x, y = position.y },
         }
@@ -2039,6 +2040,7 @@ do
         frames, names, timers = {}, {}, {}
         GameTooltip:Hide()
         PerHourAccount_Settings = copy(PerHourAccount_Settings)
+        PerHourCharacter_Settings = copy(PerHourCharacter_Settings)
         PerHourCharacter_Values = nil
         UIParent:SetSize(1024, 1080)
         loadAddon()
@@ -2056,6 +2058,47 @@ do
             near(module.Settings:Get("position").x, position.x, name .. " preserves persisted X after reload")
         end
     end
+end
+-- Switching characters recreates the addon with independent preferences and shared rates.
+do
+    local firstSettings = copy(PerHourCharacter_Settings)
+    event("PLAYER_LOGOUT")
+    local firstSessions = copy(PerHourCharacter_Values)
+    local firstAngle = PerHour.Stores.Settings:GetMinimapAngle()
+    local firstPosition = experience.Settings:Get("position")
+    PerHourCharacter_Settings = nil
+    login(nil, 0)
+    equal(experience.View.Frame:IsShown(), false, "another character starts with XP hidden")
+    equal(honor.View.Frame:IsShown(), false, "another character has independent honor visibility")
+    equal(reputation.View.Frame:IsShown(), false, "another character has independent reputation visibility")
+    equal(experience.Settings:Get("position"), nil, "another character starts without a saved XP position")
+    showPanel(experience, false)
+    showPanel(honor, true)
+    PerHour.Displayer:SavePosition(honor, 600, 700)
+    PerHour.MinimapButton:SetAngle(0)
+    experience.Settings:Set("rate", "minute")
+    event("PLAYER_LOGOUT")
+    local secondSettings = copy(PerHourCharacter_Settings)
+    local secondSessions = copy(PerHourCharacter_Values)
+
+    PerHourCharacter_Settings = firstSettings
+    login(firstSessions, 0)
+    equal(experience.View.Frame:IsShown(), true, "returning to the first character restores XP visibility")
+    equal(honor.View.Frame:IsShown(), true, "returning to the first character restores honor visibility")
+    equal(reputation.View.Frame:IsShown(), true, "returning to the first character restores reputation visibility")
+    near(experience.View.Frame:GetLeft(), firstPosition.x, "returning to the first character restores panel X")
+    near(experience.View.Frame:GetTop(), firstPosition.y, "returning to the first character restores panel Y")
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), firstAngle, "returning restores the first minimap angle")
+    equal(experience.View.RateUnit:GetText(), "XP/min", "another character's rate selection remains shared")
+
+    PerHourCharacter_Settings = secondSettings
+    login(secondSessions, 0)
+    equal(experience.View.Frame:IsShown(), false, "returning to the second character preserves hidden XP")
+    equal(honor.View.Frame:IsShown(), true, "returning to the second character preserves visible honor")
+    equal(reputation.View.Frame:IsShown(), false, "returning to the second character preserves hidden reputation")
+    near(honor.View.Frame:GetLeft(), 600, "returning to the second character restores panel X")
+    near(honor.View.Frame:GetTop(), 700, "returning to the second character restores panel Y")
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), 0, "returning to the second character preserves zero minimap angle")
 end
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")

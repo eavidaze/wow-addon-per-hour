@@ -29,25 +29,32 @@ end
 
 function SettingsStore:Init()
     if type(PerHourAccount_Settings) ~= "table" then PerHourAccount_Settings = {} end
-    local saved = PerHourAccount_Settings
+    if type(PerHourCharacter_Settings) ~= "table" then PerHourCharacter_Settings = {} end
+    local account, saved = PerHourAccount_Settings, PerHourCharacter_Settings
     if type(saved.minimap) ~= "table" then saved.minimap = {} end
     if not IsFinite(saved.minimap.angle) then saved.minimap.angle = DEFAULT_MINIMAP_ANGLE end
 
     for name in pairs(PerHour.Modules) do
+        if type(account[name]) ~= "table" then account[name] = {} end
         if type(saved[name]) ~= "table" then saved[name] = {} end
         if type(saved[name].isShown) ~= "boolean" then saved[name].isShown = false end
-        if not IsRate(saved[name].rate) then saved[name].rate = "hour" end
+        if not IsRate(account[name].rate) then account[name].rate = "hour" end
         if not IsPosition(saved[name].position) then saved[name].position = nil end
     end
 end
 
 function SettingsStore:GetMinimapAngle()
-    return PerHourAccount_Settings.minimap.angle
+    return PerHourCharacter_Settings.minimap.angle
 end
 
 function SettingsStore:SetMinimapAngle(angle)
     assert(IsFinite(angle), "Minimap angle must be finite")
-    PerHourAccount_Settings.minimap.angle = angle
+    PerHourCharacter_Settings.minimap.angle = angle
+end
+
+local function ModuleSettings(name, key)
+    if key == "rate" then return PerHourAccount_Settings[name] end
+    return PerHourCharacter_Settings[name]
 end
 
 function SettingsStore:ForModule(name)
@@ -56,7 +63,7 @@ function SettingsStore:ForModule(name)
 
     function settings:Get(key)
         assert(key == "isShown" or key == "position" or key == "rate", "Unknown module setting")
-        local value = PerHourAccount_Settings[name][key]
+        local value = ModuleSettings(name, key)[key]
         if key == "position" then return CopyPosition(value) end
         return value
     end
@@ -71,7 +78,7 @@ function SettingsStore:ForModule(name)
             assert(value == nil or IsPosition(value), "Invalid panel position")
             value = CopyPosition(value)
         end
-        PerHourAccount_Settings[name][key] = value
+        ModuleSettings(name, key)[key] = value
     end
 
     return settings

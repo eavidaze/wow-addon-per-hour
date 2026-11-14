@@ -203,6 +203,11 @@ from the minimap menu and panel X and reads saved preferences silently when
 reopened. Reposition the minimap button by dragging it; settings have no angle
 control.
 
+Tracker visibility, tracker positions and the minimap button position are saved
+per character. Hourly/per-minute preferences remain shared by the account.
+Previous account layouts are not imported; characters start with hidden trackers
+and the default layout until they save their own preferences.
+
 The panel has one centered footer action, **Close**, at 30% of the
 available footer width, and an always-visible
 X. Drag its background, including
@@ -214,6 +219,8 @@ the form content and **Close**, independently of the compact tracker layout.
 Validate appearance, checkbox interaction, each rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected rates and minimap position match saved preferences.
+Switch between two characters and confirm their layouts remain independent while
+hourly/per-minute selections are shared.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.
 Lua simulation checks do not validate rendering or native mouse routing.
