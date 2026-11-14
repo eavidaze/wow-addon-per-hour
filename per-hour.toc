@@ -2,7 +2,7 @@
 ## Title: Per Hour - Forever
 ## Notes: Track experience, honor and reputation earned per hour in WoW Forever.
 ## Author: José Júnior - https://github.com/juninze
-## Version: 1.2.0-forever
+## Version: 1.2.1-forever
 ## X-Curse-Project-ID: 486717
 ## SavedVariables: PerHourAccount_Settings
 ## SavedVariablesPerCharacter: PerHourCharacter_Values
