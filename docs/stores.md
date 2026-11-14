@@ -1,9 +1,9 @@
 # Persistent stores
 
 Only `src/stores/SettingsStore.lua` and `src/stores/SessionStore.lua` access
-SavedVariables directly. Both retain the existing names and layout declared in
-`per-hour.toc`: account preferences in `PerHourAccount_Settings`, character
-sessions in `PerHourCharacter_Values`.
+SavedVariables directly. `per-hour.toc` declares account display-rate preferences
+in `PerHourAccount_Settings`, character layout preferences in
+`PerHourCharacter_Settings` and character sessions in `PerHourCharacter_Values`.
 
 `core/Bootstrap.lua` handles the addon's `ADDON_LOADED` once. It initializes both
 stores, binds module access, creates tracking panels and initializes the module
@@ -23,7 +23,7 @@ tables for each module before building panels:
 | --- | --- |
 | `module.State` | Runtime totals, duration, rates, running/paused flags, restore status and module-specific progression baselines or faction context. |
 | `module.View` | Panel, rate text, buttons, indicators and the independent hidden tracker frame. |
-| `module.Settings` | Scoped access to the module's account preferences. |
+| `module.Settings` | Scoped access to the module's character layout and account display-rate preferences. |
 | `module.Store` | Scoped access to the module's saved character session. |
 
 Tracking and session code read and update `State`; rendering reads it and updates
@@ -49,6 +49,15 @@ plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
 `nil` removes it. The display rate is `hour` (default) or `minute`, independently
 for Experience, Honor and Reputation. Invalid saved rates recover the default.
 
+The store routes `isShown` and `position` to `PerHourCharacter_Settings` and
+`rate` to `PerHourAccount_Settings`. The minimap angle is also per character.
+Callers use the same API regardless of persistence scope; session saving and
+resetting never modify character preferences.
+
+Previous account layout preferences are no longer read. Characters without saved
+preferences start with hidden trackers, the default panel layout and the default
+minimap angle. Existing account display rates and character sessions are preserved.
+
 Initialization preserves valid values, including `false` and zero, and repairs
 malformed data using defaults. Invalid positions are discarded so panels use
 their default layout. Setters reject invalid values. Position reads and writes
@@ -73,7 +82,7 @@ reputation faction. A module's handle only accesses that module's saved entry.
 restoration. It calls `PerHour.Stores.Sessions:SaveAll(snapshots, playedAtSave)`
 to commit all module snapshots with one shared played-time reference. Module
 handles have no independent save operation. Saving copies snapshots and context;
-clearing a session preserves other sessions and account preferences.
+clearing a session preserves other sessions and both account and character preferences.
 
 Version 1 sessions remain readable; the next batch save uses version 2. Unknown
 versions start empty, matching the existing compatibility policy. Stores update

@@ -1,10 +1,12 @@
 -- Store contracts run through tests/forever.lua, which supplies the addon and assertion counter.
 return function(equal)
     local account, character = PerHourAccount_Settings, PerHourCharacter_Values
+    local characterSettings = PerHourCharacter_Settings
     local settings, sessions = PerHour.Stores.Settings, PerHour.Stores.Sessions
     local xp, honor, rep = PerHour.Modules.Experience, PerHour.Modules.Honor, PerHour.Modules.Reputation
 
     PerHourAccount_Settings = false
+    PerHourCharacter_Settings = false
     settings:Init()
     equal(xp.Settings:Get("isShown"), false, "malformed settings root recovers defaults")
     equal(xp.Settings:Get("rate"), "hour", "missing rate defaults to hourly display")
@@ -17,10 +19,23 @@ return function(equal)
         Reputation = "invalid",
         futureSetting = "preserved",
     }
+    PerHourCharacter_Settings = nil
     local loaded = PerHourAccount_Settings
+    settings:Init()
+    equal(honor.Settings:Get("isShown"), false, "previous account visibility is ignored")
+    equal(xp.Settings:Get("position"), nil, "previous account position is ignored")
+    equal(settings:GetMinimapAngle(), math.rad(225), "previous account minimap angle is ignored")
+    PerHourCharacter_Settings = {
+        minimap = { angle = 0 },
+        Experience = { isShown = false, position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
+        Honor = { isShown = true },
+        Reputation = "invalid",
+    }
+    local loadedSettings = PerHourCharacter_Settings
     settings:Init()
     settings:Init()
     equal(PerHourAccount_Settings, loaded, "settings initialization preserves the saved table")
+    equal(PerHourCharacter_Settings, loadedSettings, "settings initialization preserves the character table")
     equal(settings:GetMinimapAngle(), 0, "zero angle survives initialization")
     equal(xp.Settings:Get("isShown"), false, "false visibility survives initialization")
     equal(xp.Settings:Get("rate"), "minute", "saved minute rate survives initialization")
@@ -38,6 +53,10 @@ return function(equal)
     returned.y = 999
     equal(xp.Settings:Get("position").y, 50, "position reads cannot mutate saved settings")
     xp.Settings:Set("isShown", true)
+    equal(loaded.Experience.isShown, false, "visibility writes preserve the legacy account preference")
+    equal(loaded.Experience.position.x, 0, "position writes preserve the legacy account preference")
+    settings:SetMinimapAngle(1)
+    equal(loaded.minimap.angle, 0, "minimap writes preserve the legacy account preference")
     equal(rep.Settings:Get("isShown"), false, "XP settings do not change reputation settings")
     equal(honor.Settings:Get("position"), nil, "XP position does not change honor position")
     rep.Settings:Set("rate", "minute")
@@ -51,10 +70,10 @@ return function(equal)
     equal(pcall(function() settings:SetMinimapAngle(math.huge) end), false, "nonfinite angle writes are rejected")
 
     for _, invalid in ipairs({ false, "bad", math.huge, 0 / 0 }) do
-        PerHourAccount_Settings.minimap.angle = invalid
-        PerHourAccount_Settings.Experience.isShown = invalid
+        PerHourCharacter_Settings.minimap.angle = invalid
+        PerHourCharacter_Settings.Experience.isShown = invalid
         PerHourAccount_Settings.Experience.rate = invalid
-        PerHourAccount_Settings.Experience.position = { point = "INVALID", relativePoint = "CENTER", x = 0, y = 0 }
+        PerHourCharacter_Settings.Experience.position = { point = "INVALID", relativePoint = "CENTER", x = 0, y = 0 }
         settings:Init()
         equal(settings:GetMinimapAngle(), math.rad(225), "invalid saved angle recovers default")
         equal(xp.Settings:Get("isShown"), false, "invalid saved visibility recovers default")
@@ -62,11 +81,42 @@ return function(equal)
         equal(xp.Settings:Get("position"), nil, "invalid saved anchor is discarded")
         equal(honor.Settings:Get("isShown"), true, "settings repair preserves another module")
     end
-    PerHourAccount_Settings.minimap = "bad"
-    PerHourAccount_Settings.Experience.position = { point = "TOPLEFT", relativePoint = "CENTER", x = math.huge, y = 0 }
+    PerHourCharacter_Settings.minimap = "bad"
+    PerHourCharacter_Settings.Experience.position = { point = "TOPLEFT", relativePoint = "CENTER", x = math.huge, y = 0 }
     settings:Init()
     equal(settings:GetMinimapAngle(), math.rad(225), "malformed minimap settings recover defaults")
     equal(xp.Settings:Get("position"), nil, "nonfinite saved coordinates are discarded")
+
+    -- Character layout preferences are independent, while rates remain shared by the account.
+    local firstCharacter = PerHourCharacter_Settings
+    PerHourCharacter_Settings = {
+        minimap = { angle = 0 },
+        Honor = { isShown = false, position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
+        futureSetting = "preserved",
+    }
+    local secondCharacter = PerHourCharacter_Settings
+    settings:Init()
+    equal(honor.Settings:Get("isShown"), false, "initialization preserves a character's existing false preference")
+    equal(honor.Settings:Get("position").x, 0, "initialization preserves an existing character position")
+    equal(settings:GetMinimapAngle(), 0, "initialization preserves an existing zero character angle")
+    equal(secondCharacter.futureSetting, "preserved", "initialization preserves unrelated character settings")
+    equal(xp.Settings:Get("position"), nil, "another character has no position for an unconfigured panel")
+    honor.Settings:Set("position", nil)
+    settings:Init()
+    equal(honor.Settings:Get("isShown"), false, "initialization preserves hidden character visibility")
+    equal(honor.Settings:Get("position"), nil, "initialization preserves a cleared character position")
+    xp.Settings:Set("position", { point = "CENTER", relativePoint = "CENTER", x = 10, y = 20 })
+    settings:Init()
+    equal(xp.Settings:Get("position").x, 10, "initialization preserves another character's panel position")
+    rep.Settings:Set("rate", "hour")
+    settings:SetMinimapAngle(0.5)
+    PerHourCharacter_Settings = firstCharacter
+    settings:Init()
+    equal(honor.Settings:Get("isShown"), true, "switching characters restores its own visibility")
+    equal(xp.Settings:Get("position"), nil, "another character's panel movement leaves the first character unchanged")
+    equal(settings:GetMinimapAngle(), math.rad(225), "switching characters restores its own minimap angle")
+    equal(rep.Settings:Get("rate"), "hour", "rate changes remain shared between characters")
+    equal(secondCharacter.minimap.angle, 0.5, "initializing one character preserves the other's minimap angle")
 
     PerHourCharacter_Values = { version = 1, sessions = { Experience = { total = 0, duration = 0, paused = false } } }
     loaded = PerHourCharacter_Values
@@ -81,6 +131,7 @@ return function(equal)
         Reputation = { total = -50, duration = 10, paused = false, context = { factionID = 72, name = "Stormwind" } },
     }
     sessions:SaveAll(snapshots, 100000)
+    equal(PerHourCharacter_Settings, firstCharacter, "saving sessions preserves the separate character settings")
     equal(PerHourCharacter_Values.version, 2, "batch save writes the current version")
     equal(sessions:GetPlayedAtSave(), 100000, "batch save uses one played-time reference")
     snapshots.Experience.total = 999
@@ -118,4 +169,5 @@ return function(equal)
     end
 
     PerHourAccount_Settings, PerHourCharacter_Values = account, character
+    PerHourCharacter_Settings = characterSettings
 end
