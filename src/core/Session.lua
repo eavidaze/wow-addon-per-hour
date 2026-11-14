@@ -1,7 +1,6 @@
 local Session = { InWorld = false, LoginAt = GetTime(), CheckingPlayed = true }
 PerHour.Session = Session
 
-local VERSION = 2
 local PLAYED_TOLERANCE_SECONDS = 30
 local PLAYED_TIMEOUT_SECONDS = 10
 
@@ -17,13 +16,6 @@ local function SetRestoreStatus(module, status, issue)
     module.RestoreStatus = status
     module.RestoreIssue = issue
     BaseModule:RefreshDisplayedValues(module)
-end
-
-function Session:Clear(module)
-    local saved = PerHourCharacter_Values
-    if type(saved) == "table" and type(saved.sessions) == "table" then
-        saved.sessions[module.Name] = nil
-    end
 end
 
 function Session:Save()
@@ -53,7 +45,7 @@ function Session:Save()
     local playedAtSave
     if onlyPending then playedAtSave = self.SavedPlayedTime end
     if self.PlayedAtLogin then playedAtSave = self.PlayedAtLogin + GetTime() - self.LoginAt end
-    PerHourCharacter_Values = { version = VERSION, playedAtSave = playedAtSave, sessions = sessions }
+    PerHour.Stores.Sessions:SaveAll(sessions, playedAtSave)
 end
 
 function Session:ValidateRestore(module)
@@ -94,17 +86,11 @@ local function FinishPlayedCheck(total, issue)
 end
 
 function Session:Restore()
-    local saved = PerHourCharacter_Values
-    if type(saved) ~= "table" or (saved.version ~= 1 and saved.version ~= VERSION) or type(saved.sessions) ~= "table" then
-        saved = { version = VERSION, sessions = {} }
-        PerHourCharacter_Values = saved
-    end
-    self.SavedPlayedTime = saved.playedAtSave
+    self.SavedPlayedTime = PerHour.Stores.Sessions:GetPlayedAtSave()
 
-    for name, module in pairs(PerHour.Modules) do
-        local data = saved.sessions[name]
-        if type(data) == "table" and IsFiniteNumber(data.total)
-            and IsFiniteNumber(data.duration) and data.duration >= 0 and type(data.paused) == "boolean" then
+    for _, module in pairs(PerHour.Modules) do
+        local data, invalid = module.Store:ReadSession()
+        if data then
             module.Element = data.total
             module.Time = data.duration
             module.HasStarted = true
@@ -119,8 +105,8 @@ function Session:Restore()
                 SetRestoreStatus(module, "pending")
             end
         else
-            self:Clear(module)
-            if data ~= nil then SetRestoreStatus(module, "error", "The saved session could not be read.") end
+            module.Store:ClearSession()
+            if invalid then SetRestoreStatus(module, "error", "The saved session could not be read.") end
         end
     end
     C_Timer.After(PLAYED_TIMEOUT_SECONDS, function()

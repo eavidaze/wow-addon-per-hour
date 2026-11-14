@@ -64,7 +64,7 @@ function BaseModule:UpdateRates(contextModule)
 end
 
 -- public functions
-function BaseModule:ResetModule(contextModule)
+function BaseModule:ResetModule(contextModule, preserveSavedSession)
     -- control values
     contextModule.HasStarted = false
     contextModule.HasPaused = false
@@ -87,8 +87,8 @@ function BaseModule:ResetModule(contextModule)
         contextModule.CustomReset()
     end
 
-    -- Session loads after the initial panel reset, before saved sessions are restored.
-    if PerHour.Session then PerHour.Session:Clear(contextModule) end
+    -- Panel initialization resets runtime state without erasing a session awaiting restore.
+    if not preserveSavedSession then contextModule.Store:ClearSession() end
 
     BaseModule:RefreshDisplayedValues(contextModule)
 end

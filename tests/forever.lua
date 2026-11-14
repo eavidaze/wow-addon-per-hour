@@ -425,7 +425,14 @@ local function indicatorColor(module)
     return table.concat(module.ActiveIndicator.vertexColor, ",")
 end
 event("ADDON_LOADED", "another-addon")
+equal(experience.Frame, nil, "other addons do not initialize panels")
+equal(experience.Store, nil, "other addons do not bind stores")
 event("ADDON_LOADED", "per-hour")
+do
+    local frame = experience.Frame
+    event("ADDON_LOADED", "per-hour")
+    equal(experience.Frame, frame, "addon initialization does not recreate panels")
+end
 event("PLAYER_ENTERING_WORLD")
 
 equal(indicatorColor(experience), "0.5,0.5,0.5", "idle indicator is gray")
@@ -529,8 +536,8 @@ for name, module in pairs(PerHour.Modules) do
 end
 experience.Frame.CloseButton.scripts.OnClick()
 equal(experience.Frame:IsShown(), false, "close button hides panel")
-equal(experience:IsShown(), false, "close button saves visibility")
-experience:SetIsShown(true)
+equal(experience.Settings:Get("isShown"), false, "close button saves visibility")
+experience.Settings:Set("isShown", true)
 experience.Frame:Show()
 local minimapButton = PerHour.MinimapButton
 equal(minimapButton.events.ADDON_LOADED, nil, "initialize once")
@@ -546,11 +553,11 @@ equal(experienceItem.text, "Experience", "stable alphabetical menu order")
 equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
 experienceItem.callback(experienceItem.data)
 equal(experience.Frame:IsShown(), false, "menu hides module")
-equal(experience:IsShown(), false, "menu saves hidden module")
+equal(experience.Settings:Get("isShown"), false, "menu saves hidden module")
 equal(experienceItem.isSelected(experienceItem.data), false, "menu check updates after hide")
 experienceItem.callback(experienceItem.data)
 equal(experience.Frame:IsShown(), true, "menu shows module")
-equal(experience:IsShown(), true, "menu saves visible module")
+equal(experience.Settings:Get("isShown"), true, "menu saves visible module")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), false, "slash closes menu")
 local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
@@ -597,7 +604,7 @@ do
     equal(example:GetValue(), true, "example checkbox responds to clicks")
     example.scripts.OnMouseUp(example, "LeftButton")
     equal(example:GetValue(), false, "example label toggles checkbox")
-    equal(experience:IsShown(), true, "example does not change module visibility")
+    equal(experience.Settings:Get("isShown"), true, "example does not change module visibility")
     equal(experience.HasStarted, false, "example does not start tracking")
     equal(panel.CloseButton:GetAlpha(), 1, "settings X stays visible without hovering")
     equal(panel.CloseButton.scripts.OnUpdate, nil, "always-visible X does not poll cursor")
@@ -692,7 +699,7 @@ do
     decimals:SetValue(2.8)
     equal(decimals:GetValue(), 3, "decimal count uses integer steps")
     equal(experience.HasStarted, false, "form examples never start tracking")
-    equal(experience:IsShown(), true, "form examples never hide tracking")
+    equal(experience.Settings:Get("isShown"), true, "form examples never hide tracking")
     equal(PerHourAccount_Settings.opacity, nil, "opacity example is not persisted")
 end
 
@@ -788,7 +795,7 @@ cursorX, cursorY = 200, 600
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
-PerHour.Settings:Init()
+PerHour.Stores.Settings:Init()
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
 minimapButton.scripts.OnEnter(minimapButton)
 equal(GameTooltip:GetText(), "Per Hour", "minimap tooltip title")
@@ -895,7 +902,7 @@ BaseModule:ResetModule(experience)
 equal(experience.ElementPerHourValue:GetText(), "0", "reset restores full rate formatting")
 
 click(reputation)
-reputation:SetIsShown(true)
+reputation.Settings:Set("isShown", true)
 reputation.Frame:Show()
 reputation.Frame.scripts.OnEnter(reputation.Frame)
 equal(GameTooltip.singleLines[2], "Stormwind", "tooltip identifies tracked faction")
@@ -942,7 +949,7 @@ tick(2)
 equal(honor.Element, 25, "honor from modern API")
 equal(GameTooltip:GetText(), "Per Hour", "tracker updates preserve another owner's tooltip")
 minimapButton.scripts.OnLeave(minimapButton)
-honor:SetIsShown(true)
+honor.Settings:Set("isShown", true)
 honor.Frame:Show()
 honor.Frame.scripts.OnEnter(honor.Frame)
 equal(GameTooltip.lines["Total Honor"], "25", "honor tooltip uses its own unit")
@@ -992,7 +999,7 @@ local function setPanelPosition(module, x, y)
     module.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
 end
 local function showPanel(module, shown)
-    module:SetIsShown(shown)
+    module.Settings:Set("isShown", shown)
     module.Frame:SetShown(shown)
 end
 local function assertPanelLayout(label)
@@ -1079,7 +1086,7 @@ setPanelPosition(experience, 0, 94)
 showPanel(experience, true)
 showPanel(honor, true)
 equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
-equal(honor:IsShown(), false, "no free space saves hidden visibility")
+equal(honor.Settings:Get("isShown"), false, "no free space saves hidden visibility")
 experience.Frame.scripts.OnEnter(experience.Frame)
 equal(experience.Frame:GetHeight(), 94, "hover fits compact screen")
 experience.Time = 90061
@@ -1111,8 +1118,12 @@ local function login(savedValues, clock, options)
     now = clock
     loadAddon()
     experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
-    equal(PerHourCharacter_Values, loaded, "initial panel reset preserves saved sessions")
+    equal(PerHourCharacter_Values, loaded, "source loading leaves saved sessions untouched")
+    local savedExperience = type(loaded) == "table" and type(loaded.sessions) == "table" and loaded.sessions.Experience
     event("ADDON_LOADED", "per-hour")
+    if type(loaded) == "table" and (loaded.version == 1 or loaded.version == 2) and type(loaded.sessions) == "table" then
+        equal(PerHourCharacter_Values.sessions.Experience, savedExperience, "initial panel reset preserves saved sessions")
+    end
     local loadingSeconds = options.loadingSeconds or 4
     tick(loadingSeconds)
     playedTotal = playedTotal + loadingSeconds
@@ -1451,4 +1462,5 @@ equal(playedRequests, requestsBefore, "zone transitions do not request played ti
 xp = 700
 tick(2)
 equal(experience.Element, previousTotal + 25, "zone transitions retain current totals")
+assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")

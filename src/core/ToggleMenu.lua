@@ -8,7 +8,7 @@ end
 
 local function ToggleModule(module)
     local shown = not module.Frame:IsShown()
-    module:SetIsShown(shown)
+    module.Settings:Set("isShown", shown)
     module.Frame:SetShown(shown)
     Utils:AddonMessage(module.Name .. (shown and " show." or " hide."))
 end
@@ -16,7 +16,7 @@ end
 function ToggleMenu:Init(button)
     local modules = {}
     for _, module in pairs(PerHour.Modules) do
-        module.Frame:SetShown(module:IsShown())
+        module.Frame:SetShown(module.Settings:Get("isShown"))
         table.insert(modules, module)
     end
     table.sort(modules, function(a, b) return a.Name < b.Name end)

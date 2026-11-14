@@ -29,7 +29,7 @@ border:SetSize(54, 54)
 border:SetPoint("TOPLEFT")
 
 local function UpdatePosition()
-    local angle = PerHourAccount_Settings.minimap.angle
+    local angle = PerHour.Stores.Settings:GetMinimapAngle()
     button:SetPoint("CENTER", Minimap, "CENTER",
         math.cos(angle) * (Minimap:GetWidth() / 2 + 5),
         math.sin(angle) * (Minimap:GetHeight() / 2 + 5))
@@ -39,7 +39,7 @@ local function UpdateDragPosition()
     local x, y = GetCursorPosition()
     local centerX, centerY = Minimap:GetCenter()
     local scale = Minimap:GetEffectiveScale()
-    PerHourAccount_Settings.minimap.angle = math.atan2(y / scale - centerY, x / scale - centerX)
+    PerHour.Stores.Settings:SetMinimapAngle(math.atan2(y / scale - centerY, x / scale - centerX))
     UpdatePosition()
 end
 
@@ -66,12 +66,6 @@ button:HookScript("OnEnter", function(self)
 end)
 button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-button:RegisterEvent("ADDON_LOADED")
-button:SetScript("OnEvent", function(self, event, name)
-    if name ~= PerHour.AddonName then return end
-    self:UnregisterEvent("ADDON_LOADED")
-    PerHour.Settings:Init()
-    PerHour.Displayer:RestorePositions()
-    PerHour.ToggleMenu:Init(self)
+function button:Init()
     UpdatePosition()
-end)
+end

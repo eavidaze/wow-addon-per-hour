@@ -9,4 +9,5 @@
     <Script file="ToggleMenu.lua" />
     <Script file="MinimapButton.lua" />
     <Script file="CommandLine.lua" />
+    <Script file="Bootstrap.lua" />
 </Ui>

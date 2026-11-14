@@ -77,7 +77,7 @@ local function FindFreePosition(module, x, y)
     local obstacles = {}
     if frame:IsShown() then
         for _, other in ipairs(modules) do
-            if other ~= module and other.Frame:IsShown() and other:IsShown() then
+            if other ~= module and other.Frame:IsShown() and other.Settings:Get("isShown") then
                 local obstacle = {
                     x = other.Frame:GetLeft(), y = other.Frame:GetTop(),
                     width = other.Frame:GetWidth(), height = other.Frame:GetHeight(),
@@ -114,7 +114,7 @@ end
 
 local function PlaceShownPanel(module)
     if not Displayer:SavePosition(module) then
-        module:SetIsShown(false)
+        module.Settings:Set("isShown", false)
         module.Frame:Hide()
         Utils:AddonMessage("No room to show " .. module.Name .. ".")
     end
@@ -157,7 +157,7 @@ local function CreatePanel(module, index, count)
         name = PerHour.AddonName .. "-" .. module.TagName .. "-frame",
         title = module.Name .. " Per Hour",
         width = WIDTH, height = HEIGHT, footerSize = CONTROL_SIZE,
-        onClose = function() module:SetIsShown(false) end,
+        onClose = function() module.Settings:Set("isShown", false) end,
     })
     module.Frame = frame
     frame:SetMovable(true)
@@ -182,7 +182,7 @@ local function CreatePanel(module, index, count)
         if GameTooltip:IsOwned(frame) or GameTooltip:IsOwned(module.RestoreIndicator) then GameTooltip:Hide() end
     end)
     frame:HookScript("OnShow", function()
-        if PerHourAccount_Settings and PerHourAccount_Settings[module.Name] then PlaceShownPanel(module) end
+        PlaceShownPanel(module)
     end)
 end
 
@@ -306,7 +306,7 @@ function Displayer:SavePosition(module, x, y)
     if not x then return false end
     frame:ClearAllPoints()
     frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
-    PerHourAccount_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y }
+    module.Settings:Set("position", { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y })
     return true
 end
 
@@ -362,14 +362,14 @@ end
 
 function Displayer:RestorePositions()
     for _, module in ipairs(modules) do
-        local position = PerHourAccount_Settings[module.Name].position
+        local position = module.Settings:Get("position")
         if position then
             module.Frame:ClearAllPoints()
             module.Frame:SetPoint(position.point, UIParent, position.relativePoint, position.x, position.y)
         end
     end
     for _, module in ipairs(modules) do
-        if module.Frame:IsShown() and module:IsShown() then PlaceShownPanel(module) end
+        if module.Frame:IsShown() and module.Settings:Get("isShown") then PlaceShownPanel(module) end
     end
 end
 
@@ -382,8 +382,6 @@ function Displayer:Init()
         CreateValues(module)
         CreateControls(module)
         CreateTracker(module)
-        BaseModule:ResetModule(module)
+        BaseModule:ResetModule(module, true)
     end
 end
-
-Displayer:Init()
