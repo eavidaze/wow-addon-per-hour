@@ -2,51 +2,25 @@ local Module = {
     Name = "Honor",
     TagName = "honor",
     ShortName = "hon",
-    RegisteredEvents = {},
+    RegisteredEvents = { "CURRENCY_DISPLAY_UPDATE" },
 }
 PerHour.Modules.Honor = Module
 
-Module.CustomReset = function()
-    Module.State.LastHonor = nil
-    Module.State.LastHonorMax = nil
-    Module.State.LastHonorLevel = nil
-end
+local HONOR_CURRENCY_ID = 1792
 
--- Forever exposes honor progression through the modern UnitHonor APIs.
--- Read the player's progress rather than parsing localized combat messages.
-Module.CustomOnUpdate = function()
-    local current = UnitHonor("player")
-    local maximum = UnitHonorMax("player")
-    local level = UnitHonorLevel("player")
-    if not Utils:IsReadableNumber(current) or not Utils:IsReadableNumber(maximum)
-        or not Utils:IsReadableNumber(level) then
+-- Forever awards spendable Honor Points, separate from UnitHonor's honor-level XP.
+-- Use the event's gain, not the balance, so spending cannot hide later earnings.
+Module.CustomOnEvent = function(self, event, currencyID, quantity, quantityChange)
+    local state = Module.State
+    if event ~= "CURRENCY_DISPLAY_UPDATE" or not state.HasStarted or state.HasPaused
+        or state.PendingRestore or not PerHour.Session.InWorld then
         return
     end
-    if current < 0 or maximum <= 0 or level < 0 then return end
-    if Module.State.LastHonor ~= nil and (level < Module.State.LastHonorLevel
-        or (level == Module.State.LastHonorLevel and current < Module.State.LastHonor)) then
+    if not Utils:IsReadableNumber(currencyID) or currencyID ~= HONOR_CURRENCY_ID then return end
+    if not Utils:IsReadableNumber(quantityChange) or not (quantityChange > 0 and quantityChange < math.huge) then
         return
     end
 
-    local received = 0
-    if Module.State.LastHonor ~= nil then
-        if level > Module.State.LastHonorLevel then
-            received = Module.State.LastHonorMax - Module.State.LastHonor + current
-        else
-            received = math.max(0, current - Module.State.LastHonor)
-        end
-    end
-    Module.State.LastHonor = current
-    Module.State.LastHonorMax = maximum
-    Module.State.LastHonorLevel = level
-
-    if not Module.State.HasPaused then
-        Module.State.Element = Module.State.Element + received
-    end
-    return true
-end
-
-Module.CustomStart = function()
-    Module.CustomReset()
-    Module.CustomOnUpdate()
+    state.Element = state.Element + quantityChange
+    BaseModule:UpdateRates(Module)
 end

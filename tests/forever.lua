@@ -4,7 +4,7 @@ local now, xp, xpMax, level = 0, 100, 1000, 10
 local playedTotal, playedRequests = 100000, 0
 local playedRequested, autoPlayedReply = false, true
 local timers = {}
-local honorValue, honorMax, honorLevel = 100, 500, 1
+local honorBalance = 100
 local watched = { name = "Stormwind", factionID = 72, currentStanding = 0 }
 local checks = 0
 local function equal(actual, expected, label)
@@ -345,12 +345,16 @@ end
 function UnitXP(_unit) return xp end
 function UnitXPMax(_unit) return xpMax end
 function UnitLevel(_unit) return level end
-function UnitHonor(_unit) return honorValue end
-function UnitHonorMax(_unit) return honorMax end
-function UnitHonorLevel(_unit) return honorLevel end
+-- Keep honor-level XP fixed, matching the live dump even when Honor Points increase.
+function UnitHonor(_unit) return 0 end
+function UnitHonorMax(_unit) return 5500 end
+function UnitHonorLevel(_unit) return 1 end
 function issecretvalue(value) return type(value) == "table" and value.secret == true end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) messages[#messages + 1] = message end }
 C_Reputation = { GetWatchedFactionData = function() return watched end }
+C_CurrencyInfo = { GetCurrencyInfo = function(id)
+    if id == 1792 then return { name = "Honor Points", quantity = honorBalance, totalEarned = 0 } end
+end }
 C_ChatInfo = { SendChatMessage = function(message, channel) sent[#sent + 1] = { message, channel } end }
 SlashCmdList = {}
 -- Ensure saved visibility survives ADDON_LOADED.
@@ -387,6 +391,10 @@ local function event(name, ...)
     if name == "PLAYER_ENTERING_WORLD" and autoPlayedReply and playedRequested then
         event("TIME_PLAYED_MSG", playedTotal, 0)
     end
+end
+local function changeHonor(amount)
+    honorBalance = honorBalance + amount
+    event("CURRENCY_DISPLAY_UPDATE", 1792, honorBalance, amount)
 end
 local function tick(seconds)
     if PerHour.Session.InWorld then playedTotal = playedTotal + seconds end
@@ -1024,12 +1032,60 @@ click(reputation)
 equal(reputation.State.HasStarted, false, "start requires watched faction")
 equal(indicatorColor(reputation), "0.5,0.5,0.5", "failed start keeps gray indicator")
 
+-- Live Forever reports honor as currency 1792 while UnitHonor stays at zero.
+do
+    local balance = honorBalance
+    honorBalance = 118
+    click(honor)
+    equal(honor.State.Element, 0, "starting does not count the existing honor balance")
+    equal(C_CurrencyInfo.GetCurrencyInfo(1792).totalEarned, 0, "live honor currency has no useful lifetime total")
+    equal(UnitHonor("player"), 0, "honor-level XP stays independent of spendable honor")
+    tick(2)
+    changeHonor(8)
+    equal(honor.State.Element, 8, "an eight-point honor currency gain is captured")
+    equal(honor.View.ElementPerHourValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
+    equal(honor.View.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
+    changeHonor(-100)
+    equal(honor.State.Element, 8, "spending does not subtract from earned honor")
+    changeHonor(8)
+    equal(honor.State.Element, 16, "gains count even when the balance is below the starting balance")
+    event("CHAT_MSG_COMBAT_HONOR_GAIN", "Enemy slain: 8 honor.")
+    equal(honor.State.Element, 16, "chat announcements do not double-count currency gains")
+    for _, payload in ipairs({
+        { 1901, 100, 8 }, { 1602, 100, 8 }, {}, { 1792, 100 },
+        { 1792, 100, 0 }, { 1792, 100, -8 }, { 1792, 100, math.huge },
+        { 1792, 100, 0 / 0 }, { 1792, 100, "8" }, { 1792, 100, { secret = true } },
+        { { secret = true }, 100, 8 },
+    }) do
+        event("CURRENCY_DISPLAY_UPDATE", unpack(payload))
+        equal(honor.State.Element, 16, "unrelated, invalid and non-gain currency updates are ignored")
+    end
+    click(honor)
+    changeHonor(8)
+    equal(honor.State.Element, 16, "paused currency gains are excluded")
+    click(honor)
+    changeHonor(3)
+    equal(honor.State.Element, 19, "resuming counts only new currency gains")
+    event("PLAYER_LEAVING_WORLD")
+    changeHonor(8)
+    equal(honor.State.Element, 19, "currency events outside the world are excluded")
+    event("PLAYER_ENTERING_WORLD")
+    changeHonor(2)
+    equal(honor.State.Element, 21, "returning to the world counts new gains")
+    event("PLAYER_LOGOUT")
+    equal(PerHourCharacter_Values.sessions.Honor.total, 21, "logout saves currency gains without waiting for a tracker tick")
+    BaseModule:ResetModule(honor)
+    changeHonor(8)
+    equal(honor.State.Element, 0, "reset stops currency event tracking")
+    honorBalance = balance
+end
+
 minimapButton.scripts.OnEnter(minimapButton)
 click(honor)
 equal(honor.State.ElementPerHour, 0, "zero-time start has finite rate")
-honorValue = 125
+changeHonor(25)
 tick(2)
-equal(honor.State.Element, 25, "honor from modern API")
+equal(honor.State.Element, 25, "honor from the currency gain event")
 equal(GameTooltip:GetText(), "Per Hour", "tracker updates preserve another owner's tooltip")
 minimapButton.scripts.OnLeave(minimapButton)
 honor.Settings:Set("isShown", true)
@@ -1037,20 +1093,22 @@ honor.View.Frame:Show()
 honor.View.Frame.scripts.OnEnter(honor.View.Frame)
 equal(GameTooltip.lines["Total Honor"], "25", "honor tooltip uses its own unit")
 honor.View.Frame.scripts.OnLeave()
-honorValue = 225
+changeHonor(100)
 tick(2)
 equal(honor.State.Element, 125, "bonus honor")
-honorLevel, honorValue, honorMax = 2, 50, 500
+changeHonor(325)
 tick(2)
-equal(honor.State.Element, 450, "honor level rollover")
-honorValue = { secret = true }
+equal(honor.State.Element, 450, "currency rewards accumulate without honor-level changes")
+changeHonor(-500)
+equal(honor.State.Element, 450, "spending honor does not reduce earned totals")
+event("CURRENCY_DISPLAY_UPDATE", 1792, honorBalance, { secret = true })
 tick(2)
 equal(honor.State.Element, 450, "secret honor ignored")
-honorValue = 75
+changeHonor(25)
 tick(2)
 equal(honor.State.Element, 475, "honor resumes when readable")
 click(honor)
-honorValue = 100
+changeHonor(25)
 click(honor)
 tick(2)
 equal(honor.State.Element, 475, "paused honor ignored")
@@ -1224,13 +1282,15 @@ end
 
 for _, module in pairs(PerHour.Modules) do BaseModule:ResetModule(module) end
 xp, xpMax, level = 100, 1000, 10
-honorValue, honorMax, honorLevel = 100, 500, 1
+honorBalance = 100
 watched = { name = "Stormwind", factionID = 72, currentStanding = -100 }
 for _, module in pairs(PerHour.Modules) do click(module) end
-xp, honorValue, watched.currentStanding = 200, 125, -50
+xp, watched.currentStanding = 200, -50
+changeHonor(25)
 tick(2)
 click(honor)
-xp, honorValue, watched.currentStanding = 225, 200, -60
+xp, watched.currentStanding = 225, -60
+changeHonor(75)
 now, playedTotal = now + 0.5, playedTotal + 0.5
 event("PLAYER_LOGOUT")
 local saved = copy(PerHourCharacter_Values)
@@ -1248,7 +1308,7 @@ for name, module in pairs(PerHour.Modules) do
 end
 
 -- A matching global clock accepts every module, regardless of its raw counters.
-xp, honorValue, watched.currentStanding = 400, 300, 100
+xp, honorBalance, watched.currentStanding = 400, 300, 100
 local requestsBefore = playedRequests
 login(saved, now + 7200)
 equal(playedRequests, requestsBefore + 1, "one played query serves all modules")
@@ -1264,7 +1324,8 @@ equal(reputation.State.LastFactionID, 72, "reputation retains faction context")
 showRestoreTooltip(experience)
 equal(GameTooltip:GetText(), "Session restored successfully.", "success tooltip title")
 equal(GameTooltip.singleLines[1], "Played time matches the saved session (30-second tolerance).", "success tooltip explains global check")
-xp, honorValue, watched.currentStanding = 450, 350, 120
+xp, watched.currentStanding = 450, 120
+changeHonor(50)
 tick(2)
 equal(experience.State.Element, 175, "first XP gain after restore is included")
 equal(experience.State.Time, 4.5, "active duration continues after restore")
@@ -1276,16 +1337,17 @@ experience.View.Frame:Hide()
 equal(GameTooltip:IsShown(), false, "hiding panel dismisses restore tooltip")
 experience.View.Frame:Show()
 click(honor)
-honorValue = 375
+changeHonor(25)
 tick(2)
-equal(honor.State.Element, 50, "honor resumes from a fresh baseline")
+equal(honor.State.Element, 50, "honor resumes counting new currency events")
 equal(honor.State.Time, 4, "honor excludes the full manual pause")
 event("PLAYER_LOGOUT")
 local resumedSave = copy(PerHourCharacter_Values)
 login(resumedSave, 0)
 equal(experience.State.Time, 6.5, "relogin survives a restarted local clock")
 equal(experience.State.HasPaused, false, "running session resumes after relogin")
-xp, honorValue = 475, 400
+xp = 475
+changeHonor(25)
 tick(2)
 equal(experience.State.Element, 200, "XP continues after relogin")
 equal(honor.State.Element, 75, "honor continues after relogin")
@@ -1293,10 +1355,10 @@ equal(honor.State.Element, 75, "honor continues after relogin")
 -- Losing only duration is enough to fail, even when no module counter changes.
 event("PLAYER_LOGOUT")
 local unchangedProgressSave = copy(PerHourCharacter_Values)
-local unchangedXP, unchangedHonor, unchangedReputation = xp, honorValue, watched.currentStanding
+local unchangedXP, unchangedHonor, unchangedReputation = xp, honorBalance, watched.currentStanding
 login(unchangedProgressSave, 0, { total = unchangedProgressSave.playedAtSave + 120 })
 equal(xp, unchangedXP, "duration-only interruption leaves XP unchanged")
-equal(honorValue, unchangedHonor, "duration-only interruption leaves honor unchanged")
+equal(honorBalance, unchangedHonor, "duration-only interruption leaves honor unchanged")
 equal(watched.currentStanding, unchangedReputation, "duration-only interruption leaves reputation unchanged")
 for name, module in pairs(PerHour.Modules) do
     equal(module.State.RestoreStatus, "error", name .. " detects unsaved duration without gains")
@@ -1360,6 +1422,8 @@ for name, module in pairs(PerHour.Modules) do
     equal(module.State.RestoreStatus, "pending", name .. " waits for played reply")
     equal(module.View.ToggleStartButton.enabled, false, name .. " cannot resume before check")
 end
+changeHonor(8)
+equal(honor.State.Element, saved.sessions.Honor.total, "currency gains during pending restore are excluded")
 click(experience)
 equal(experience.State.HasPaused, true, "pending validation blocks early Resume")
 tick(8)
@@ -1416,15 +1480,15 @@ equal(PerHourCharacter_Values.playedAtSave, nil, "unsampled active run does not 
 
 -- A successful clock check still waits for readable module baselines.
 xp, xpMax, level = 0, 0, 0
-honorValue = { secret = true }
 watched = nil
 login(saved, 0)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.State.RestoreStatus, "pending", name .. " waits for readable baseline")
+    equal(module.State.RestoreStatus, name == "Honor" and "success" or "pending",
+        name .. " requires a baseline only when tracking counter differences")
 end
 tick(2)
 xp, xpMax, level = 600, 1000, 10
-honorValue = 400
+honorBalance = 400
 watched = { name = "Stormwind", factionID = 72, currentStanding = 500 }
 tick(2)
 for name, module in pairs(PerHour.Modules) do
@@ -1530,14 +1594,14 @@ now, playedTotal = now + 0.5, playedTotal + 0.5
 event("PLAYER_LEAVING_WORLD")
 local selectionSave = copy(PerHourCharacter_Values)
 xp, xpMax, level = 0, 0, 0
-honorValue, honorMax, honorLevel = 0, 0, 0
+honorBalance = 0
 watched = nil
 tick(2)
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.playedAtSave, selectionSave.playedAtSave, "teardown cannot overwrite played reference")
 equal(PerHourCharacter_Values.sessions.Experience.total, selectionSave.sessions.Experience.total, "teardown preserves final XP total")
 xp, xpMax, level = 675, 1000, 10
-honorValue, honorMax, honorLevel = 400, 500, 1
+honorBalance = 400
 watched = { name = "Stormwind", factionID = 72, currentStanding = 100 }
 login(selectionSave, 0)
 equal(experience.State.RestoreStatus, "success", "normal character selection passes played validation")
@@ -1593,7 +1657,7 @@ do
     equal(view.Frame, frame, "reset reuses the existing panel")
     equal(view.TrackerFrame, tracker, "reset reuses the independent tracker")
     equal(view.ToggleStartButton, start, "reset reuses tracking controls")
-    equal(state.LastHonor, nil, "reset clears the module's own progression baseline")
+    equal(state.HasStarted, false, "reset stops event-based honor tracking")
     equal(state.Element, 0, "reset clears the module's runtime total")
     equal(start:GetText(), "Start", "reused controls render the reset state")
     equal(honor.Store:ReadSession(), nil, "runtime reset clears only its saved session")
