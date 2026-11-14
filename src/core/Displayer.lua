@@ -243,7 +243,7 @@ local function CreateRestoreIndicator(module)
     local restore = CreateFrame("Frame", nil, frame)
     module.View.RestoreIndicator = restore
     Components:CreateCircularIcon(restore, { iconSize = 16, background = true })
-    restore:SetPoint("TOPLEFT", frame, "TOPLEFT", -2, 2)
+    restore:SetPoint("TOPLEFT", frame, "TOPLEFT", -5, 3)
     restore:SetIgnoreParentAlpha(true)
     restore:EnableMouse(true)
     restore:SetScript("OnEnter", function(self)
