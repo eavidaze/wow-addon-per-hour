@@ -10,11 +10,12 @@ local CIRCULAR_ICON = {
 }
 local DIALOG_BORDER_INSET = 7
 local CONTENT_PADDING, FIELD_GAP = 16, 8
+local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48 },
-    default = { font = "GameFontNormalLarge", headerHeight = 56 },
+    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, closeAlwaysVisible = false },
+    default = { font = "GameFontNormalLarge", headerHeight = 56, closeAlwaysVisible = true },
 }
 
 local function CreatePanelTitle(frame, settings, style)
@@ -112,7 +113,16 @@ function Components:CreatePanel(parent, settings)
     local footerSize = settings.footerSize or 28
     -- The native box extends 28 px below the panel top; leave 12 px before content.
     local headerHeight = settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
-    frame:SetSize(settings.width, settings.height or headerHeight + CONTENT_PADDING + footerSize)
+    local footerSpacing = CONTENT_PADDING
+    if settings.contentSpacing ~= nil then
+        local spacing = settings.contentSpacing
+        assert(type(spacing) == "number" and spacing >= 0 and spacing < math.huge,
+            "Panel content spacing must be finite and nonnegative")
+        headerHeight = headerHeight - HEADER_SPACING + spacing
+        footerSpacing = spacing + 2
+    end
+    local baseHeight = headerHeight + footerSpacing + footerSize
+    frame:SetSize(settings.width, settings.height or baseHeight)
     frame.FooterSize = footerSize
     -- Use the same border and translucent background as Blizzard's Edit Mode.
     frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
@@ -129,12 +139,14 @@ function Components:CreatePanel(parent, settings)
         if settings.onClose then settings.onClose(frame) end
         frame:Hide()
     end)
-    if not settings.closeAlwaysVisible then SetupCloseButtonFade(frame) end
+    local closeAlwaysVisible = settings.closeAlwaysVisible
+    if closeAlwaysVisible == nil then closeAlwaysVisible = titleStyle.closeAlwaysVisible end
+    if not closeAlwaysVisible then SetupCloseButtonFade(frame) end
 
     frame.Content = CreateFrame("Frame", nil, frame)
     frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
-    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + CONTENT_PADDING)
-    self:SetupFieldStack(frame, frame.Content, headerHeight + CONTENT_PADDING + footerSize,
+    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + footerSpacing)
+    self:SetupFieldStack(frame, frame.Content, baseHeight,
         settings.form and 20 or FIELD_GAP)
 
     if settings.draggable then

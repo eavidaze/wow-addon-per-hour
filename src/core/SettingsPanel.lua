@@ -19,7 +19,7 @@ function SettingsPanel:Show()
             titleBox = true,
             width = 560,
             form = true,
-            closeAlwaysVisible = true,
+            contentSpacing = 12,
             draggable = true,
             actions = {
                 { key = "close", text = "Close", fullWidth = false, widthFraction = 0.3, align = "CENTER",

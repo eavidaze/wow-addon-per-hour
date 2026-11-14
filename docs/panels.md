@@ -3,11 +3,15 @@
 `PerHour.Components:CreatePanel(parent, settings)` shares the tracking panels'
 border, background, typography and gold controls. Settings include `name`,
 `title`, `width`, optional `height`, `footerSize` (default 28),
-`closeAlwaysVisible` (default false), `onClose` and `draggable` (default false).
+`closeAlwaysVisible` (optional override), `onClose` and `draggable` (default false).
 The X calls `onClose(panel)` when supplied, then hides the panel.
 `titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
 `"default"` (`GameFontNormalLarge`, the default). Titles are centered, with gold
 text inside boxes and white text when unboxed.
+The X follows `titleSize`: always visible for `"default"`, fading in on hover
+and out when leaving for `"small"`. Set `closeAlwaysVisible = true` or `false`
+to override that behavior for an individual panel. The settings panel inherits
+the always-visible X from its default size; trackers inherit the small-size fade.
 Set `titleBox = true` to surround either size with Forever's native
 [`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
 as used by the Game Menu. The box sits over the top border, fits the text and
@@ -16,6 +20,10 @@ remains available; boxed titles also expose `panel.TitleBox`.
 Small boxes use 24 px of text padding on each side; default boxes retain the
 native 32 px per side. Both preserve the native corner textures.
 Boxed panels leave 12 px between the bottom of the title box and the content.
+Set `contentSpacing` to a nonnegative number of pixels to configure this gap
+on the panel; it also sets the gap between content and footer buttons to that
+value + 2 px. Panel height follows both gaps when fields grow or shrink.
+Omitting it preserves the compact layout's existing spacing.
 The settings panel uses a boxed default title; trackers use boxed small titles.
 Tracker titles contain only the module name (Experience, Honor or Reputation).
 Their rate display is centered between the title box and footer controls.
@@ -27,6 +35,7 @@ local panel = Components:CreatePanel(UIParent, {
     title = "Example", width = 360,
     titleSize = "small", -- or "default"
     titleBox = true, -- omit for an unboxed title
+    contentSpacing = 12, -- 12 px after header, 14 px before footer
 })
 ```
 
@@ -150,6 +159,8 @@ available footer width, and an always-visible
 X. Drag its background, including
 the title area, to move it; fields and buttons handle their own mouse input.
 The panel retains its position while the addon remains loaded.
+Its `contentSpacing = 12` keeps 12 px below the boxed header and 14 px between
+the form content and **Close**, independently of the compact tracker layout.
 
 Validate appearance, checkbox interaction, each rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,

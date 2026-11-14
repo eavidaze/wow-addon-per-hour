@@ -629,7 +629,8 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 236, "settings height follows the three panel rows and compact boxed header")
+    equal(panel:GetHeight(), 234, "settings height fits rows with twelve pixels after header and fourteen before footer")
+    equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 1, "settings contains one form group")
     equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
     equal(#panel.Fields[1].Fields, 3, "panels contains one row per module")
@@ -973,6 +974,7 @@ do
     local enabled, directClicks, observedValue = false, 0, nil
     local panel = PerHour.Components:CreatePanel(UIParent, {
         title = "Configurable panel", width = 360, titleSize = "small", closeAlwaysVisible = true,
+        contentSpacing = 20,
         actions = {
             { key = "direct", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
                 onClick = function() directClicks = directClicks + 1 end },
@@ -989,7 +991,10 @@ do
     equal(observedValue, true, "checkbox callback receives selected value")
     local second = PerHour.Components:CreateCheckbox(panel.Content, { label = "Second" })
     panel:AddField(second)
-    equal(panel:GetHeight(), 148, "second field grows panel by its height and spacing")
+    equal(panel:GetHeight(), 162, "custom header and footer spacing participates in field stack height")
+    equal(panel:GetHeight() - panel.ContentHeight - panel.Content.point[5], 48,
+        "custom spacing reserves twenty pixels after the header area")
+    equal(panel.Content.point[5] - panel.FooterSize, 22, "custom footer spacing follows header spacing plus two")
     equal(second.point[5], -36, "fields are stacked with consistent spacing")
     equal(panel.Actions.direct.kind, "Button", "direct circular action has no dropdown")
     panel.Actions.direct:Click()
