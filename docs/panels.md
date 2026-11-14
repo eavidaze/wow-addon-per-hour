@@ -26,12 +26,23 @@ the group and enclosing panel resize and reposition subsequent groups.
 | `select` | `options = { { value = "hour", label = "Per hour" }, ... }`; `SettingsDropdownWithButtonsTemplate`, with its native dropdown, radio menu and previous/next buttons. |
 | `text` | String `value`, optional `maxLength` (default 64); Enter or losing focus commits the text, Escape restores the last committed value. |
 | `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (default `%g`) and `suffix`. |
+| `group` | One shared `label` and a `fields` array of controls placed side by side; optional `spacing` (default 8). Access children through `field.Fields[index]`. |
 
-All fields accept `label`, optional `controlWidth` (the space reserved for the control column, default 300) and
+Individual controls accept `label`, optional `controlWidth` (the space reserved for the control column, default 300) and
 `onChanged(value)`. Use `field:GetValue()` and `field:SetValue(value)` to read
 or update a field. Sliders round to the configured step and clamp to their
 bounds. Form controls keep values in memory; callers decide whether to persist
 them or apply them to the addon.
+
+In a `group` row, child labels are omitted from the layout; a checkbox's label
+still supplies its tooltip. Each child keeps its own value and callback.
+Checkboxes reserve 32 pixels by default in these rows; other controls reserve
+300. Set a child's `controlWidth` to reserve a different width without resizing
+its native control. The shared control column fits the sum of the child widths
+and spacing. The shared label does not toggle any child.
+Dropdowns are centered inside their reserved column so both native stepper
+buttons fit without overlapping adjacent controls. Their frame and stepper
+anchors come from Forever's [shared panel templates](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua).
 
 Form controls use the same complete templates as Forever's Options menu. Leave
 their textures, fonts, colors, checkmarks, arrows and native sizes unchanged.
@@ -50,6 +61,21 @@ local group = Components:CreateFormGroup(panel.Content, {
     },
 })
 panel:AddField(group)
+```
+
+To share a label between controls, add a composite row:
+
+```lua
+group:AddField({
+    type = "group", label = "Experience",
+    fields = {
+        { type = "checkbox", label = "Show Experience", value = true },
+        { type = "select", value = "hour", options = {
+            { value = "hour", label = "Per hour" },
+            { value = "minute", label = "Per minute" },
+        } },
+    },
+})
 ```
 
 Pass `actions` to `CreatePanel`, or call
@@ -73,13 +99,19 @@ Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
 `SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click. The
-**Panels** group has one visibility checkbox for each module, sorted by name.
-The **Minimap** group adjusts the button position from 0 to 360 degrees; zero is
-right, 90 is top, 180 is left and 270 is bottom. Changes apply immediately and
-persist through the [settings store](stores.md). Hiding a panel keeps its session
-running. The form follows visibility changes from the minimap menu and panel X,
-and position changes from dragging the minimap button. Refreshing controls reads
-saved values silently, without rewriting or rounding the stored angle.
+**Monitoring** group has one row per module, sorted by name. Each row shares
+the module's label between a visibility checkbox and a native dropdown for
+**Per hour** or **Per minute**, defaulting to hourly display. Each selection immediately changes
+that panel's numeric rate and unit, for example `XP/h` or `XP/min`; Honor and
+Reputation use the same independent preference. Changes persist through the
+[settings store](stores.md) across reloads and logins. Rate selection preserves
+tracking totals, duration and pause state; large numbers keep their abbreviation.
+The session tooltip still lists both rates.
+
+Hiding a panel keeps its session running. The form follows visibility changes
+from the minimap menu and panel X and reads saved preferences silently when
+reopened. Reposition the minimap button by dragging it; settings have no angle
+control.
 
 The panel has one centered footer action, **Close**, at 30% of the
 available footer width, and an always-visible
@@ -87,7 +119,7 @@ X. Drag its background, including
 the title area, to move it; fields and buttons handle their own mouse input.
 The panel retains its position while the addon remains loaded.
 
-Validate appearance, checkbox interaction, the position slider, dragging and
+Validate appearance, checkbox interaction, each rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
-confirm that panel visibility and minimap position match the saved preferences.
+confirm that panel visibility, selected rates and minimap position match saved preferences.
 Lua simulation checks do not validate rendering or native mouse routing.

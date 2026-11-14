@@ -38,7 +38,6 @@ end
 function button:SetAngle(angle)
     PerHour.Stores.Settings:SetMinimapAngle(angle)
     UpdatePosition()
-    PerHour.SettingsPanel:Refresh()
 end
 
 local function UpdateDragPosition()

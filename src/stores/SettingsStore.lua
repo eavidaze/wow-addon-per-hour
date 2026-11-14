@@ -17,6 +17,10 @@ local function IsPosition(value)
         and ANCHORS[value.relativePoint] == true and IsFinite(value.x) and IsFinite(value.y)
 end
 
+local function IsRate(value)
+    return value == "hour" or value == "minute"
+end
+
 local function CopyPosition(value)
     if value then
         return { point = value.point, relativePoint = value.relativePoint, x = value.x, y = value.y }
@@ -32,6 +36,7 @@ function SettingsStore:Init()
     for name in pairs(PerHour.Modules) do
         if type(saved[name]) ~= "table" then saved[name] = {} end
         if type(saved[name].isShown) ~= "boolean" then saved[name].isShown = false end
+        if not IsRate(saved[name].rate) then saved[name].rate = "hour" end
         if not IsPosition(saved[name].position) then saved[name].position = nil end
     end
 end
@@ -50,16 +55,18 @@ function SettingsStore:ForModule(name)
     local settings = {}
 
     function settings:Get(key)
-        assert(key == "isShown" or key == "position", "Unknown module setting")
+        assert(key == "isShown" or key == "position" or key == "rate", "Unknown module setting")
         local value = PerHourAccount_Settings[name][key]
         if key == "position" then return CopyPosition(value) end
         return value
     end
 
     function settings:Set(key, value)
-        assert(key == "isShown" or key == "position", "Unknown module setting")
+        assert(key == "isShown" or key == "position" or key == "rate", "Unknown module setting")
         if key == "isShown" then
             assert(type(value) == "boolean", "Module visibility must be boolean")
+        elseif key == "rate" then
+            assert(IsRate(value), "Display rate must be hour or minute")
         else
             assert(value == nil or IsPosition(value), "Invalid panel position")
             value = CopyPosition(value)

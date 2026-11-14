@@ -7,12 +7,13 @@ return function(equal)
     PerHourAccount_Settings = false
     settings:Init()
     equal(xp.Settings:Get("isShown"), false, "malformed settings root recovers defaults")
+    equal(xp.Settings:Get("rate"), "hour", "missing rate defaults to hourly display")
     equal(settings:GetMinimapAngle(), math.rad(225), "missing minimap recovers default angle")
 
     PerHourAccount_Settings = {
         minimap = { angle = 0 },
-        Experience = { isShown = false, position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
-        Honor = { isShown = true },
+        Experience = { isShown = false, rate = "minute", position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
+        Honor = { isShown = true, rate = "day" },
         Reputation = "invalid",
         futureSetting = "preserved",
     }
@@ -22,6 +23,8 @@ return function(equal)
     equal(PerHourAccount_Settings, loaded, "settings initialization preserves the saved table")
     equal(settings:GetMinimapAngle(), 0, "zero angle survives initialization")
     equal(xp.Settings:Get("isShown"), false, "false visibility survives initialization")
+    equal(xp.Settings:Get("rate"), "minute", "saved minute rate survives initialization")
+    equal(honor.Settings:Get("rate"), "hour", "invalid saved rate recovers hourly display")
     equal(xp.Settings:Get("position").x, 0, "zero coordinates survive initialization")
     equal(honor.Settings:Get("isShown"), true, "valid neighbor survives malformed module settings")
     equal(rep.Settings:Get("isShown"), false, "malformed module settings recover defaults")
@@ -37,6 +40,11 @@ return function(equal)
     xp.Settings:Set("isShown", true)
     equal(rep.Settings:Get("isShown"), false, "XP settings do not change reputation settings")
     equal(honor.Settings:Get("position"), nil, "XP position does not change honor position")
+    rep.Settings:Set("rate", "minute")
+    equal(rep.Settings:Get("rate"), "minute", "rate preference is written per module")
+    equal(honor.Settings:Get("rate"), "hour", "reputation rate does not change honor rate")
+    equal(pcall(function() rep.Settings:Set("rate", "day") end), false, "invalid rate write is rejected")
+    equal(rep.Settings:Get("rate"), "minute", "rejected rate write preserves the previous value")
     equal(pcall(function() xp.Settings:Set("isShown", 1) end), false, "invalid visibility is rejected")
     equal(pcall(function() xp.Settings:Set("position", { x = 1, y = 2 }) end), false, "invalid position is rejected")
     equal(xp.Settings:Get("position").x, 25, "rejected writes preserve the previous setting")
@@ -45,10 +53,12 @@ return function(equal)
     for _, invalid in ipairs({ false, "bad", math.huge, 0 / 0 }) do
         PerHourAccount_Settings.minimap.angle = invalid
         PerHourAccount_Settings.Experience.isShown = invalid
+        PerHourAccount_Settings.Experience.rate = invalid
         PerHourAccount_Settings.Experience.position = { point = "INVALID", relativePoint = "CENTER", x = 0, y = 0 }
         settings:Init()
         equal(settings:GetMinimapAngle(), math.rad(225), "invalid saved angle recovers default")
         equal(xp.Settings:Get("isShown"), false, "invalid saved visibility recovers default")
+        equal(xp.Settings:Get("rate"), "hour", "invalid saved rate recovers default")
         equal(xp.Settings:Get("position"), nil, "invalid saved anchor is discarded")
         equal(honor.Settings:Get("isShown"), true, "settings repair preserves another module")
     end

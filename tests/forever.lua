@@ -304,11 +304,17 @@ function CreateFrame(kind, name, parent, template)
             frame.Slider:SetValue(frame.Slider:GetValue() + frame.Slider.valueStep)
         end)
     elseif template == "SettingsDropdownWithButtonsTemplate" then
+        frame:SetSize(223, 38)
         frame.Dropdown = CreateFrame("DropdownButton", nil, frame)
+        frame.Dropdown:SetPoint("CENTER", frame, "CENTER", 0, 0)
         frame.Dropdown.Text = frame.Dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         frame.Dropdown.settingsSelector = frame
         frame.DecrementButton = CreateFrame("Button", nil, frame)
         frame.IncrementButton = CreateFrame("Button", nil, frame)
+        frame.DecrementButton:SetSize(24, 24)
+        frame.IncrementButton:SetSize(24, 24)
+        frame.DecrementButton:SetPoint("RIGHT", frame.Dropdown, "LEFT", -5, 0)
+        frame.IncrementButton:SetPoint("LEFT", frame.Dropdown, "RIGHT", 4, 0)
         local function step(direction)
             local items = frame.Dropdown.menuDescription.items
             for index, item in ipairs(items) do
@@ -595,31 +601,35 @@ do
     equal(GameTooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 344, "settings height follows both groups and their fields")
-    equal(#panel.Fields, 2, "settings contains two form groups")
-    equal(panel.Fields[1].TitleText:GetText(), "Panels", "first group title")
-    equal(panel.Fields[2].TitleText:GetText(), "Minimap", "second group title")
-    equal(#panel.Fields[1].Fields, 3, "panels group contains one checkbox per module")
-    equal(#panel.Fields[2].Fields, 1, "minimap group contains the position slider")
-    equal(panel.TitleText.template, experience.View.ElementPerHourValue.template, "form title uses the rate number font")
-    equal(panel.Fields[1].TitleText.template, experience.View.ElementPerHourValue.template, "group title uses the rate number font")
+    equal(panel:GetHeight(), 252, "settings height follows the three monitoring rows")
+    equal(#panel.Fields, 1, "settings contains one form group")
+    equal(panel.Fields[1].TitleText:GetText(), "Monitoring", "monitoring group title")
+    equal(#panel.Fields[1].Fields, 3, "monitoring contains one row per module")
+    equal(panel.TitleText.template, experience.View.RateValue.template, "form title uses the rate number font")
+    equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
-    local visibility = panel.Fields[1].Fields[1]
-    equal(visibility.Label:GetText(), "Show Experience", "visibility control identifies its module")
-    equal(table.concat(visibility.Label.textColor, ","), "1,0.82,0", "field labels are gold")
+    local row = panel.Fields[1].Fields[1]
+    local visibility = row.Fields[1]
+    equal(row.Label:GetText(), "Experience", "shared label identifies the module")
+    equal(table.concat(row.Label.textColor, ","), "1,0.82,0", "field labels are gold")
+    equal(#row.Fields, 2, "module row contains visibility and rate controls")
+    equal(visibility:GetWidth() >= visibility.Control:GetWidth(), true, "checkbox fits its own click area")
+    equal(row.Fields[2].point[4] >= visibility:GetWidth(), true, "rate select starts after the checkbox click area")
+    equal(rawget(visibility, "Label"), nil, "inline checkbox uses the shared row label")
+    equal(rawget(row.Fields[2], "Label"), nil, "inline select uses the shared row label")
     equal(visibility.Control:GetChecked(), true, "visibility control reads the saved setting")
     visibility.Control:Click()
     equal(visibility:GetValue(), false, "checkbox updates its value")
     equal(experience.View.Frame:IsShown(), false, "checkbox immediately hides the XP panel")
     equal(experience.Settings:Get("isShown"), false, "checkbox persists hidden visibility")
     visibility.scripts.OnMouseUp(visibility, "LeftButton")
-    equal(visibility:GetValue(), true, "label toggles visibility back on")
-    equal(experience.View.Frame:IsShown(), true, "label immediately shows the XP panel")
-    equal(experience.Settings:Get("isShown"), true, "label persists visible state")
+    equal(visibility:GetValue(), true, "checkbox area toggles visibility back on")
+    equal(experience.View.Frame:IsShown(), true, "checkbox area immediately shows the XP panel")
+    equal(experience.Settings:Get("isShown"), true, "checkbox area persists visible state")
     equal(experience.State.HasStarted, false, "visibility does not start tracking")
     equal(honor.Settings:Get("isShown"), false, "XP control preserves honor visibility")
     equal(reputation.Settings:Get("isShown"), false, "XP control preserves reputation visibility")
-    equal(panel.Fields[2].Fields[1]:GetValue(), 225, "minimap control reads the saved angle")
+    equal(row.Fields[2]:GetValue(), "hour", "rate control defaults to per hour")
     local item = minimapButton.menuDescription.items[1]
     item.callback(item.data)
     equal(visibility:GetValue(), false, "open settings follow minimap menu changes")
@@ -656,37 +666,62 @@ do
     equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
 end
 
--- Real preferences apply immediately without quantizing drag positions or touching sessions.
+-- Display rate choices apply independently without changing tracking state or saved sessions.
 do
     local settings = PerHour.SettingsPanel
     local savedSessions = PerHourCharacter_Values
+    local angle = PerHour.Stores.Settings:GetMinimapAngle()
     settings:Show()
-    local angle = settings.AngleField
-    equal(angle.Control.template, "MinimalSliderWithSteppersTemplate", "minimap position uses the native slider")
-    equal(angle.Control.Slider.minimum, 0, "minimap position starts at zero degrees")
-    equal(angle.Control.Slider.maximum, 360, "minimap position covers the full circle")
-    equal(angle.ValueText:GetText(), "225 deg", "minimap slider shows degrees")
-    angle.Control:SetValue(90)
-    near(PerHour.Stores.Settings:GetMinimapAngle(), math.pi / 2, "position slider persists radians")
-    near(minimapButton.point[4], 0, "position slider immediately updates minimap X")
-    near(minimapButton.point[5], 75, "position slider immediately updates minimap Y")
-    angle.Control.Back:Click()
-    equal(angle:GetValue(), 89, "minimap position stepper moves one degree")
-    near(PerHour.Stores.Settings:GetMinimapAngle(), math.rad(89), "position stepper persists its value")
-    angle:SetValue(500)
-    equal(angle:GetValue(), 360, "position slider retains its upper endpoint")
-    near(PerHour.Stores.Settings:GetMinimapAngle(), 2 * math.pi, "upper endpoint is persisted")
-    angle:SetValue(-50)
-    equal(angle:GetValue(), 0, "position slider clamps to its lower endpoint")
-    equal(PerHour.Stores.Settings:GetMinimapAngle(), 0, "zero angle is persisted")
-    minimapButton:SetAngle(-math.pi / 2)
-    equal(angle:GetValue(), 270, "negative drag angles display within the full circle")
-    equal(PerHour.Stores.Settings:GetMinimapAngle(), -math.pi / 2, "refresh preserves signed drag angles")
-    minimapButton:SetAngle(math.rad(12.4))
-    equal(angle:GetValue(), 12, "form displays a rounded drag position")
-    settings.Frame:Hide()
-    settings:Show()
-    near(PerHour.Stores.Settings:GetMinimapAngle(), math.rad(12.4), "reopening never rounds the persisted angle")
+    equal(settings.AngleField, nil, "settings no longer expose a minimap angle control")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local field = settings.RateFields[module.Name]
+        local state = module.State
+        local minute, hour = state.ElementPerMinute, state.ElementPerHour
+        local total, duration, started, paused = state.Element, state.Time, state.HasStarted, state.HasPaused
+        state.ElementPerMinute, state.ElementPerHour = 123.45, 7407
+        local shown = module.Settings:Get("isShown")
+        equal(field:GetValue(), "hour", module.Name .. " defaults to hourly display")
+        equal(field.Selector.template, "SettingsDropdownWithButtonsTemplate", "rate uses the native select")
+        mouseClick(field.Control, "LeftButton")
+        local choices = field.Control.menuDescription.items
+        equal(#choices, 2, "rate select offers hour and minute")
+        choices[2].callback(choices[2].data)
+        equal(module.Settings:Get("isShown"), shown, "changing the inline rate preserves visibility")
+        equal(settings.ModuleFields[module.Name]:GetValue(), shown, "changing the inline rate preserves its adjacent checkbox")
+        equal(module.Settings:Get("rate"), "minute", module.Name .. " persists its minute preference")
+        equal(module.View.RateValue:GetText(), "123", module.Name .. " displays its per-minute value")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/min", module.Name .. " displays its minute unit")
+        for _, other in ipairs({ experience, honor, reputation }) do
+            if other ~= module then
+                equal(other.Settings:Get("rate"), "hour", "rate selection preserves " .. other.Name)
+            end
+        end
+        field:SetValue("day")
+        equal(module.Settings:Get("rate"), "minute", "unknown rate options do not change preferences")
+        field.Selector.DecrementButton:Click()
+        equal(module.View.RateValue:GetText(), "7,407", module.Name .. " immediately returns to the hourly value")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/h", module.Name .. " returns to the hourly unit")
+        field.Selector.IncrementButton:Click()
+        equal(module.View.RateValue:GetText(), "123", "native stepper switches back to per minute")
+        settings.Frame:Hide()
+        settings:Show()
+        equal(field:GetValue(), "minute", "reopening reads the saved rate")
+        equal(field.Control:GetText(), "Per minute", "reopening restores the native select label")
+        state.ElementPerMinute, state.ElementPerHour = 1000000000000, 60000000000000
+        PerHour.Displayer:RefreshRate(module)
+        equal(abbreviatedValue, state.ElementPerMinute, "abbreviation uses the selected minute rate")
+        equal(module.View.RateValue:GetText(), "1T", "selected rate keeps overflow abbreviation")
+        equal(module.View.RateFrame:GetWidth() <= module.View.Frame:GetWidth() - 30, true, "rate and selected unit fit")
+        state.ElementPerMinute, state.ElementPerHour = minute, hour
+        field:SetValue("hour")
+        equal(state.Element, total, "display changes preserve session totals")
+        equal(state.Time, duration, "display changes preserve active duration")
+        equal(state.HasStarted, started, "display changes preserve started state")
+        equal(state.HasPaused, paused, "display changes preserve pause state")
+        equal(state.ElementPerMinute, minute, "display changes preserve the calculated minute rate")
+        equal(state.ElementPerHour, hour, "display changes preserve the calculated hourly rate")
+    end
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), angle, "rate controls preserve the minimap position")
     equal(PerHourCharacter_Values, savedSessions, "preference changes leave saved sessions untouched")
     for _, module in ipairs({ experience, honor, reputation }) do
         local field = settings.ModuleFields[module.Name]
@@ -703,7 +738,6 @@ do
     equal(experience.State.HasPaused, false, "hiding through settings does not pause tracking")
     settings.ModuleFields.Experience:SetValue(true)
     BaseModule:ResetModule(experience)
-    minimapButton:SetAngle(math.rad(225))
     settings.Frame:Hide()
 end
 
@@ -792,6 +826,47 @@ do
     panel:Hide()
 end
 
+-- Composite rows also support text controls with independent values and callbacks.
+do
+    local monitoring = PerHour.Components:CreateFormField(UIParent, {
+        type = "group", label = "Experience", fields = {
+            { type = "checkbox", label = "Show Experience", value = true },
+            { type = "select", options = { { value = "hour", label = "Per hour" } } },
+        },
+    })
+    monitoring:SetWidth(500)
+    local checkbox, rate = monitoring.Fields[1], monitoring.Fields[2]
+    local previous, nextButton = rate.Selector.DecrementButton, rate.Selector.IncrementButton
+    equal(previous:GetLeft() >= rate:GetLeft(), true, "native left stepper stays inside its field")
+    equal(previous:GetLeft() >= checkbox.Control:GetLeft() + checkbox.Control:GetWidth() + 8,
+        true, "native left stepper clears the adjacent checkbox")
+    equal(nextButton:GetLeft() + nextButton:GetWidth() <= rate:GetLeft() + rate:GetWidth(),
+        true, "native right stepper stays inside its field")
+    local enabledChanges, nameChanges = 0, 0
+    local row = PerHour.Components:CreateFormField(UIParent, {
+        type = "group", label = "Session", spacing = 12, fields = {
+            { type = "checkbox", label = "Enable session", value = false,
+                onChanged = function() enabledChanges = enabledChanges + 1 end },
+            { type = "text", value = "Example", controlWidth = 240,
+                onChanged = function() nameChanges = nameChanges + 1 end },
+        },
+    })
+    local enabled, name = row.Fields[1], row.Fields[2]
+    equal(enabledChanges + nameChanges, 0, "composite initialization does not fire callbacks")
+    enabled.Control:Click()
+    equal(enabledChanges, 1, "inline checkbox fires its own callback")
+    equal(name:GetValue(), "Example", "inline checkbox leaves sibling text unchanged")
+    name.Control:SetText("New session")
+    name.Control.scripts.OnEnterPressed(name.Control)
+    equal(name:GetValue(), "New session", "inline text commits edits")
+    equal(nameChanges, 1, "inline text fires its own callback")
+    equal(enabled:GetValue(), true, "inline text leaves sibling checkbox unchanged")
+    enabled:SetValue(false, true)
+    equal(enabledChanges, 1, "inline controls support silent refresh")
+    equal(name.point[4], enabled:GetWidth() + 12, "composite row respects custom spacing")
+    equal(row.ControlArea:GetWidth(), enabled:GetWidth() + 12 + 240, "composite row fits custom child widths")
+end
+
 -- Changing a group's fields reflows subsequent groups and the enclosing panel.
 do
     local panel = PerHour.Components:CreatePanel(UIParent, { title = "Form", width = 500, form = true })
@@ -878,14 +953,12 @@ minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
 minimapButton.scripts.OnUpdate(minimapButton)
 equal(PerHourAccount_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
-equal(PerHour.SettingsPanel.AngleField:GetValue(), 0, "minimap drag refreshes the position field")
 equal(minimapButton.point[4], 75, "drag stays on minimap edge")
 equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
 cursorX, cursorY = 200, 600
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
-equal(PerHour.SettingsPanel.AngleField:GetValue(), 90, "drag stop refreshes the position field")
 PerHour.Stores.Settings:Init()
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
 minimapButton.scripts.OnEnter(minimapButton)
@@ -903,8 +976,12 @@ xp = 150
 tick(2)
 equal(experience.State.Element, 50, "first XP gain")
 equal(experience.State.ElementPerHour, 90000, "XP per hour")
-equal(experience.View.ElementPerHourValue:GetText(), "90,000", "fitting rates retain full precision")
+equal(experience.View.RateValue:GetText(), "90,000", "fitting rates retain full precision")
 equal(experience.View.RateUnit:GetText(), "XP/h", "inline rate unit")
+PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
+equal(experience.View.RateValue:GetText(), "1,500", "running XP session switches to its calculated minute rate")
+equal(experience.State.HasStarted, true, "rate selection keeps a running XP session active")
+PerHour.SettingsPanel.RateFields.Experience:SetValue("hour")
 equal(GameTooltip.lines.Duration, "00:02", "hovered duration updates live")
 equal(GameTooltip.lines["Total XP"], "50", "hovered XP total updates live")
 experience.View.Frame.scripts.OnEnter(experience.View.Frame)
@@ -984,13 +1061,13 @@ equal(GameTooltip.singleLines[1], "Not started", "reset updates hovered status")
 experience.State.ElementPerHour = 1000000000000
 BaseModule:RefreshDisplayedValues(experience)
 equal(abbreviatedValue, experience.State.ElementPerHour, "overflow uses native number abbreviation")
-equal(experience.View.ElementPerHourValue:GetText(), "1T", "panel displays native abbreviated result")
+equal(experience.View.RateValue:GetText(), "1T", "panel displays native abbreviated result")
 equal(experience.View.RateFrame:GetWidth() <= experience.View.Frame:GetWidth() - 16, true, "abbreviated rate and unit fit together")
 experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 equal(GameTooltip.lines["XP/h"], "1,000,000,000,000", "tooltip retains full abbreviated rate")
 experience.View.Frame.scripts.OnLeave()
 BaseModule:ResetModule(experience)
-equal(experience.View.ElementPerHourValue:GetText(), "0", "reset restores full rate formatting")
+equal(experience.View.RateValue:GetText(), "0", "reset restores full rate formatting")
 
 click(reputation)
 reputation.Settings:Set("isShown", true)
@@ -1043,12 +1120,15 @@ do
     tick(2)
     changeHonor(8)
     equal(honor.State.Element, 8, "an eight-point honor currency gain is captured")
-    equal(honor.View.ElementPerHourValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
+    equal(honor.View.RateValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("minute")
+    equal(honor.View.RateValue:GetText(), "240", "active honor session displays its minute rate")
     equal(honor.View.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
     changeHonor(-100)
     equal(honor.State.Element, 8, "spending does not subtract from earned honor")
     changeHonor(8)
     equal(honor.State.Element, 16, "gains count even when the balance is below the starting balance")
+    equal(honor.View.RateValue:GetText(), "480", "currency events refresh the selected minute rate")
     event("CHAT_MSG_COMBAT_HONOR_GAIN", "Enemy slain: 8 honor.")
     equal(honor.State.Element, 16, "chat announcements do not double-count currency gains")
     for _, payload in ipairs({
@@ -1077,6 +1157,8 @@ do
     BaseModule:ResetModule(honor)
     changeHonor(8)
     equal(honor.State.Element, 0, "reset stops currency event tracking")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "reset preserves the selected display period")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
     honorBalance = balance
 end
 
@@ -1620,7 +1702,10 @@ do
     PerHour.SettingsPanel.ModuleFields.Experience:SetValue(false)
     PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
     PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
-    PerHour.SettingsPanel.AngleField:SetValue(315)
+    PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
+    PerHour.SettingsPanel.RateFields.Reputation:SetValue("minute")
+    PerHour.MinimapButton:SetAngle(math.rad(315))
     local account = copy(PerHourAccount_Settings)
     event("PLAYER_LOGOUT")
     local savedSessions = copy(PerHourCharacter_Values)
@@ -1636,7 +1721,14 @@ do
     equal(PerHour.SettingsPanel.ModuleFields.Experience:GetValue(), false, "reloaded form reads hidden XP")
     equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), true, "reloaded form reads visible honor")
     equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
-    equal(PerHour.SettingsPanel.AngleField:GetValue(), 315, "reloaded form reads the saved minimap position")
+    equal(PerHour.SettingsPanel.RateFields.Experience:GetValue(), "minute", "reloaded form reads XP rate preference")
+    equal(PerHour.SettingsPanel.RateFields.Honor:GetValue(), "hour", "reloaded form reads honor rate preference")
+    equal(PerHour.SettingsPanel.RateFields.Reputation:GetValue(), "minute", "reloaded form reads reputation rate preference")
+    equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
+    equal(honor.View.RateUnit:GetText(), "hon/h", "reload applies the independent honor unit")
+    equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
+    equal(experience.View.RateValue:GetText(), Utils:DisplayRoundedNumber(experience.State.ElementPerMinute, 0),
+        "reload displays the selected rate from restored session values")
     near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
     near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
     PerHour.SettingsPanel.Frame:Hide()

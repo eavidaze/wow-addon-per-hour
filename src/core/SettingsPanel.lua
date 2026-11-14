@@ -6,11 +6,8 @@ function SettingsPanel:Refresh()
     if not self.Frame then return end
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
+        self.RateFields[name]:SetValue(PerHour.Modules[name].Settings:Get("rate"), true)
     end
-    local angle = PerHour.Stores.Settings:GetMinimapAngle()
-    local fullCircle = 2 * math.pi
-    if angle < 0 or angle > fullCircle then angle = angle % fullCircle end
-    self.AngleField:SetValue(math.deg(angle), true)
 end
 
 function SettingsPanel:Show()
@@ -29,34 +26,46 @@ function SettingsPanel:Show()
         })
         frame:SetFrameStrata("DIALOG")
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        local panels = Components:CreateFormGroup(frame.Content, { title = "Panels" })
+        local monitoring = Components:CreateFormGroup(frame.Content, { title = "Monitoring" })
         local modules = {}
         for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
         table.sort(modules, function(a, b) return a.Name < b.Name end)
         self.ModuleFields = {}
+        self.RateFields = {}
         for _, context in ipairs(modules) do
             local module = context
-            self.ModuleFields[module.Name] = panels:AddField({
-                type = "checkbox", label = "Show " .. module.Name,
-                value = module.Settings:Get("isShown"),
-                onChanged = function(shown)
-                    module.Settings:Set("isShown", shown)
-                    module.View.Frame:SetShown(shown)
-                    self:Refresh()
-                end,
+            local row = monitoring:AddField({
+                type = "group", label = module.Name,
+                fields = {
+                    {
+                        type = "checkbox", label = "Show " .. module.Name,
+                        value = module.Settings:Get("isShown"),
+                        onChanged = function(shown)
+                            module.Settings:Set("isShown", shown)
+                            module.View.Frame:SetShown(shown)
+                            self:Refresh()
+                        end,
+                    },
+                    {
+                        type = "select", value = module.Settings:Get("rate"),
+                        options = {
+                            { value = "hour", label = "Per hour" },
+                            { value = "minute", label = "Per minute" },
+                        },
+                        onChanged = function(value)
+                            module.Settings:Set("rate", value)
+                            PerHour.Displayer:RefreshRate(module)
+                        end,
+                    },
+                },
             })
+            self.ModuleFields[module.Name] = row.Fields[1]
+            self.RateFields[module.Name] = row.Fields[2]
             -- Keep controls current when the minimap menu or panel X changes visibility.
             module.View.Frame:HookScript("OnShow", function() self:Refresh() end)
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
-        frame:AddField(panels)
-        local minimap = Components:CreateFormGroup(frame.Content, { title = "Minimap" })
-        self.AngleField = minimap:AddField({
-            type = "slider", label = "Button position", value = 0,
-            min = 0, max = 360, step = 1, suffix = " deg",
-            onChanged = function(degrees) PerHour.MinimapButton:SetAngle(math.rad(degrees)) end,
-        })
-        frame:AddField(minimap)
+        frame:AddField(monitoring)
         self.Frame = frame
     end
     self:Refresh()

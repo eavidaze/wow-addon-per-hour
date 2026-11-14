@@ -220,7 +220,7 @@ local function CreateValues(module)
     rateFrame:SetPoint("CENTER", content, "CENTER")
     module.View.RateFrame = rateFrame
 
-    module.View.ElementPerHourValue = rateFrame.Value
+    module.View.RateValue = rateFrame.Value
     module.View.RateUnit = rateFrame.Unit
 
     frame:SetScript("OnEnter", function(self)
@@ -354,10 +354,13 @@ function Displayer:RefreshTooltip(module)
 end
 
 function Displayer:RefreshRate(module)
-    local rate, unit = module.View.ElementPerHourValue, module.View.RateUnit
-    rate:SetText(Utils:DisplayRoundedNumber(module.State.ElementPerHour, 0))
+    local rate, unit = module.View.RateValue, module.View.RateUnit
+    local perMinute = module.Settings:Get("rate") == "minute"
+    local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
+    unit:SetText(module.ShortName .. (perMinute and "/min" or "/h"))
+    rate:SetText(Utils:DisplayRoundedNumber(value, 0))
     if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.View.Frame:GetWidth() - 30 then
-        rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(module.State.ElementPerHour, 0)))
+        rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(value, 0)))
     end
     module.View.RateFrame:SetWidth(rate:GetStringWidth() + unit:GetStringWidth() + 4)
 end

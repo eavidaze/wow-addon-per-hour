@@ -16,7 +16,7 @@ code changes only need `/reload`.
 ## Use
 
 - Left-click the minimap clock or use `/perhour` to toggle the module menu.
-- Right-click the minimap clock to configure panel visibility and the minimap button position.
+- Right-click the minimap clock to configure panel visibility and choose hourly or per-minute rates for each tracker.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.

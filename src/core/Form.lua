@@ -30,9 +30,9 @@ local function CreateSlider(field, settings)
     return slider
 end
 
-function Components:CreateFormField(parent, settings)
+function Components:CreateFormField(parent, settings, inline)
     assert(settings.type == "checkbox" or settings.type == "select" or settings.type == "slider"
-        or settings.type == "text", "Unsupported form field type")
+        or settings.type == "text" or settings.type == "group", "Unsupported form field type")
     if settings.type == "slider" then
         assert(IsFinite(settings.min) and IsFinite(settings.max) and settings.min < settings.max,
             "Numeric fields require explicit finite min and max, with min < max")
@@ -43,15 +43,34 @@ function Components:CreateFormField(parent, settings)
     field:EnableMouse(true)
     field.Updating = false
     field.ControlArea = CreateFrame("Frame", nil, field)
-    field.ControlArea:SetSize(settings.controlWidth or CONTROL_WIDTH, ROW_HEIGHT)
+    local controlWidth = settings.controlWidth
+        or (inline and settings.type == "checkbox" and 32) or CONTROL_WIDTH
+    field.ControlArea:SetSize(controlWidth, ROW_HEIGHT)
     field.ControlArea:SetPoint("RIGHT", field, "RIGHT", 0, 0)
-    field.Label = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    field.Label:SetText(settings.label)
-    field.Label:SetTextColor(unpack(Theme.formLabel))
-    field.Label:SetPoint("LEFT", field, "LEFT", 0, 0)
-    field.Label:SetPoint("RIGHT", field.ControlArea, "LEFT", -12, 0)
-    field.Label:SetJustifyH("LEFT")
-    field.Label:SetWordWrap(false)
+    if not inline then
+        field.Label = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        field.Label:SetText(settings.label)
+        field.Label:SetTextColor(unpack(Theme.formLabel))
+        field.Label:SetPoint("LEFT", field, "LEFT", 0, 0)
+        field.Label:SetPoint("RIGHT", field.ControlArea, "LEFT", -12, 0)
+        field.Label:SetJustifyH("LEFT")
+        field.Label:SetWordWrap(false)
+    end
+
+    if settings.type == "group" then
+        field.Fields = {}
+        local width = 0
+        for index, childSettings in ipairs(settings.fields or {}) do
+            local child = self:CreateFormField(field.ControlArea, childSettings, true)
+            if index > 1 then width = width + (settings.spacing or 8) end
+            child:SetWidth(child.ControlArea:GetWidth())
+            child:SetPoint("LEFT", field.ControlArea, "LEFT", width, 0)
+            width = width + child:GetWidth()
+            table.insert(field.Fields, child)
+        end
+        field.ControlArea:SetWidth(width)
+        return field
+    end
 
     function field:GetValue() return self.Value end
     function field:SetValue(value, silent)
@@ -98,7 +117,8 @@ function Components:CreateFormField(parent, settings)
     elseif settings.type == "select" then
         field.Value = settings.value or settings.options[1].value
         field.Selector = CreateFrame("Frame", nil, field.ControlArea, "SettingsDropdownWithButtonsTemplate")
-        field.Selector:SetPoint("LEFT", field.ControlArea, "LEFT", 0, 0)
+        -- Native steppers extend beyond the selector frame on both sides.
+        field.Selector:SetPoint("CENTER", field.ControlArea, "CENTER", 0, 0)
         local control = field.Selector.Dropdown
         field.Control = control
         control:SetWidth(220)

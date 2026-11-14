@@ -44,9 +44,10 @@ accessed through their respective containers; there are no root-level aliases.
 
 `PerHour.Stores.Settings` provides `GetMinimapAngle()` and
 `SetMinimapAngle(angle)`. Each module receives its own `module.Settings` handle
-with `Get(key)` and `Set(key, value)` for `isShown` and `position`. Positions are
+with `Get(key)` and `Set(key, value)` for `isShown`, `position` and `rate`. Positions are
 plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
-`nil` removes it.
+`nil` removes it. The display rate is `hour` (default) or `minute`, independently
+for Experience, Honor and Reputation. Invalid saved rates recover the default.
 
 Initialization preserves valid values, including `false` and zero, and repairs
 malformed data using defaults. Invalid positions are discarded so panels use
@@ -54,10 +55,11 @@ their default layout. Setters reject invalid values. Position reads and writes
 copy tables, so callers cannot mutate stored positions indirectly.
 
 Forms keep their generic `value` and `onChanged` interface. The settings panel
-connects module visibility and minimap position to the stores and applies each
-change immediately. It refreshes silently when opened and when the corresponding
-UI changes elsewhere. The minimap slider displays degrees while the store keeps
-the existing angle in radians; displaying a rounded value never rewrites it.
+connects module visibility and display rates to the stores and applies each
+change immediately. It refreshes silently when opened and when visibility changes
+elsewhere. Rate selection changes the panel's numeric value and unit without
+altering session totals, duration, running state or the calculated rates. The
+minimap remains draggable and its position is saved, with no angle form control.
 
 ## Sessions
 
