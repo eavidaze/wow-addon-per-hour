@@ -1,43 +1,31 @@
 -- definition
 BaseModule = {}
 
+local function FormatAnnouncementDuration(time)
+    local hours = math.floor(time / 3600)
+    local minutes = math.floor((time % 3600) / 60)
+    local seconds = math.floor(time % 60)
+    local parts = {}
+    if hours > 0 then table.insert(parts, hours .. "h") end
+    if minutes > 0 then table.insert(parts, minutes .. "m") end
+    if seconds > 0 or #parts == 0 then table.insert(parts, seconds .. "s") end
+    return table.concat(parts, " ")
+end
+
 function BaseModule:SendTo(contextModule, chatType)
     chatType = chatType:upper()
-    local SendChatMessage = C_ChatInfo.SendChatMessage
-
-    -- chatType = chatType:upper()
-    local addonNamePrepend = "Per Hour || "
-
-    local dottedLine = "................"
-    local dottedLineLength = string.len(dottedLine)
-    local perHourLabel = contextModule.ShortName .. "/h"
-    local perMinuteLabel = contextModule.ShortName .. "/min"
-
-    local function GetDottedLineByWordSize(wordSize)
-        return string.sub(dottedLine, 0, dottedLineLength - wordSize)
+    local state = contextModule.State
+    local total = Utils:DisplayNumber(state.Element)
+    local duration = FormatAnnouncementDuration(state.Time)
+    local perHour = Utils:DisplayRoundedNumber(state.ElementPerHour, 0)
+    local message
+    if contextModule.CustomFormatAnnouncement then
+        message = contextModule.CustomFormatAnnouncement(total, duration, perHour)
+    else
+        local unit = contextModule.AnnouncementUnit or contextModule.Name
+        message = string.format("%s %s/h - %s (%s %s total)", perHour, unit, duration, total, unit)
     end
-    
-    
-    local greetingsMessage = addonNamePrepend.."A performance tracker AddOn!"
-    local trackingMessage = addonNamePrepend.."Tracking: ....... "..contextModule.Name
-    local perHourMessage = addonNamePrepend..perHourLabel..": "..GetDottedLineByWordSize(string.len(perHourLabel)-1).." "..Utils:DisplayRoundedNumber(contextModule.State.ElementPerHour, 0)
-    local perMinuteMessage = addonNamePrepend..perMinuteLabel..": "..GetDottedLineByWordSize(string.len(perMinuteLabel)).." "..Utils:DisplayRoundedNumber(contextModule.State.ElementPerMinute, 0)
-    local forMessage = addonNamePrepend.."Duration: ......... "..Utils:DisplayTimer(contextModule.State.Time).."s"
-    local totalMessage = addonNamePrepend.."Total earned: ... "..Utils:DisplayNumber(contextModule.State.Element)
-    
-    SendChatMessage(greetingsMessage, chatType)
-    SendChatMessage(trackingMessage, chatType)
-    SendChatMessage(perHourMessage, chatType)
-    SendChatMessage(perMinuteMessage, chatType)
-    SendChatMessage(forMessage, chatType)
-    SendChatMessage(totalMessage, chatType)
-    
-    if contextModule.CustomSendToMessages ~= nil then
-        for key,value in pairs(contextModule.CustomSendToMessages) do
-            SendChatMessage(addonNamePrepend..value(), chatType)
-        end
-    end
-
+    C_ChatInfo.SendChatMessage("[Per Hour] " .. message, chatType)
     Utils:AddonMessage("Results sent to "..chatType:lower().." successfully.")
 end
 

@@ -32,7 +32,11 @@ per hour and per minute.
 Click the minimap clock or type `/perhour`, select a tracker, and click **Start**.
 
 Hover over a tracker: **Session** shows duration and total gained, while **Rates**
-shows gains per hour and per minute. Open the gear menu for **Reset** and **Announce**.
+shows gains per hour and per minute. Open the **Options** gear menu for **Reset**,
+**Settings** and **Announce**.
+**Announce** shares one chat message with your hourly average first, followed
+by active session time and total gains in parentheses; reputation also names
+the tracked faction.
 The close button appears while hovering over the panel.
 
 Paused time and gains are excluded. Closing a tracker window keeps an active

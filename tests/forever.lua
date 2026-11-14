@@ -567,8 +567,7 @@ equal(experience.View.Frame:GetTop(), panelTop, "hover preserves panel top")
 equal(experience.View.Frame:GetLeft(), panelLeft, "hover preserves panel left")
 experience.View.Frame.scripts.OnLeave()
 equal(GameTooltip:IsShown(), false, "leaving panel hides session tooltip")
-experience.View.OptionsButton.scripts.OnEnter(experience.View.OptionsButton)
-equal(GameTooltip:GetText(), "Options", "gear tooltip identifies options")
+equal(experience.View.OptionsButton.scripts.OnEnter, nil, "gear has no tooltip hint")
 equal(table.concat(experience.View.OptionsButton.Icon.texCoords, ","), "0,1,0,1", "gear displays its entire texture")
 for name, module in pairs(PerHour.Modules) do
     equal(table.concat(module.View.RestoreIndicator.Border.vertexColor, ","),
@@ -1270,7 +1269,7 @@ BaseModule:SendTo(honor, "Party")
 equal(sent[1][2], "PARTY", "modern chat API and channel")
 local options = honor.View.OptionsButton
 options:SetMenuOpen(true)
-local announce = options.menuDescription.items[2]
+local announce = options.menuDescription.items[3]
 equal(announce.text, "Announce", "native announcement submenu")
 equal(#announce.items, 5, "all announcement channels available")
 local expectedChannels = { "SAY", "YELL", "PARTY", "GUILD", "RAID" }

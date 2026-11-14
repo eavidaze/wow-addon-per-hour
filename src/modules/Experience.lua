@@ -10,6 +10,7 @@ PerHour.Modules.Experience = Module
 Module.Name = "Experience"
 Module.TagName = "experience"
 Module.ShortName = "XP"
+Module.AnnouncementUnit = "XP"
 Module.RegisteredEvents = {}
 
 -- custom functions

@@ -85,6 +85,10 @@ Module.CustomStartedMessage = function()
     return " ["..Module.State.LastReputationName.."] monitoring started."
 end
 
-Module.CustomSendToMessages = {
-    function() return "Reputation: ...... "..Module.State.LastReputationName end,
-}
+Module.CustomFormatAnnouncement = function(total, duration, perHour)
+    local message = string.format("%s rep/h - %s (%s rep total)", perHour, duration, total)
+    if Module.State.LastReputationName ~= "" then
+        message = message .. " - " .. Module.State.LastReputationName
+    end
+    return message
+end

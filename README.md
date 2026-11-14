@@ -21,7 +21,7 @@ code changes only need `/reload`.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
 - Windows automatically stay apart when moved or reopened.
-- The gear menu offers **Reset** (clear and stop) and **Announce** (share results to chat).
+- The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
 - **Reputation** requires a watched faction; switching factions resets it.
 

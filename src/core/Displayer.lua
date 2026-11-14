@@ -264,13 +264,13 @@ local function CreateControls(module)
         { key = "start", type = "status", text = "Start", onClick = function() ToggleTracking(module) end },
         {
             key = "options", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
-            tooltip = function() return "Options" end,
             menu = function(_, rootDescription)
-                rootDescription:CreateTitle(module.Name)
+                rootDescription:CreateTitle("Options")
                 rootDescription:CreateButton("Reset", function()
                     BaseModule:ResetModule(module)
                     Utils:AddonMessage(module.Name .. " reset.")
                 end)
+                rootDescription:CreateButton("Settings", function() PerHour.SettingsPanel:Show() end)
                 local announce = rootDescription:CreateButton("Announce")
                 for _, channel in ipairs(CHANNELS) do
                     announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)

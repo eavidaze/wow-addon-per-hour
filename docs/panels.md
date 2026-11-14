@@ -138,6 +138,14 @@ Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
 The minimap left-click menu is titled **Panels**.
+Each tracker's gear menu is titled **Options**, with **Reset**, **Settings**
+and **Announce**, in that order. **Settings** opens the same shared settings panel as minimap
+right-click, regardless of which tracker opens it.
+**Announce** sends one message to the chosen chat channel, leading with the
+hourly average, followed by active session duration and total gains in
+parentheses, with a discreet `[Per Hour]` prefix. Reputation appends the
+session's faction when available. For example:
+`[Per Hour] 240,000 XP/h - 30m (120,000 XP total)`
 `SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
 the entire boxed title in DS gold. The
 **Panels** group has one row per module, sorted by name. Each row shares
