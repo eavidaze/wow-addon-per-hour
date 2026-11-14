@@ -16,14 +16,16 @@ code changes only need `/reload`.
 ## Use
 
 - Left-click the minimap clock or use `/perhour` to toggle the module menu.
-- Right-click the minimap clock to configure panel visibility and choose hourly or per-minute rates for each tracker.
+- Right-click the minimap clock to open **Settings** for panel visibility,
+  hourly/per-minute rates and the watched reputation.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
 - Windows automatically stay apart when moved or reopened.
 - The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
-- **Reputation** requires a watched faction; switching factions resets it.
+- Choose a watched faction in **Settings** or the game's reputation panel;
+  switching factions resets the reputation tracker.
 
 Window visibility, window positions and minimap button position are saved.
 Sessions survive reloads and logins per character. Offline time and gains are excluded;

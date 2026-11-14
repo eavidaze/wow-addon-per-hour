@@ -5,7 +5,7 @@
 ## Category: Statistics
 ## Category-ptBR: Estatísticas
 ## Author: José Júnior - https://github.com/juninze
-## Version: 1.2.0-forever
+## Version: 1.3.0-forever
 ## X-Curse-Project-ID: 486717
 ## SavedVariables: PerHourAccount_Settings
 ## SavedVariablesPerCharacter: PerHourCharacter_Values
