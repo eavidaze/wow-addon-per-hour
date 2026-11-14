@@ -15,7 +15,8 @@ code changes only need `/reload`.
 
 ## Use
 
-- Click the minimap clock or use `/perhour` to toggle the module menu.
+- Left-click the minimap clock or use `/perhour` to toggle the module menu.
+- Right-click the minimap clock to open **Per Hour Settings** (currently example form fields).
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.

@@ -6,6 +6,16 @@ button:SetSize(31, 31)
 button:SetFrameStrata("MEDIUM")
 button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 button:RegisterForDrag("LeftButton")
+-- DropdownButton only accepts left mouse events by default. Enable both buttons
+-- and hook the native handler so left-click still toggles its menu exactly once.
+button:RegisterForMouse("LeftButtonDown", "LeftButtonUp", "RightButtonDown", "RightButtonUp")
+button:HookScript("OnMouseDown", function(self, mouseButton)
+    if mouseButton == "RightButton" then
+        self:CloseMenu()
+        GameTooltip:Hide()
+        PerHour.SettingsPanel:Show()
+    end
+end)
 
 local icon = button:CreateTexture(nil, "BACKGROUND")
 icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
@@ -49,7 +59,8 @@ end)
 button:HookScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetText("Per Hour")
-    GameTooltip:AddLine("Click to toggle the menu.", 1, 1, 1)
+    GameTooltip:AddLine("Left-click to toggle the menu.", 1, 1, 1)
+    GameTooltip:AddLine("Right-click to open settings.", 1, 1, 1)
     GameTooltip:AddLine("Drag to move around the minimap.", 1, 1, 1)
     GameTooltip:Show()
 end)

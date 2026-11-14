@@ -18,6 +18,7 @@ end
 
 local methods = {}
 function methods:SetScript(event, callback) self.scripts[event] = callback end
+function methods:GetScript(event) return self.scripts[event] end
 function methods:HookScript(event, callback)
     local previous = self.scripts[event]
     self.scripts[event] = function(...)
@@ -53,7 +54,9 @@ end
 function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:SetText(value)
     self.text = value
-    if rawget(self, "template") == "SharedGoldRedButtonSmallTemplate" and not rawget(self, "fontString") then
+    if rawget(self, "Text") then self.Text:SetText(value) end
+    if rawget(self, "template") == "SharedGoldRedButtonSmallTemplate" and value ~= ""
+        and not rawget(self, "fontString") then
         self.fontString = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     end
 end
@@ -62,6 +65,7 @@ function methods:SetOwner(owner) self.owner = owner end
 function methods:IsOwned(owner) return self.owner == owner end
 function methods:GetFontString() return rawget(self, "fontString") end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
+function methods:SetTextColor(...) self.textColor = { ... } end
 function methods:SetTexture(texture)
     assert(texture ~= nil, "texture must be available")
     self.texture = texture
@@ -73,11 +77,50 @@ function methods:SetAtlas(atlas)
 end
 function methods:SetEnabled(enabled) self.enabled = enabled end
 function methods:EnableMouse(enabled) self.mouseEnabled = enabled end
+function methods:RegisterForMouse(...) self.mouseButtons = { ... } end
+function methods:RegisterForClicks(...) self.clickButtons = { ... } end
+function methods:RegisterForDrag(...) self.dragButtons = { ... } end
+function methods:RegisterCallback(event, callback)
+    self.callbacks = rawget(self, "callbacks") or {}
+    self.callbacks[event] = self.callbacks[event] or {}
+    table.insert(self.callbacks[event], callback)
+end
+function methods:TriggerEvent(event, ...)
+    for _, callback in ipairs((rawget(self, "callbacks") or {})[event] or {}) do callback(self, ...) end
+end
+function methods:SetChecked(checked) self.checked = checked end
+function methods:GetChecked() return self.checked == true end
+function methods:Click(mouseButton)
+    if self.kind == "CheckButton" then self:SetChecked(not self:GetChecked()) end
+    if self.scripts.OnClick then self.scripts.OnClick(self, mouseButton or "LeftButton") end
+end
 function methods:AddMaskTexture(mask) self.mask = mask end
 function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetWidth(value) self.width = value end
-function methods:SetHeight(value) self.height = value end
+function methods:SetHeight(value)
+    local previous = rawget(self, "height")
+    self.height = value
+    if previous ~= value and self.scripts.OnSizeChanged then
+        self.scripts.OnSizeChanged(self, rawget(self, "width") or 0, value)
+    end
+end
+function methods:SetMinMaxValues(minimum, maximum) self.minimum, self.maximum = minimum, maximum end
+function methods:SetValueStep(step) self.valueStep = step end
+function methods:SetObeyStepOnDrag(obey) self.obeyStep = obey end
+function methods:SetValue(value)
+    local previous = rawget(self, "value")
+    self.value = value
+    if previous ~= value and self.scripts.OnValueChanged then self.scripts.OnValueChanged(self, value) end
+end
+function methods:GetValue() return self.value end
+function methods:SetAutoFocus(autoFocus) self.autoFocus = autoFocus end
+function methods:SetFocus() self.focused = true end
+function methods:ClearFocus()
+    if not rawget(self, "focused") then return end
+    self.focused = false
+    if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
+end
 function methods:SetTexCoord(...) self.texCoords = { ... } end
 function methods:GetWidth() return self.width end
 function methods:GetHeight() return self.height end
@@ -122,6 +165,9 @@ local function menuDescription()
     function root:CreateCheckbox(text, isSelected, callback, data)
         self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
     end
+    function root:CreateRadio(text, isSelected, callback, data)
+        self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
+    end
     function root:CreateButton(text, callback, data)
         local item = menuDescription()
         item.text, item.callback, item.data = text, callback, data
@@ -130,12 +176,26 @@ local function menuDescription()
     end
     return root
 end
-function methods:SetMenuOpen(open)
-    self.menuOpen = open
-    if not open then return end
+function methods:GenerateMenu()
     local root = menuDescription()
     self.menuGenerator(self, root)
     self.menuDescription = root
+    if rawget(self, "Text") then
+        for index, item in ipairs(root.items) do
+            if item.isSelected and item.isSelected(item.data) then
+                self:SetText(item.text)
+                local selector = rawget(self, "settingsSelector")
+                if selector then
+                    selector.DecrementButton:SetEnabled(index > 1)
+                    selector.IncrementButton:SetEnabled(index < #root.items)
+                end
+            end
+        end
+    end
+end
+function methods:SetMenuOpen(open)
+    self.menuOpen = open
+    if open then self:GenerateMenu() end
 end
 local function object(name)
     assert(name == nil or type(name) == "string", "UI object name must be a string")
@@ -169,16 +229,22 @@ function GameTooltip:SetText(text)
 end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
+MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
+SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
-        or template == "UIPanelCloseButton" or template == "UIPanelSquareButton", "unsupported template: "..tostring(template))
+        or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
+        or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
+        or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
+        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate",
+        "unsupported template: "..tostring(template))
     if name then
         name = name:gsub("%$parent", parent.name or "")
         assert(not names[name], "duplicate frame name: "..name)
     end
     local frame = object(name)
-    frame.parent, frame.template = parent, template
+    frame.parent, frame.template, frame.kind = parent, template, kind
     if template == "DialogBorderTranslucentTemplate" then
         frame.Bg = object()
     end
@@ -193,7 +259,68 @@ function CreateFrame(kind, name, parent, template)
         frame.icon:SetTexCoord(0.015625, 0.203125, 0.015625, 0.203125)
     end
     if kind == "DropdownButton" then
-        frame.scripts.OnMouseDown = function(self) self:SetMenuOpen(not self:IsMenuOpen()) end
+        frame:RegisterForMouse("LeftButtonDown", "LeftButtonUp")
+        frame.nativeMouseDownCalls = 0
+        frame.scripts.OnMouseDown = function(self)
+            self.nativeMouseDownCalls = self.nativeMouseDownCalls + 1
+            self:SetMenuOpen(not self:IsMenuOpen())
+        end
+    end
+    if template == "SettingsCheckboxTemplate" then
+        frame:SetSize(30, 29)
+        function frame:Init(value, tooltip)
+            self:SetChecked(value)
+            self.tooltipFunc = tooltip
+            self:SetScript("OnClick", function(self)
+                self:TriggerEvent(SettingsCheckboxMixin.Event.OnValueChanged, self:GetChecked())
+            end)
+        end
+    elseif template == "MinimalSliderWithSteppersTemplate" then
+        frame:SetSize(250, 40)
+        frame.Slider = CreateFrame("Slider", nil, frame, "MinimalSliderTemplate")
+        frame.Back, frame.Forward = CreateFrame("Button", nil, frame), CreateFrame("Button", nil, frame)
+        frame.RightText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local function update(value)
+            frame.RightText:SetText(frame.formatters[MinimalSliderWithSteppersMixin.Label.Right](value))
+            frame.Back:SetEnabled(value > frame.Slider.minimum)
+            frame.Forward:SetEnabled(value < frame.Slider.maximum)
+        end
+        function frame:Init(value, minimum, maximum, steps, formatters)
+            self.Slider:SetMinMaxValues(minimum, maximum)
+            self.Slider:SetValueStep((maximum - minimum) / steps)
+            self.Slider:SetValue(value)
+            self.formatters = formatters
+            update(value)
+            self.Slider:SetScript("OnValueChanged", function(_, value)
+                update(value)
+                self:TriggerEvent(MinimalSliderWithSteppersMixin.Event.OnValueChanged, value)
+            end)
+        end
+        function frame:SetValue(value) self.Slider:SetValue(value) end
+        frame.Back:SetScript("OnClick", function()
+            frame.Slider:SetValue(frame.Slider:GetValue() - frame.Slider.valueStep)
+        end)
+        frame.Forward:SetScript("OnClick", function()
+            frame.Slider:SetValue(frame.Slider:GetValue() + frame.Slider.valueStep)
+        end)
+    elseif template == "SettingsDropdownWithButtonsTemplate" then
+        frame.Dropdown = CreateFrame("DropdownButton", nil, frame)
+        frame.Dropdown.Text = frame.Dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.Dropdown.settingsSelector = frame
+        frame.DecrementButton = CreateFrame("Button", nil, frame)
+        frame.IncrementButton = CreateFrame("Button", nil, frame)
+        local function step(direction)
+            local items = frame.Dropdown.menuDescription.items
+            for index, item in ipairs(items) do
+                if item.isSelected(item.data) then
+                    local nextItem = items[index + direction]
+                    if nextItem then nextItem.callback(nextItem.data) end
+                    return
+                end
+            end
+        end
+        frame.DecrementButton:SetScript("OnClick", function() step(-1) end)
+        frame.IncrementButton:SetScript("OnClick", function() step(1) end)
     end
     frames[#frames + 1] = frame
     if name then names[name] = frame end
@@ -275,6 +402,24 @@ local function tick(seconds)
     end
 end
 local function click(module) module.ToggleStartButton.scripts.OnClick() end
+-- Dispatch input through its registrations, including the mouse-down capture
+-- required before a button can receive the corresponding release/click.
+local function mouseClick(frame, mouseButton)
+    local function accepts(registration, phase)
+        for _, registered in ipairs(registration) do
+            if registered == mouseButton .. phase or registered == "Any" .. phase then return true end
+        end
+        return false
+    end
+    local mouseButtons = rawget(frame, "mouseButtons") or { "AnyDown", "AnyUp" }
+    local clickButtons = rawget(frame, "clickButtons") or { "LeftButtonUp" }
+    local receivesDown = accepts(mouseButtons, "Down")
+    if receivesDown and frame.scripts.OnMouseDown then frame.scripts.OnMouseDown(frame, mouseButton) end
+    if receivesDown and accepts(mouseButtons, "Up") and frame.scripts.OnMouseUp then
+        frame.scripts.OnMouseUp(frame, mouseButton)
+    end
+    if receivesDown and accepts(clickButtons, "Up") then frame:Click(mouseButton) end
+end
 local experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
 local function indicatorColor(module)
     return table.concat(module.ActiveIndicator.vertexColor, ",")
@@ -408,10 +553,230 @@ equal(experience.Frame:IsShown(), true, "menu shows module")
 equal(experience:IsShown(), true, "menu saves visible module")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), false, "slash closes menu")
-minimapButton.scripts.OnMouseDown(minimapButton)
+local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
+mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
-minimapButton.scripts.OnMouseDown(minimapButton)
+equal(minimapButton.nativeMouseDownCalls, nativeMouseDownCalls + 1, "left click calls native menu handler exactly once")
+equal(#minimapButton.menuDescription.items, 3, "left click opens all three module options")
+mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
+
+-- Right-click opens a reusable settings panel without toggling the module menu.
+do
+    equal(PerHour.SettingsPanel.Frame, nil, "settings panel is created on demand")
+    mouseClick(minimapButton, "MiddleButton")
+    equal(PerHour.SettingsPanel.Frame, nil, "other mouse buttons do not open settings")
+    mouseClick(minimapButton, "LeftButton")
+    minimapButton.scripts.OnEnter(minimapButton)
+    equal(minimapButton:IsMenuOpen(), true, "left-button release does not toggle menu again")
+    equal(PerHour.SettingsPanel.Frame, nil, "left-button release does not open settings")
+    mouseClick(minimapButton, "RightButton")
+    local panel = PerHour.SettingsPanel.Frame
+    equal(panel ~= nil, true, "registered right mouse-down delivers settings action")
+    equal(table.concat(minimapButton.mouseButtons, ","),
+        "LeftButtonDown,LeftButtonUp,RightButtonDown,RightButtonUp", "minimap accepts both mouse buttons")
+    equal(panel:IsShown(), true, "right-click opens settings")
+    equal(minimapButton:IsMenuOpen(), false, "opening settings closes module menu")
+    equal(GameTooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
+    equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title")
+    equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
+    equal(panel:GetHeight(), 384, "settings height follows both groups and their fields")
+    equal(#panel.Fields, 2, "settings contains two form groups")
+    equal(panel.Fields[1].TitleText:GetText(), "Tracking", "first group title")
+    equal(panel.Fields[2].TitleText:GetText(), "Appearance", "second group title")
+    equal(#panel.Fields[1].Fields, 3, "tracking group contains checkbox, select and text")
+    equal(#panel.Fields[2].Fields, 2, "appearance group contains numeric sliders")
+    equal(panel.TitleText.template, experience.ElementPerHourValue.template, "form title uses the rate number font")
+    equal(panel.Fields[1].TitleText.template, experience.ElementPerHourValue.template, "group title uses the rate number font")
+    equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
+    local example = panel.Fields[1].Fields[1]
+    equal(example.Label:GetText(), "Example option", "example has a simple label")
+    equal(table.concat(example.Label.textColor, ","), "1,0.82,0", "field labels are gold")
+    equal(example.Control:GetChecked(), false, "example starts unchecked")
+    example.Control:Click()
+    equal(example:GetValue(), true, "example checkbox responds to clicks")
+    example.scripts.OnMouseUp(example, "LeftButton")
+    equal(example:GetValue(), false, "example label toggles checkbox")
+    equal(experience:IsShown(), true, "example does not change module visibility")
+    equal(experience.HasStarted, false, "example does not start tracking")
+    equal(panel.CloseButton:GetAlpha(), 1, "settings X stays visible without hovering")
+    equal(panel.CloseButton.scripts.OnUpdate, nil, "always-visible X does not poll cursor")
+    equal(panel.Actions.close:GetText(), "Close", "footer action closes settings")
+    equal(rawget(panel.Actions.close, "Indicator"), nil, "ordinary footer button has no tracking indicator")
+    near(panel.Actions.close:GetWidth(), 544 * 0.3, "close uses thirty percent of footer width")
+    panel.ActionBar.scripts.OnSizeChanged(panel.ActionBar, 330)
+    near(panel.Actions.close:GetWidth(), 330 * 0.3, "close proportion follows the visible background width")
+    equal(table.concat(panel.dragButtons, ","), "LeftButton", "settings supports left-button dragging")
+    equal(panel.Fields[1].scripts.OnDragStart, nil, "field does not start panel dragging")
+    panel.scripts.OnDragStart(panel)
+    equal(panel.moving, true, "settings background starts dragging")
+    panel.scripts.OnDragStop(panel)
+    equal(panel.moving, false, "settings drag stops on release")
+    panel.scripts.OnDragStart(panel)
+    panel.Actions.close:Click()
+    equal(panel:IsShown(), false, "footer closes settings")
+    equal(panel.moving, false, "closing settings stops dragging")
+    local frameCount = #frames
+    mouseClick(minimapButton, "RightButton")
+    equal(PerHour.SettingsPanel.Frame, panel, "reopening reuses settings panel")
+    equal(#frames, frameCount, "reopening creates no duplicate controls")
+    mouseClick(minimapButton, "RightButton")
+    equal(panel:IsShown(), true, "right-click keeps already-open settings visible")
+    panel.CloseButton:Click()
+    equal(panel:IsShown(), false, "X closes settings")
+    equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
+end
+
+-- Form examples interact locally, with numeric limits and no tracking side effects.
+do
+    local panel = PerHour.SettingsPanel.Frame
+    local tracking, appearance = panel.Fields[1], panel.Fields[2]
+    local selection, text = tracking.Fields[2], tracking.Fields[3]
+    equal(tracking.Fields[1].Control.template, "SettingsCheckboxTemplate", "checkbox uses Forever Options template")
+    equal(tracking.Fields[1].Control:GetWidth(), 30, "checkbox keeps native width")
+    equal(tracking.Fields[1].Control:GetHeight(), 29, "checkbox keeps native height")
+    equal(selection.Selector.template, "SettingsDropdownWithButtonsTemplate", "select uses Forever Options dropdown")
+    mouseClick(selection.Control, "LeftButton")
+    equal(selection.Control:IsMenuOpen(), true, "select uses the native mouse-down menu")
+    local choices = selection.Control.menuDescription.items
+    equal(#choices, 2, "select offers both example rates")
+    equal(choices[1].isSelected(choices[1].data), true, "select marks its current value")
+    choices[2].callback(choices[2].data)
+    equal(selection:GetValue(), "minute", "select changes local field value")
+    equal(selection.Control:GetText(), "Per minute", "select updates displayed label")
+    equal(choices[1].isSelected(choices[1].data), false, "old choice becomes unselected")
+    selection.Selector.DecrementButton:Click()
+    equal(selection:GetValue(), "hour", "native dropdown left stepper selects previous choice")
+    selection.Selector.IncrementButton:Click()
+    equal(selection:GetValue(), "minute", "native dropdown right stepper selects next choice")
+    selection:SetValue("unavailable")
+    equal(selection:GetValue(), "minute", "select ignores values outside its options")
+    selection.Control:Hide()
+    equal(selection.Control:IsMenuOpen(), false, "hiding selection closes its menu")
+    selection.Control:Show()
+    equal(text.Control.autoFocus, false, "text field does not capture typing when form opens")
+    text.Control:SetFocus()
+    text.Control:SetText("Demo run")
+    text.Control.scripts.OnEnterPressed(text.Control)
+    equal(text:GetValue(), "Demo run", "Enter commits text")
+    equal(text.Control.focused, false, "Enter releases text focus")
+    text.Control:SetFocus()
+    text.Control:SetText("Discard this")
+    text.Control.scripts.OnEscapePressed(text.Control)
+    equal(text:GetValue(), "Demo run", "Escape keeps committed text")
+    equal(text.Control:GetText(), "Demo run", "Escape restores displayed text")
+    text.Control:SetFocus()
+    text.Control:SetText("Another example")
+    text.Control:ClearFocus()
+    equal(text:GetValue(), "Another example", "losing focus commits text")
+    local opacity, decimals = appearance.Fields[1], appearance.Fields[2]
+    equal(opacity.Control.template, "MinimalSliderWithSteppersTemplate", "numeric field uses Forever Options slider")
+    equal(opacity.Control:GetWidth(), 250, "slider keeps native width")
+    equal(opacity.Control:GetHeight(), 40, "slider keeps native height")
+    equal(opacity.Control.Slider.minimum, 25, "opacity has explicit minimum")
+    equal(opacity.Control.Slider.maximum, 100, "opacity has explicit maximum")
+    equal(opacity.Control.Slider.valueStep, 5, "opacity configures slider step")
+    equal(opacity.ValueText:GetText(), "80%", "slider shows value and suffix")
+    opacity.Control:SetValue(63)
+    equal(opacity:GetValue(), 65, "slider dragging snaps to its configured step")
+    opacity.Control.Back:Click()
+    equal(opacity:GetValue(), 60, "slider left arrow decrements one step")
+    opacity.Control.Forward:Click()
+    equal(opacity:GetValue(), 65, "slider right arrow increments one step")
+    opacity:SetValue(500)
+    equal(opacity:GetValue(), 100, "numeric value cannot exceed maximum")
+    equal(opacity.Control.Forward.enabled, false, "increment is disabled at maximum")
+    opacity:SetValue(-50)
+    equal(opacity:GetValue(), 25, "numeric value cannot fall below minimum")
+    equal(opacity.Control.Back.enabled, false, "decrement is disabled at minimum")
+    decimals:SetValue(2.8)
+    equal(decimals:GetValue(), 3, "decimal count uses integer steps")
+    equal(experience.HasStarted, false, "form examples never start tracking")
+    equal(experience:IsShown(), true, "form examples never hide tracking")
+    equal(PerHourAccount_Settings.opacity, nil, "opacity example is not persisted")
+end
+
+-- Changing a group's fields reflows subsequent groups and the enclosing panel.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Form", width = 500, form = true })
+    local first = PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "First", fields = { { type = "text", label = "Name", value = "Demo" } },
+    })
+    local second = PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Second", fields = { { type = "checkbox", label = "Enabled", value = false } },
+    })
+    panel:AddField(first)
+    panel:AddField(second)
+    equal(panel:GetHeight(), 264, "form fits two single-field groups")
+    equal(second.point[5], -92, "second group follows first with space")
+    first:AddField({ type = "text", label = "Another name", value = "Example" })
+    equal(panel:GetHeight(), 304, "adding grouped field resizes enclosing panel")
+    equal(second.point[5], -132, "adding a field repositions following group")
+    first.Fields[1]:SetHeight(48)
+    equal(panel:GetHeight(), 320, "resizing grouped field propagates to panel")
+    equal(second.point[5], -148, "resizing a field repositions following group")
+    panel:Hide()
+    for _, limits in ipairs({
+        { max = 100 }, { min = 0 }, { min = 10, max = 10 },
+        { min = 20, max = 10 }, { min = 0, max = math.huge }, { min = 0, max = 10, step = 0 },
+    }) do
+        limits.type, limits.label = "slider", "Invalid bounds"
+        local ok = pcall(function() PerHour.Components:CreateFormField(UIParent, limits) end)
+        equal(ok, false, "numeric fields reject missing or invalid bounds and steps")
+    end
+    local changes = 0
+    local slider = PerHour.Components:CreateFormField(UIParent, {
+        type = "slider", label = "Fraction", value = 0.5, min = -1, max = 1, step = 0.1, format = "%.1f",
+        onChanged = function() changes = changes + 1 end,
+    })
+    equal(changes, 0, "initial value does not fire change callback")
+    slider.Control:SetValue(0.23)
+    near(slider:GetValue(), 0.2, "numeric sliders also support fractional steps")
+    equal(slider.ValueText:GetText(), "0.2", "slider formats fractional values")
+    equal(changes, 1, "normalizing a slider fires change callback only once")
+    slider:Hide()
+end
+
+-- Shared panels size multiple fields and support icon actions with or without a menu.
+do
+    local enabled, directClicks, observedValue = false, 0, nil
+    local panel = PerHour.Components:CreatePanel(UIParent, {
+        title = "Configurable panel", width = 360, closeAlwaysVisible = true,
+        actions = {
+            { key = "direct", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
+                onClick = function() directClicks = directClicks + 1 end },
+            { key = "toggle", type = "toggle", texture = "Interface\\Icons\\Trade_Engineering",
+                onTexture = "on", offTexture = "off", isOn = function() return enabled end,
+                onToggle = function(value) enabled = value end },
+        },
+    })
+    local first = PerHour.Components:CreateCheckbox(panel.Content, {
+        label = "First", onChanged = function(value) observedValue = value end,
+    })
+    panel:AddField(first)
+    first.Checkbox:Click()
+    equal(observedValue, true, "checkbox callback receives selected value")
+    local second = PerHour.Components:CreateCheckbox(panel.Content, { label = "Second" })
+    panel:AddField(second)
+    equal(panel:GetHeight(), 148, "second field grows panel by its height and spacing")
+    equal(second.point[5], -36, "fields are stacked with consistent spacing")
+    equal(panel.Actions.direct.kind, "Button", "direct circular action has no dropdown")
+    panel.Actions.direct:Click()
+    equal(directClicks, 1, "direct icon invokes its configured action")
+    equal(panel.Actions.toggle.Icon.texture, "off", "toggle initially displays off artwork")
+    panel.Actions.toggle:Click()
+    equal(enabled, true, "toggle switches caller-owned state on")
+    equal(panel.Actions.toggle.Icon.texture, "on", "toggle refreshes on artwork")
+    equal(table.concat(panel.Actions.toggle.Icon.vertexColor, ","), "0.2,1,0.2", "toggle indicates enabled state")
+    panel.Actions.toggle:Click()
+    equal(enabled, false, "toggle switches state off")
+    panel:Hide()
+    enabled = true
+    panel:Show()
+    equal(panel.Actions.toggle.Icon.texture, "on", "reopening refreshes externally changed toggle state")
+    panel.CloseButton:Click()
+    equal(panel:IsShown(), false, "shared panels close by default")
+end
 SlashCmdList.PERHOUR()
 minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")

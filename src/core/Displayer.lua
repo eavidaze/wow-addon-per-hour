@@ -8,7 +8,6 @@ PerHour.Displayer = Displayer
 
 local WIDTH, HEIGHT = 180, 94
 local CONTROL_SIZE = 28
-local FOOTER_PADDING = 8
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
 local PANEL_GAP = 4
@@ -158,17 +157,13 @@ local function CreatePanel(module, index, count)
         name = PerHour.AddonName .. "-" .. module.TagName .. "-frame",
         title = module.Name .. " Per Hour",
         width = WIDTH, height = HEIGHT, footerSize = CONTROL_SIZE,
+        onClose = function() module:SetIsShown(false) end,
     })
     module.Frame = frame
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
-    frame.CloseButton:SetScript("OnClick", function()
-        module:SetIsShown(false)
-        frame:Hide()
-    end)
-
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self)
         local cursorX, cursorY = GetCursorPosition()
@@ -257,32 +252,27 @@ end
 
 local function CreateControls(module)
     local frame = module.Frame
-    local start = Components:CreateStatusButton(frame, "Start", CONTROL_SIZE)
-    start:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
-    start:SetScript("OnClick", function() ToggleTracking(module) end)
-    module.ToggleStartButton = start
-
-    module.ActiveIndicator = start.Indicator
-
-    local options = CreateFrame("DropdownButton", nil, frame)
-    Components:CreateCircularIcon(options, { texture = "Interface\\Icons\\Trade_Engineering" })
-    -- Leave equal side padding while straddling the background's bottom boundary.
-    options:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
-    start:SetPoint("RIGHT", options, "LEFT", -3, 0)
-    options:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-    Components:SetButtonTooltip(options, function() return "Options" end)
-    options:SetupMenu(function(_, rootDescription)
-        rootDescription:CreateTitle(module.Name)
-        rootDescription:CreateButton("Reset", function()
-            BaseModule:ResetModule(module)
-            Utils:AddonMessage(module.Name .. " reset.")
-        end)
-        local announce = rootDescription:CreateButton("Announce")
-        for _, channel in ipairs(CHANNELS) do
-            announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)
-        end
-    end)
-    module.OptionsButton = options
+    Components:CreatePanelActions(frame, {
+        { key = "start", type = "status", text = "Start", onClick = function() ToggleTracking(module) end },
+        {
+            key = "options", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
+            tooltip = function() return "Options" end,
+            menu = function(_, rootDescription)
+                rootDescription:CreateTitle(module.Name)
+                rootDescription:CreateButton("Reset", function()
+                    BaseModule:ResetModule(module)
+                    Utils:AddonMessage(module.Name .. " reset.")
+                end)
+                local announce = rootDescription:CreateButton("Announce")
+                for _, channel in ipairs(CHANNELS) do
+                    announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)
+                end
+            end,
+        },
+    })
+    module.ToggleStartButton = frame.Actions.start
+    module.ActiveIndicator = frame.Actions.start.Indicator
+    module.OptionsButton = frame.Actions.options
 end
 
 local function CreateTracker(module)
