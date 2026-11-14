@@ -19,6 +19,17 @@ local TITLE_STYLES = {
 }
 
 local function CreatePanelTitle(frame, settings, style)
+    local small = settings.titleSize == "small"
+    if not small then
+        frame.BrandText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        frame.BrandText:SetText("powered by Per Hour")
+        frame.BrandText:SetTextColor(0.6, 0.6, 0.6)
+        frame.BrandText:SetPoint("BOTTOMRIGHT", frame.Border.Bg, "TOPRIGHT", -FOOTER_PADDING - 12, -21)
+        frame.BrandText:SetJustifyH("RIGHT")
+        frame.BrandText:SetWordWrap(false)
+        local brandFont, brandSize, brandFlags = frame.BrandText:GetFont()
+        if brandFont then frame.BrandText:SetFont(brandFont, math.min(brandSize, 9), brandFlags) end
+    end
     if settings.titleBox then
         -- Reuse Forever's Game Menu header, including its native corner artwork.
         local box = CreateFrame("Frame", nil, frame, "DialogHeaderTemplate")
@@ -26,12 +37,21 @@ local function CreatePanelTitle(frame, settings, style)
         box.headerTextPadding = style.boxPadding or box.headerTextPadding
         box:SetHeaderFont(style.font)
         box:Setup(settings.title)
+        if small then
+            box:ClearAllPoints()
+            box:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, DIALOG_BORDER_INSET + 11)
+        end
         frame.TitleText:ClearAllPoints()
         frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
         local function LayoutTitleBox()
             local padding = box.headerTextPadding
-            local width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
-                math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
+            local width
+            if small then
+                width = math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING))
+            else
+                width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
+                    math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
+            end
             box:SetWidth(width)
             frame.TitleText:SetWidth(width - padding)
         end
@@ -40,8 +60,13 @@ local function CreatePanelTitle(frame, settings, style)
     else
         frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
         frame.TitleText:SetText(settings.title)
-        frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
-        frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
+        if small then
+            frame.TitleText:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, -8)
+            frame.TitleText:SetPoint("TOPRIGHT", frame.Border.Bg, "TOPRIGHT", -FOOTER_PADDING, -8)
+        else
+            frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
+            frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
+        end
     end
     frame.TitleText:SetJustifyH("CENTER")
     frame.TitleText:SetWordWrap(false)

@@ -65,6 +65,12 @@ function methods:SetOwner(owner) self.owner = owner end
 function methods:IsOwned(owner) return self.owner == owner end
 function methods:GetFontString() return rawget(self, "fontString") end
 function methods:SetFontObject(font) self.template = font end
+function methods:GetFont()
+    return rawget(self, "fontPath") or "Fonts\\FRIZQT__.TTF",
+        rawget(self, "fontSize") or (self.template == "GameFontDisableSmall" and 10 or 12),
+        rawget(self, "fontFlags") or ""
+end
+function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:SetTextColor(...) self.textColor = { ... } end
 function methods:SetTexture(texture)
@@ -126,7 +132,9 @@ function methods:SetTexCoord(...) self.texCoords = { ... } end
 function methods:GetWidth() return self.width end
 function methods:GetHeight() return self.height end
 function methods:GetStringWidth()
-    return #self.text * (self.template == "GameFontNormalHuge" and 10 or 6)
+    local width = self.template == "GameFontNormalHuge" and 10 or 6
+    if self.template == "GameFontDisableSmall" then width = select(2, self:GetFont()) / 2 end
+    return #self.text * width
 end
 function methods:SetPoint(...)
     self.point = { ... }
@@ -1106,18 +1114,40 @@ do
         })
         local box = panel.TitleBox
         equal(panel.TitleText, box.Text, "boxed title exposes the native label")
-        equal(box:GetWidth() <= panel:GetWidth() - 48, true, "long box leaves room for corners and close button")
+        if size == "small" then
+            equal(box:GetWidth(), panel:GetWidth() - 30, "small header fills the row with footer insets")
+        else
+            equal(box:GetWidth() <= panel:GetWidth() - 48, true, "long box leaves room for corners and close button")
+        end
         equal(panel.TitleText:GetWidth(), box:GetWidth() - box.headerTextPadding, "long label stays inside box")
-        equal(box.point[5], 11, "box overlaps the top border using the native anchor")
+        if size == "small" then
+            equal(box.point[1], "TOPLEFT", "small boxed header starts at the left inset")
+            equal(box.point[2], panel.Border.Bg, "small header shares the footer background anchor")
+            equal(box.point[4], 8, "small header shares the footer inset")
+        else
+            equal(box.point[5], 11, "default box retains the native centered anchor")
+        end
         equal(panel.TitleText.template, size == "small" and "GameFontHighlight" or "GameFontNormalLarge",
             "boxed title honors the selected size")
         panel:SetSize(560, panel:GetHeight())
         panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
-        equal(box:GetWidth(), panel.TitleText:GetStringWidth() + box.headerTextPadding,
-            "box expands to fit the text when the panel grows")
+        equal(box:GetWidth(), size == "small" and panel:GetWidth() - 30
+            or panel.TitleText:GetStringWidth() + box.headerTextPadding,
+            "box follows its title style when the panel grows")
         panel:Hide()
     end
     equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
+    for _, module in pairs(PerHour.Modules) do
+        local panel = module.View.Frame
+        equal(rawget(panel, "BrandText"), nil, "tracker has no branding")
+        equal(rawget(panel, "BrandPrefix"), nil, "tracker has no branding prefix")
+        equal(panel.TitleText:GetWidth() >= panel.TitleText:GetStringWidth(), true,
+            "branding does not truncate the module title")
+        equal(module.View.RateFrame.point[2].points.TOP[5], 0, "branding does not push the rate down")
+    end
+    equal(default.BrandText:GetText(), "powered by Per Hour", "default panel includes the full attribution")
+    equal(default.BrandText.template, "GameFontDisableSmall", "default branding keeps its small font")
+    equal(select(2, default.BrandText:GetFont()), 9, "default branding keeps its font size")
     default:Hide()
     small:Hide()
 end

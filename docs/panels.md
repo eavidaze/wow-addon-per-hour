@@ -6,16 +6,19 @@ border, background, typography and gold controls. Settings include `name`,
 `closeAlwaysVisible` (optional override), `onClose` and `draggable` (default false).
 The X calls `onClose(panel)` when supplied, then hides the panel.
 `titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
-`"default"` (`GameFontNormalLarge`, the default). Titles are centered, with gold
-text inside boxes and white text when unboxed.
+`"default"` (`GameFontNormalLarge`, the default). Titles are centered. Small
+headers span the row using the footer's side insets. Text is gold inside boxes
+and white when unboxed.
 The X follows `titleSize`: always visible for `"default"`, fading in on hover
 and out when leaving for `"small"`. Set `closeAlwaysVisible = true` or `false`
 to override that behavior for an individual panel. The settings panel inherits
 the always-visible X from its default size; trackers inherit the small-size fade.
 Set `titleBox = true` to surround either size with Forever's native
 [`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
-as used by the Game Menu. The box sits over the top border, fits the text and
-shrinks to leave room for the panel corners and close button. `panel.TitleText`
+as used by the Game Menu. The box sits over the top border. Small boxes fill
+the row between the footer's side insets; default boxes fit the text and
+shrink to leave room for the panel corners and close button. Branding does
+not reduce the title box width. `panel.TitleText`
 remains available; boxed titles also expose `panel.TitleBox`.
 Small boxes use 24 px of text padding on each side; default boxes retain the
 native 32 px per side. Both preserve the native corner textures.
@@ -27,6 +30,10 @@ Omitting it preserves the compact layout's existing spacing.
 The settings panel uses a boxed default title; trackers use boxed small titles.
 Tracker titles contain only the module name (Experience, Honor or Reputation).
 Their rate display is centered between the title box and footer controls.
+Small panels have no branding. Default panels show gray `powered by Per Hour`
+on the right of the header, using a small font at 9 px and an extra 12 px of
+horizontal inset to keep it clear of the X. Branding does not affect title
+or content positioning.
 Set `form = true` for form content padding and spacing between groups,
 independently of the title size and box.
 
