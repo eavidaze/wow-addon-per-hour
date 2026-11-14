@@ -1,10 +1,12 @@
 package-as: per-hour
-ignore: # Files and directories beginning with a dot (such as .git) are automatically ignored, as is the pgkmeta file itself.
-    - img/
+# Directory names must not end in a slash: the packager adds its own /* pattern.
+ignore:
+    - img
     - README.md
     - document.md
-    - tests/
-    - scripts/
-    - dist/
-    - docs/
+    - tests
+    - scripts
+    - dist
+    - docs
     - AGENTS.md
+    - pkgmeta.yaml
