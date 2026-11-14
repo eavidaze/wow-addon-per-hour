@@ -41,13 +41,13 @@ function SettingsPanel:Show()
                 value = module.Settings:Get("isShown"),
                 onChanged = function(shown)
                     module.Settings:Set("isShown", shown)
-                    module.Frame:SetShown(shown)
+                    module.View.Frame:SetShown(shown)
                     self:Refresh()
                 end,
             })
             -- Keep controls current when the minimap menu or panel X changes visibility.
-            module.Frame:HookScript("OnShow", function() self:Refresh() end)
-            module.Frame:HookScript("OnHide", function() self:Refresh() end)
+            module.View.Frame:HookScript("OnShow", function() self:Refresh() end)
+            module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
         frame:AddField(panels)
         local minimap = Components:CreateFormGroup(frame.Content, { title = "Minimap" })

@@ -17,33 +17,33 @@ local function GetWatchedFaction()
 end
 
 Module.CustomReset = function()
-    Module.LastReputationName = ""
-    Module.LastFactionID = nil
-    Module.LastReputationValue = nil
-    Module.MissingFactionTime = 0
+    Module.State.LastReputationName = ""
+    Module.State.LastFactionID = nil
+    Module.State.LastReputationValue = nil
+    Module.State.MissingFactionTime = 0
 end
 
 local function Snapshot(data)
-    Module.LastReputationName = data.name
-    Module.LastFactionID = data.factionID
-    Module.LastReputationValue = data.currentStanding
-    Module.MissingFactionTime = 0
+    Module.State.LastReputationName = data.name
+    Module.State.LastFactionID = data.factionID
+    Module.State.LastReputationValue = data.currentStanding
+    Module.State.MissingFactionTime = 0
 end
 
 Module.CustomGetContext = function()
-    return Module.LastReputationName ~= "" and Module.LastReputationName or "No active session"
+    return Module.State.LastReputationName ~= "" and Module.State.LastReputationName or "No active session"
 end
 
 Module.CustomSaveSession = function()
-    return { factionID = Module.LastFactionID, name = Module.LastReputationName }
+    return { factionID = Module.State.LastFactionID, name = Module.State.LastReputationName }
 end
 
 Module.CustomRestoreSession = function(context)
     if type(context) ~= "table" or type(context.factionID) ~= "number" or type(context.name) ~= "string" then
         return false
     end
-    Module.LastFactionID = context.factionID
-    Module.LastReputationName = context.name
+    Module.State.LastFactionID = context.factionID
+    Module.State.LastReputationName = context.name
 end
 
 Module.CustomStart = function()
@@ -60,31 +60,31 @@ Module.CustomOnUpdate = function(self, elapsed)
     local data = GetWatchedFaction()
     if not data then
         -- The watched faction can temporarily disappear during a loading screen.
-        Module.MissingFactionTime = Module.MissingFactionTime + elapsed
-        if Module.MissingFactionTime >= MISSING_FACTION_GRACE_SECONDS then
+        Module.State.MissingFactionTime = Module.State.MissingFactionTime + elapsed
+        if Module.State.MissingFactionTime >= MISSING_FACTION_GRACE_SECONDS then
             Utils:AddonMessage("Select a watched reputation before starting the tracker.")
             BaseModule:ResetModule(Module)
         end
         return
     end
 
-    if Module.LastFactionID and Module.LastFactionID ~= data.factionID then
+    if Module.State.LastFactionID and Module.State.LastFactionID ~= data.factionID then
         Utils:AddonMessage("Watched reputation changed; reputation tracker reset.")
         BaseModule:ResetModule(Module)
         return
     end
 
-    if Module.LastReputationValue ~= nil and not Module.HasPaused then
-        Module.Element = Module.Element + data.currentStanding - Module.LastReputationValue
+    if Module.State.LastReputationValue ~= nil and not Module.State.HasPaused then
+        Module.State.Element = Module.State.Element + data.currentStanding - Module.State.LastReputationValue
     end
     Snapshot(data)
     return true
 end
 
 Module.CustomStartedMessage = function()
-    return " ["..Module.LastReputationName.."] monitoring started."
+    return " ["..Module.State.LastReputationName.."] monitoring started."
 end
 
 Module.CustomSendToMessages = {
-    function() return "Reputation: ...... "..Module.LastReputationName end,
+    function() return "Reputation: ...... "..Module.State.LastReputationName end,
 }

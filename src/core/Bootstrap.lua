@@ -7,6 +7,8 @@ frame:SetScript("OnEvent", function(self, event, name)
     PerHour.Stores.Settings:Init()
     PerHour.Stores.Sessions:Init()
     for name, module in pairs(PerHour.Modules) do
+        module.State = {}
+        module.View = {}
         module.Settings = PerHour.Stores.Settings:ForModule(name)
         module.Store = PerHour.Stores.Sessions:ForModule(name)
     end

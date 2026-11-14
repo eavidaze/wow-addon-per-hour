@@ -7,9 +7,9 @@ local Module = {
 PerHour.Modules.Honor = Module
 
 Module.CustomReset = function()
-    Module.LastHonor = nil
-    Module.LastHonorMax = nil
-    Module.LastHonorLevel = nil
+    Module.State.LastHonor = nil
+    Module.State.LastHonorMax = nil
+    Module.State.LastHonorLevel = nil
 end
 
 -- Forever exposes honor progression through the modern UnitHonor APIs.
@@ -23,25 +23,25 @@ Module.CustomOnUpdate = function()
         return
     end
     if current < 0 or maximum <= 0 or level < 0 then return end
-    if Module.LastHonor ~= nil and (level < Module.LastHonorLevel
-        or (level == Module.LastHonorLevel and current < Module.LastHonor)) then
+    if Module.State.LastHonor ~= nil and (level < Module.State.LastHonorLevel
+        or (level == Module.State.LastHonorLevel and current < Module.State.LastHonor)) then
         return
     end
 
     local received = 0
-    if Module.LastHonor ~= nil then
-        if level > Module.LastHonorLevel then
-            received = Module.LastHonorMax - Module.LastHonor + current
+    if Module.State.LastHonor ~= nil then
+        if level > Module.State.LastHonorLevel then
+            received = Module.State.LastHonorMax - Module.State.LastHonor + current
         else
-            received = math.max(0, current - Module.LastHonor)
+            received = math.max(0, current - Module.State.LastHonor)
         end
     end
-    Module.LastHonor = current
-    Module.LastHonorMax = maximum
-    Module.LastHonorLevel = level
+    Module.State.LastHonor = current
+    Module.State.LastHonorMax = maximum
+    Module.State.LastHonorLevel = level
 
-    if not Module.HasPaused then
-        Module.Element = Module.Element + received
+    if not Module.State.HasPaused then
+        Module.State.Element = Module.State.Element + received
     end
     return true
 end

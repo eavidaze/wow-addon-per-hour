@@ -13,8 +13,8 @@ local function IsValidPlayedTime(value)
 end
 
 local function SetRestoreStatus(module, status, issue)
-    module.RestoreStatus = status
-    module.RestoreIssue = issue
+    module.State.RestoreStatus = status
+    module.State.RestoreIssue = issue
     BaseModule:RefreshDisplayedValues(module)
 end
 
@@ -22,21 +22,21 @@ function Session:Save()
     local sessions = {}
     local onlyPending = true
     for name, module in pairs(PerHour.Modules) do
-        if module.HasStarted then
-            local pending = module.PendingRestore
+        if module.State.HasStarted then
+            local pending = module.State.PendingRestore
             if not pending then onlyPending = false end
             -- Include progress since the last tracker update, even when its panel is hidden.
             if not pending and module.CustomOnUpdate then module.CustomOnUpdate(nil, 0) end
-            if module.HasStarted then
+            if module.State.HasStarted then
                 BaseModule:UpdateRates(module)
-                local paused = module.HasPaused
+                local paused = module.State.HasPaused
                 if pending then paused = pending.paused end
                 sessions[name] = {
-                    total = module.Element,
-                    duration = module.Time,
+                    total = module.State.Element,
+                    duration = module.State.Time,
                     paused = paused,
                     context = module.CustomSaveSession and module.CustomSaveSession() or nil,
-                    needsReview = module.RestoreStatus == "error" or (pending and pending.needsReview) or false,
+                    needsReview = module.State.RestoreStatus == "error" or (pending and pending.needsReview) or false,
                 }
             end
         end
@@ -49,18 +49,18 @@ function Session:Save()
 end
 
 function Session:ValidateRestore(module)
-    local data = module.PendingRestore
+    local data = module.State.PendingRestore
     if not data then return true end
     if self.CheckingPlayed then return false end
 
     local issue = data.needsReview and "This session contains unverified progress." or self.PlayedIssue
     -- Establish fresh counters while paused so missing progress is never added to the totals.
     local ready = not module.CustomOnUpdate or module.CustomOnUpdate(nil, 0)
-    if module.HasStarted and not ready and not issue then return false end
-    module.PendingRestore = nil
-    module.UpdatedAt = GetTime()
-    if module.HasStarted then
-        module.HasPaused = data.paused or issue ~= nil
+    if module.State.HasStarted and not ready and not issue then return false end
+    module.State.PendingRestore = nil
+    module.State.UpdatedAt = GetTime()
+    if module.State.HasStarted then
+        module.State.HasPaused = data.paused or issue ~= nil
         BaseModule:UpdateRates(module)
     else
         issue = "The tracked reputation changed."
@@ -91,12 +91,12 @@ function Session:Restore()
     for _, module in pairs(PerHour.Modules) do
         local data, invalid = module.Store:ReadSession()
         if data then
-            module.Element = data.total
-            module.Time = data.duration
-            module.HasStarted = true
-            module.HasPaused = true
-            module.UpdatedAt = GetTime()
-            module.PendingRestore = data
+            module.State.Element = data.total
+            module.State.Time = data.duration
+            module.State.HasStarted = true
+            module.State.HasPaused = true
+            module.State.UpdatedAt = GetTime()
+            module.State.PendingRestore = data
 
             if module.CustomRestoreSession and module.CustomRestoreSession(data.context) == false then
                 BaseModule:ResetModule(module)

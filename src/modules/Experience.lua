@@ -12,11 +12,6 @@ Module.TagName = "experience"
 Module.ShortName = "XP"
 Module.RegisteredEvents = {}
 
--- custom properties
-Module.LastMaxXp = 0
-Module.LastXp = 0
-Module.LastLevel = 0
-
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
     local currentMaxXp = UnitXPMax("player")
@@ -34,35 +29,35 @@ Module.CustomOnUpdate = function(self, elapsed)
         return
     end
     local xpReceived = 0
-    if Module.LastLevel ~= 0 and (currentLevel < Module.LastLevel
-        or (currentLevel == Module.LastLevel and currentXp < Module.LastXp)) then
+    if Module.State.LastLevel ~= 0 and (currentLevel < Module.State.LastLevel
+        or (currentLevel == Module.State.LastLevel and currentXp < Module.State.LastXp)) then
         return
     end
 
-    if Module.LastLevel ~= 0 then
-        if currentLevel > Module.LastLevel then
-            xpReceived = Module.LastMaxXp - Module.LastXp + currentXp
+    if Module.State.LastLevel ~= 0 then
+        if currentLevel > Module.State.LastLevel then
+            xpReceived = Module.State.LastMaxXp - Module.State.LastXp + currentXp
         else
-            xpReceived = math.max(0, currentXp - Module.LastXp)
+            xpReceived = math.max(0, currentXp - Module.State.LastXp)
         end
     end
 
     -- update lasts
-    Module.LastMaxXp = currentMaxXp
-    Module.LastXp = currentXp
-    Module.LastLevel = currentLevel
+    Module.State.LastMaxXp = currentMaxXp
+    Module.State.LastXp = currentXp
+    Module.State.LastLevel = currentLevel
     
     -- Element is the amount of XP
-    if not Module.HasPaused then
-        Module.Element = Module.Element + xpReceived
+    if not Module.State.HasPaused then
+        Module.State.Element = Module.State.Element + xpReceived
     end
     return true
 end
 
 Module.CustomReset = function()
-    Module.LastMaxXp = 0
-    Module.LastXp = 0
-    Module.LastLevel = 0
+    Module.State.LastMaxXp = 0
+    Module.State.LastXp = 0
+    Module.State.LastLevel = 0
 end
 
 -- Snapshot at the click, so the first gain after Start is included.

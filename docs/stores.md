@@ -11,6 +11,33 @@ initializes the module menu and minimap position. Creating panels resets runtime
 state while preserving saved sessions. Session restoration still waits for
 `PLAYER_ENTERING_WORLD`.
 
+## Module runtime
+
+Each module keeps its identity (`Name`, `TagName`, `ShortName`), registered events
+and custom hooks at the root. Bootstrap creates separate `State` and `View`
+tables for each module before building panels:
+
+| Member | Responsibility |
+| --- | --- |
+| `module.State` | Runtime totals, duration, rates, running/paused flags, restore status and module-specific progression baselines or faction context. |
+| `module.View` | Panel, rate text, buttons, indicators and the independent hidden tracker frame. |
+| `module.Settings` | Scoped access to the module's account preferences. |
+| `module.Store` | Scoped access to the module's saved character session. |
+
+Tracking and session code read and update `State`; rendering reads it and updates
+controls in `View`. The tracker frame stays independent of panel visibility, so
+hiding a panel does not stop progress. No frames or controls belong in `State`.
+
+`BaseModule:ResetModule` updates the existing state table and calls the module's
+custom reset for its progression baselines. It preserves the view and both table
+identities, so callbacks keep valid references. A user reset clears that module's
+saved session; the initial panel reset preserves sessions awaiting restoration.
+
+Session saving explicitly selects totals, duration, pause/review flags and custom
+context from runtime state. Neither container is persisted directly, and the
+existing version 2 save layout is unchanged. Runtime values and controls are
+accessed through their respective containers; there are no root-level aliases.
+
 ## Settings
 
 `PerHour.Stores.Settings` provides `GetMinimapAngle()` and
