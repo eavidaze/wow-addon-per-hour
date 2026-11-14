@@ -1,6 +1,9 @@
 ## Interface: 16001
-## Title: Per Hour - Forever
+## Title: Per Hour
 ## Notes: Track experience, honor and reputation earned per hour in WoW Forever.
+## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
+## Category: Statistics
+## Category-ptBR: Estatísticas
 ## Author: José Júnior - https://github.com/juninze
 ## Version: 1.2.0-forever
 ## X-Curse-Project-ID: 486717

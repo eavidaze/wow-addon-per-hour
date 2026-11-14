@@ -7,7 +7,7 @@ Targets **WoW Forever 1.60.1 (Interface 16001)**. In-game validation is pending.
 
 1. Extract the addon into `_forever_\Interface\AddOns\per-hour`.
    The folder must contain `per-hour.toc` directly.
-2. Restart WoW and enable **Per Hour - Forever** in the AddOns list.
+2. Restart WoW and enable **Per Hour** in the AddOns list.
 
 For local development on Windows, run `.\scripts\install.ps1` once to link this
 checkout to the game's AddOns folder. Keep the checkout in place; subsequent
