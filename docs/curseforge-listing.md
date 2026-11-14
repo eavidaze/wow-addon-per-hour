@@ -22,7 +22,8 @@ per hour and per minute.
 - Live session tooltips showing duration, totals, hourly and per-minute rates, and the watched faction.
 - Tracker windows stay apart when moved or reopened, preventing overlapping panels.
 - A draggable minimap clock with a menu to show or hide each tracker.
-- Saved window visibility, window positions and minimap button position.
+- A shared settings panel for visibility, independent hourly/per-minute rates and the watched reputation.
+- Saved window visibility, window positions, display rates and minimap button position.
 - Per-character sessions preserved between logins, including totals, active duration and manual pause state.
 - A shared continuity check flags restored sessions that may have missed progress.
 - An **Announce** option to share your results in chat.
@@ -30,9 +31,16 @@ per hour and per minute.
 #### Getting started
 
 Click the minimap clock or type `/perhour`, select a tracker, and click **Start**.
+Right-click the clock to open **Settings**, where each tracker has a visibility
+checkbox and its own **Per hour** or **Per minute** display choice. These choices
+are saved between logins and do not change session totals or tracking state.
 
 Hover over a tracker: **Session** shows duration and total gained, while **Rates**
-shows gains per hour and per minute. Open the gear menu for **Reset** and **Announce**.
+shows gains per hour and per minute. Open the **Options** gear menu for **Reset**,
+**Settings** and **Announce**.
+**Announce** shares one chat message with your hourly average first, followed
+by active session time and total gains in parentheses; reputation also names
+the tracked faction.
 The close button appears while hovering over the panel.
 
 Paused time and gains are excluded. Closing a tracker window keeps an active
@@ -55,7 +63,10 @@ Using a hearthstone or changing zones keeps the current XP session running.
 
 #### Reputation tracking
 
-Select a faction to display on your reputation bar before starting the tracker.
+Choose **Tracked faction** under Reputation in **Settings**, or select a faction
+in the game's reputation panel, before starting the tracker. Both interfaces
+stay synchronized. The settings list includes known factions in collapsed and
+inactive groups; **None** clears the watched faction.
 Changing the watched faction resets the reputation tracker. Gains and losses
 contribute to the session total.
 

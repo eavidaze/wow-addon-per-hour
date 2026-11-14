@@ -3,26 +3,26 @@ local ToggleMenu = {}
 PerHour.ToggleMenu = ToggleMenu
 
 local function IsModuleShown(module)
-    return module.Frame:IsShown()
+    return module.View.Frame:IsShown()
 end
 
 local function ToggleModule(module)
-    local shown = not module.Frame:IsShown()
-    module:SetIsShown(shown)
-    module.Frame:SetShown(shown)
+    local shown = not module.View.Frame:IsShown()
+    module.Settings:Set("isShown", shown)
+    module.View.Frame:SetShown(shown)
     Utils:AddonMessage(module.Name .. (shown and " show." or " hide."))
 end
 
 function ToggleMenu:Init(button)
     local modules = {}
     for _, module in pairs(PerHour.Modules) do
-        module.Frame:SetShown(module:IsShown())
+        module.View.Frame:SetShown(module.Settings:Get("isShown"))
         table.insert(modules, module)
     end
     table.sort(modules, function(a, b) return a.Name < b.Name end)
 
     button:SetupMenu(function(_, rootDescription)
-        rootDescription:CreateTitle("Per Hour")
+        rootDescription:CreateTitle("Panels")
         for _, module in ipairs(modules) do
             rootDescription:CreateCheckbox(module.Name, IsModuleShown, ToggleModule, module)
         end

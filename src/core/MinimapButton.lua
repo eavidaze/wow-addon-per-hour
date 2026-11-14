@@ -1,11 +1,26 @@
 local PerHour = PerHour
+local Theme = PerHour.Theme
 local button = CreateFrame("DropdownButton", "PerHourMinimapButton", Minimap)
 PerHour.MinimapButton = button
+-- This native tooltip uses the body font on every line, including the first.
+local tooltip = GameNoHeaderTooltip
+button.Tooltip = tooltip
 
 button:SetSize(31, 31)
 button:SetFrameStrata("MEDIUM")
 button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 button:RegisterForDrag("LeftButton")
+-- DropdownButton only accepts left mouse events by default. Enable both buttons
+-- and hook the native handler so left-click still toggles its menu exactly once.
+button:RegisterForMouse("LeftButtonDown", "LeftButtonUp", "RightButtonDown", "RightButtonUp")
+button:HookScript("OnMouseDown", function(self, mouseButton)
+    if mouseButton == "RightButton" then
+        self:CloseMenu()
+        GameTooltip:Hide()
+        tooltip:Hide()
+        PerHour.SettingsPanel:Show()
+    end
+end)
 
 local icon = button:CreateTexture(nil, "BACKGROUND")
 icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
@@ -19,23 +34,28 @@ border:SetSize(54, 54)
 border:SetPoint("TOPLEFT")
 
 local function UpdatePosition()
-    local angle = PerHourAccount_Settings.minimap.angle
+    local angle = PerHour.Stores.Settings:GetMinimapAngle()
     button:SetPoint("CENTER", Minimap, "CENTER",
         math.cos(angle) * (Minimap:GetWidth() / 2 + 5),
         math.sin(angle) * (Minimap:GetHeight() / 2 + 5))
+end
+
+function button:SetAngle(angle)
+    PerHour.Stores.Settings:SetMinimapAngle(angle)
+    UpdatePosition()
 end
 
 local function UpdateDragPosition()
     local x, y = GetCursorPosition()
     local centerX, centerY = Minimap:GetCenter()
     local scale = Minimap:GetEffectiveScale()
-    PerHourAccount_Settings.minimap.angle = math.atan2(y / scale - centerY, x / scale - centerX)
-    UpdatePosition()
+    button:SetAngle(math.atan2(y / scale - centerY, x / scale - centerX))
 end
 
 button:SetScript("OnDragStart", function(self)
     self:CloseMenu()
     GameTooltip:Hide()
+    tooltip:Hide()
     self:SetScript("OnUpdate", UpdateDragPosition)
 end)
 button:SetScript("OnDragStop", function(self)
@@ -44,23 +64,19 @@ button:SetScript("OnDragStop", function(self)
 end)
 button:HookScript("OnHide", function(self)
     self:SetScript("OnUpdate", nil)
+    tooltip:Hide()
 end)
 
 button:HookScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Per Hour")
-    GameTooltip:AddLine("Click to toggle the menu.", 1, 1, 1)
-    GameTooltip:AddLine("Drag to move around the minimap.", 1, 1, 1)
-    GameTooltip:Show()
+    tooltip:SetOwner(self, "ANCHOR_LEFT")
+    tooltip:ClearLines()
+    tooltip:AddLine(Theme:GoldText("Left-click:") .. " Menu", 1, 1, 1)
+    tooltip:AddLine(Theme:GoldText("Right-click:") .. " Settings", 1, 1, 1)
+    tooltip:AddLine(Theme:GoldText("Drag:") .. " Move", 1, 1, 1)
+    tooltip:Show()
 end)
-button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+button:SetScript("OnLeave", function() tooltip:Hide() end)
 
-button:RegisterEvent("ADDON_LOADED")
-button:SetScript("OnEvent", function(self, event, name)
-    if name ~= PerHour.AddonName then return end
-    self:UnregisterEvent("ADDON_LOADED")
-    PerHour.Settings:Init()
-    PerHour.Displayer:RestorePositions()
-    PerHour.ToggleMenu:Init(self)
+function button:Init()
     UpdatePosition()
-end)
+end

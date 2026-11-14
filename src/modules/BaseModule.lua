@@ -1,43 +1,31 @@
 -- definition
 BaseModule = {}
 
+local function FormatAnnouncementDuration(time)
+    local hours = math.floor(time / 3600)
+    local minutes = math.floor((time % 3600) / 60)
+    local seconds = math.floor(time % 60)
+    local parts = {}
+    if hours > 0 then table.insert(parts, hours .. "h") end
+    if minutes > 0 then table.insert(parts, minutes .. "m") end
+    if seconds > 0 or #parts == 0 then table.insert(parts, seconds .. "s") end
+    return table.concat(parts, " ")
+end
+
 function BaseModule:SendTo(contextModule, chatType)
     chatType = chatType:upper()
-    local SendChatMessage = C_ChatInfo.SendChatMessage
-
-    -- chatType = chatType:upper()
-    local addonNamePrepend = "Per Hour || "
-
-    local dottedLine = "................"
-    local dottedLineLength = string.len(dottedLine)
-    local perHourLabel = contextModule.ShortName .. "/h"
-    local perMinuteLabel = contextModule.ShortName .. "/min"
-
-    local function GetDottedLineByWordSize(wordSize)
-        return string.sub(dottedLine, 0, dottedLineLength - wordSize)
+    local state = contextModule.State
+    local total = Utils:DisplayNumber(state.Element)
+    local duration = FormatAnnouncementDuration(state.Time)
+    local perHour = Utils:DisplayRoundedNumber(state.ElementPerHour, 0)
+    local message
+    if contextModule.CustomFormatAnnouncement then
+        message = contextModule.CustomFormatAnnouncement(total, duration, perHour)
+    else
+        local unit = contextModule.AnnouncementUnit or contextModule.Name
+        message = string.format("%s %s/h - %s (%s %s total)", perHour, unit, duration, total, unit)
     end
-    
-    
-    local greetingsMessage = addonNamePrepend.."A performance tracker AddOn!"
-    local trackingMessage = addonNamePrepend.."Tracking: ....... "..contextModule.Name
-    local perHourMessage = addonNamePrepend..perHourLabel..": "..GetDottedLineByWordSize(string.len(perHourLabel)-1).." "..Utils:DisplayRoundedNumber(contextModule.ElementPerHour, 0)
-    local perMinuteMessage = addonNamePrepend..perMinuteLabel..": "..GetDottedLineByWordSize(string.len(perMinuteLabel)).." "..Utils:DisplayRoundedNumber(contextModule.ElementPerMinute, 0)
-    local forMessage = addonNamePrepend.."Duration: ......... "..Utils:DisplayTimer(contextModule.Time).."s"
-    local totalMessage = addonNamePrepend.."Total earned: ... "..Utils:DisplayNumber(contextModule.Element)
-    
-    SendChatMessage(greetingsMessage, chatType)
-    SendChatMessage(trackingMessage, chatType)
-    SendChatMessage(perHourMessage, chatType)
-    SendChatMessage(perMinuteMessage, chatType)
-    SendChatMessage(forMessage, chatType)
-    SendChatMessage(totalMessage, chatType)
-    
-    if contextModule.CustomSendToMessages ~= nil then
-        for key,value in pairs(contextModule.CustomSendToMessages) do
-            SendChatMessage(addonNamePrepend..value(), chatType)
-        end
-    end
-
+    C_ChatInfo.SendChatMessage("[Per Hour] " .. message, chatType)
     Utils:AddonMessage("Results sent to "..chatType:lower().." successfully.")
 end
 
@@ -50,45 +38,45 @@ end
 
 function BaseModule:UpdateRates(contextModule)
     local now = GetTime()
-    if contextModule.HasStarted and not contextModule.HasPaused then
-        contextModule.Time = contextModule.Time + math.max(0, now - contextModule.UpdatedAt)
+    if contextModule.State.HasStarted and not contextModule.State.HasPaused then
+        contextModule.State.Time = contextModule.State.Time + math.max(0, now - contextModule.State.UpdatedAt)
     end
-    contextModule.UpdatedAt = now
+    contextModule.State.UpdatedAt = now
     local perMinute = 0
-    if contextModule.Time > 0 then
-        perMinute = contextModule.Element / (contextModule.Time / 60)
+    if contextModule.State.Time > 0 then
+        perMinute = contextModule.State.Element / (contextModule.State.Time / 60)
     end
-    contextModule.ElementPerMinute = Utils:RoundValue(perMinute, 2)
-    contextModule.ElementPerHour = Utils:RoundValue(perMinute * 60, 2)
+    contextModule.State.ElementPerMinute = Utils:RoundValue(perMinute, 2)
+    contextModule.State.ElementPerHour = Utils:RoundValue(perMinute * 60, 2)
     self:RefreshDisplayedValues(contextModule)
 end
 
 -- public functions
-function BaseModule:ResetModule(contextModule)
+function BaseModule:ResetModule(contextModule, preserveSavedSession)
     -- control values
-    contextModule.HasStarted = false
-    contextModule.HasPaused = false
-    contextModule.PendingRestore = nil
-    contextModule.RestoreStatus = nil
-    contextModule.RestoreIssue = nil
+    contextModule.State.HasStarted = false
+    contextModule.State.HasPaused = false
+    contextModule.State.PendingRestore = nil
+    contextModule.State.RestoreStatus = nil
+    contextModule.State.RestoreIssue = nil
 
-    contextModule.UpdatedAt = GetTime()
+    contextModule.State.UpdatedAt = GetTime()
 
-    contextModule.TimeSinceLastUpdate = 0
+    contextModule.State.TimeSinceLastUpdate = 0
 
     -- displayable values
-    contextModule.Time = 0
-    contextModule.Element = 0
-    contextModule.ElementPerHour = 0
-    contextModule.ElementPerMinute = 0
+    contextModule.State.Time = 0
+    contextModule.State.Element = 0
+    contextModule.State.ElementPerHour = 0
+    contextModule.State.ElementPerMinute = 0
     
     -- run custom
     if contextModule.CustomReset~=nil then
         contextModule.CustomReset()
     end
 
-    -- Session loads after the initial panel reset, before saved sessions are restored.
-    if PerHour.Session then PerHour.Session:Clear(contextModule) end
+    -- Panel initialization resets runtime state without erasing a session awaiting restore.
+    if not preserveSavedSession then contextModule.Store:ClearSession() end
 
     BaseModule:RefreshDisplayedValues(contextModule)
 end

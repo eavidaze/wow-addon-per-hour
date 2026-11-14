@@ -18,6 +18,7 @@ end
 
 local methods = {}
 function methods:SetScript(event, callback) self.scripts[event] = callback end
+function methods:GetScript(event) return self.scripts[event] end
 function methods:HookScript(event, callback)
     local previous = self.scripts[event]
     self.scripts[event] = function(...)
@@ -53,7 +54,9 @@ end
 function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:SetText(value)
     self.text = value
-    if rawget(self, "template") == "SharedGoldRedButtonSmallTemplate" and not rawget(self, "fontString") then
+    if rawget(self, "Text") then self.Text:SetText(value) end
+    if rawget(self, "template") == "SharedGoldRedButtonSmallTemplate" and value ~= ""
+        and not rawget(self, "fontString") then
         self.fontString = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     end
 end
@@ -61,7 +64,15 @@ function methods:GetText() return self.text end
 function methods:SetOwner(owner) self.owner = owner end
 function methods:IsOwned(owner) return self.owner == owner end
 function methods:GetFontString() return rawget(self, "fontString") end
+function methods:SetFontObject(font) self.template = font end
+function methods:GetFont()
+    return rawget(self, "fontPath") or "Fonts\\FRIZQT__.TTF",
+        rawget(self, "fontSize") or (self.template == "GameFontDisableSmall" and 10 or 12),
+        rawget(self, "fontFlags") or ""
+end
+function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
+function methods:SetTextColor(...) self.textColor = { ... } end
 function methods:SetTexture(texture)
     assert(texture ~= nil, "texture must be available")
     self.texture = texture
@@ -73,18 +84,63 @@ function methods:SetAtlas(atlas)
 end
 function methods:SetEnabled(enabled) self.enabled = enabled end
 function methods:EnableMouse(enabled) self.mouseEnabled = enabled end
+function methods:RegisterForMouse(...) self.mouseButtons = { ... } end
+function methods:RegisterForClicks(...) self.clickButtons = { ... } end
+function methods:RegisterForDrag(...) self.dragButtons = { ... } end
+function methods:RegisterCallback(event, callback)
+    self.callbacks = rawget(self, "callbacks") or {}
+    self.callbacks[event] = self.callbacks[event] or {}
+    table.insert(self.callbacks[event], callback)
+end
+function methods:TriggerEvent(event, ...)
+    for _, callback in ipairs((rawget(self, "callbacks") or {})[event] or {}) do callback(self, ...) end
+end
+function methods:SetChecked(checked) self.checked = checked end
+function methods:GetChecked() return self.checked == true end
+function methods:Click(mouseButton)
+    if self.kind == "CheckButton" then self:SetChecked(not self:GetChecked()) end
+    if self.scripts.OnClick then self.scripts.OnClick(self, mouseButton or "LeftButton") end
+end
 function methods:AddMaskTexture(mask) self.mask = mask end
 function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetWidth(value) self.width = value end
-function methods:SetHeight(value) self.height = value end
+function methods:SetHeight(value)
+    local previous = rawget(self, "height")
+    self.height = value
+    if previous ~= value and self.scripts.OnSizeChanged then
+        self.scripts.OnSizeChanged(self, rawget(self, "width") or 0, value)
+    end
+end
+function methods:SetMinMaxValues(minimum, maximum) self.minimum, self.maximum = minimum, maximum end
+function methods:SetValueStep(step) self.valueStep = step end
+function methods:SetObeyStepOnDrag(obey) self.obeyStep = obey end
+function methods:SetValue(value)
+    local previous = rawget(self, "value")
+    self.value = value
+    if previous ~= value and self.scripts.OnValueChanged then self.scripts.OnValueChanged(self, value) end
+end
+function methods:GetValue() return self.value end
+function methods:SetAutoFocus(autoFocus) self.autoFocus = autoFocus end
+function methods:SetFocus() self.focused = true end
+function methods:ClearFocus()
+    if not rawget(self, "focused") then return end
+    self.focused = false
+    if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
+end
 function methods:SetTexCoord(...) self.texCoords = { ... } end
 function methods:GetWidth() return self.width end
 function methods:GetHeight() return self.height end
 function methods:GetStringWidth()
-    return #self.text * (self.template == "GameFontNormalHuge" and 10 or 6)
+    local width = self.template == "GameFontNormalHuge" and 10 or 6
+    if self.template == "GameFontDisableSmall" then width = select(2, self:GetFont()) / 2 end
+    return #self.text * width
 end
-function methods:SetPoint(...) self.point = { ... } end
+function methods:SetPoint(...)
+    self.point = { ... }
+    self.points = rawget(self, "points") or {}
+    self.points[self.point[1]] = self.point
+end
 function methods:GetPoint() return unpack(self.point) end
 function methods:GetLeft()
     local point = rawget(self, "point")
@@ -108,7 +164,7 @@ function methods:GetTop()
     elseif not anchor:find("TOP") then top = top + self:GetHeight() / 2 end
     return top
 end
-function methods:ClearAllPoints() self.point = nil end
+function methods:ClearAllPoints() self.point, self.points = nil, {} end
 function methods:StartMoving() self.moving = true end
 function methods:StopMovingOrSizing() self.moving = false end
 function methods:GetCenter() return 100, 200 end
@@ -118,8 +174,12 @@ function methods:IsMenuOpen() return self.menuOpen == true end
 function methods:CloseMenu() self.menuOpen = false end
 local function menuDescription()
     local root = { items = {} }
+    function root:SetScrollMode(height) self.maxScrollExtent = height end
     function root:CreateTitle(text) self.title = text end
     function root:CreateCheckbox(text, isSelected, callback, data)
+        self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
+    end
+    function root:CreateRadio(text, isSelected, callback, data)
         self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
     end
     function root:CreateButton(text, callback, data)
@@ -130,12 +190,26 @@ local function menuDescription()
     end
     return root
 end
-function methods:SetMenuOpen(open)
-    self.menuOpen = open
-    if not open then return end
+function methods:GenerateMenu()
     local root = menuDescription()
     self.menuGenerator(self, root)
     self.menuDescription = root
+    if rawget(self, "Text") then
+        for index, item in ipairs(root.items) do
+            if item.isSelected and item.isSelected(item.data) then
+                self:SetText(item.text)
+                local selector = rawget(self, "settingsSelector")
+                if selector then
+                    selector.DecrementButton:SetEnabled(index > 1)
+                    selector.IncrementButton:SetEnabled(index < #root.items)
+                end
+            end
+        end
+    end
+end
+function methods:SetMenuOpen(open)
+    self.menuOpen = open
+    if open then self:GenerateMenu() end
 end
 local function object(name)
     assert(name == nil or type(name) == "string", "UI object name must be a string")
@@ -164,23 +238,55 @@ UIParent:SetSize(1920, 1080)
 Minimap = object("Minimap")
 Minimap:SetSize(140, 140)
 GameTooltip = object("GameTooltip")
+-- Defined in Forever's Blizzard_GameTooltip/Mainline/GameTooltip.xml.
+GameNoHeaderTooltip = object("GameNoHeaderTooltip")
+GameNoHeaderTooltip:Hide()
+function methods:ClearLines()
+    self.text, self.lines, self.singleLines = "", {}, {}
+end
 function GameTooltip:SetText(text)
     self.text, self.lines, self.singleLines = text, {}, {}
 end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
+MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
+SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
-        or template == "UIPanelCloseButton" or template == "UIPanelSquareButton", "unsupported template: "..tostring(template))
+        or template == "DialogHeaderTemplate"
+        or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
+        or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
+        or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
+        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate",
+        "unsupported template: "..tostring(template))
     if name then
         name = name:gsub("%$parent", parent.name or "")
         assert(not names[name], "duplicate frame name: "..name)
     end
     local frame = object(name)
-    frame.parent, frame.template = parent, template
+    frame.parent, frame.template, frame.kind = parent, template, kind
     if template == "DialogBorderTranslucentTemplate" then
         frame.Bg = object()
+    end
+    -- Mirror Forever's DialogHeaderTemplate sizing and font methods.
+    if template == "DialogHeaderTemplate" then
+        frame:SetSize(200, 39)
+        frame:SetPoint("TOP", parent, "TOP", 0, 11)
+        frame.headerTextPadding = 64
+        frame.Text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.Text:SetText("")
+        function frame:UpdateWidth()
+            self:SetWidth(self.Text:GetStringWidth() + self.headerTextPadding)
+        end
+        function frame:Setup(text)
+            self.Text:SetText(text)
+            self:UpdateWidth()
+        end
+        function frame:SetHeaderFont(font)
+            self.Text:SetFontObject(font)
+            self:UpdateWidth()
+        end
     end
     if template == "UIPanelButtonTemplate" then
         frame.fontString = object()
@@ -193,7 +299,74 @@ function CreateFrame(kind, name, parent, template)
         frame.icon:SetTexCoord(0.015625, 0.203125, 0.015625, 0.203125)
     end
     if kind == "DropdownButton" then
-        frame.scripts.OnMouseDown = function(self) self:SetMenuOpen(not self:IsMenuOpen()) end
+        frame:RegisterForMouse("LeftButtonDown", "LeftButtonUp")
+        frame.nativeMouseDownCalls = 0
+        frame.scripts.OnMouseDown = function(self)
+            self.nativeMouseDownCalls = self.nativeMouseDownCalls + 1
+            self:SetMenuOpen(not self:IsMenuOpen())
+        end
+    end
+    if template == "SettingsCheckboxTemplate" then
+        frame:SetSize(30, 29)
+        function frame:Init(value, tooltip)
+            self:SetChecked(value)
+            self.tooltipFunc = tooltip
+            self:SetScript("OnClick", function(self)
+                self:TriggerEvent(SettingsCheckboxMixin.Event.OnValueChanged, self:GetChecked())
+            end)
+        end
+    elseif template == "MinimalSliderWithSteppersTemplate" then
+        frame:SetSize(250, 40)
+        frame.Slider = CreateFrame("Slider", nil, frame, "MinimalSliderTemplate")
+        frame.Back, frame.Forward = CreateFrame("Button", nil, frame), CreateFrame("Button", nil, frame)
+        frame.RightText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local function update(value)
+            frame.RightText:SetText(frame.formatters[MinimalSliderWithSteppersMixin.Label.Right](value))
+            frame.Back:SetEnabled(value > frame.Slider.minimum)
+            frame.Forward:SetEnabled(value < frame.Slider.maximum)
+        end
+        function frame:Init(value, minimum, maximum, steps, formatters)
+            self.Slider:SetMinMaxValues(minimum, maximum)
+            self.Slider:SetValueStep((maximum - minimum) / steps)
+            self.Slider:SetValue(value)
+            self.formatters = formatters
+            update(value)
+            self.Slider:SetScript("OnValueChanged", function(_, value)
+                update(value)
+                self:TriggerEvent(MinimalSliderWithSteppersMixin.Event.OnValueChanged, value)
+            end)
+        end
+        function frame:SetValue(value) self.Slider:SetValue(value) end
+        frame.Back:SetScript("OnClick", function()
+            frame.Slider:SetValue(frame.Slider:GetValue() - frame.Slider.valueStep)
+        end)
+        frame.Forward:SetScript("OnClick", function()
+            frame.Slider:SetValue(frame.Slider:GetValue() + frame.Slider.valueStep)
+        end)
+    elseif template == "SettingsDropdownWithButtonsTemplate" then
+        frame:SetSize(223, 38)
+        frame.Dropdown = CreateFrame("DropdownButton", nil, frame)
+        frame.Dropdown:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        frame.Dropdown.Text = frame.Dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        frame.Dropdown.settingsSelector = frame
+        frame.DecrementButton = CreateFrame("Button", nil, frame)
+        frame.IncrementButton = CreateFrame("Button", nil, frame)
+        frame.DecrementButton:SetSize(24, 24)
+        frame.IncrementButton:SetSize(24, 24)
+        frame.DecrementButton:SetPoint("RIGHT", frame.Dropdown, "LEFT", -5, 0)
+        frame.IncrementButton:SetPoint("LEFT", frame.Dropdown, "RIGHT", 4, 0)
+        local function step(direction)
+            local items = frame.Dropdown.menuDescription.items
+            for index, item in ipairs(items) do
+                if item.isSelected(item.data) then
+                    local nextItem = items[index + direction]
+                    if nextItem then nextItem.callback(nextItem.data) end
+                    return
+                end
+            end
+        end
+        frame.DecrementButton:SetScript("OnClick", function() step(-1) end)
+        frame.IncrementButton:SetScript("OnClick", function() step(1) end)
     end
     frames[#frames + 1] = frame
     if name then names[name] = frame end
@@ -224,7 +397,55 @@ function UnitHonorMax(_unit) return 5500 end
 function UnitHonorLevel(_unit) return 1 end
 function issecretvalue(value) return type(value) == "table" and value.secret == true end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) messages[#messages + 1] = message end }
-C_Reputation = { GetWatchedFactionData = function() return watched end }
+local factionChanged
+local factions = {
+    { name = "Alliance", factionID = 0, isHeader = true, isCollapsed = true, children = {
+        { name = "Stormwind", factionID = 72, currentStanding = 0 },
+        { name = "Cities", factionID = 0, isHeader = true, isCollapsed = true, children = {
+            { name = "Ironforge", factionID = 47, currentStanding = 100 },
+        } },
+    } },
+    { name = "Inactive", factionID = 0, isHeader = true, isCollapsed = true, children = {
+        { name = "Timbermaw Hold", factionID = 576, currentStanding = -100 },
+    } },
+    { name = "Faction with reputation", factionID = 999, currentStanding = 0,
+        isHeader = true, isHeaderWithRep = true, isCollapsed = true },
+}
+local function factionRows(all)
+    local rows = {}
+    local function add(nodes)
+        for _, data in ipairs(nodes) do
+            rows[#rows + 1] = data
+            if data.children and (all or not data.isCollapsed) then add(data.children) end
+        end
+    end
+    add(factions)
+    return rows
+end
+C_Reputation = {
+    GetWatchedFactionData = function() return watched end,
+    GetNumFactions = function() return #factionRows() end,
+    GetFactionDataByIndex = function(index) return factionRows()[index] end,
+    ExpandFactionHeader = function(index)
+        factionRows()[index].isCollapsed = false
+        if factionChanged then factionChanged() end
+    end,
+    CollapseFactionHeader = function(index)
+        factionRows()[index].isCollapsed = true
+        if factionChanged then factionChanged() end
+    end,
+    SetWatchedFactionByID = function(id)
+        for _, data in ipairs(factionRows(true)) do
+            if data.factionID == id then watched = data; break end
+        end
+        if factionChanged then factionChanged() end
+    end,
+    SetWatchedFactionByIndex = function(index)
+        equal(index, 0, "clearing watched reputation uses index zero")
+        watched = nil
+        if factionChanged then factionChanged() end
+    end,
+}
 C_CurrencyInfo = { GetCurrencyInfo = function(id)
     if id == 1792 then return { name = "Honor Points", quantity = honorBalance, totalEarned = 0 } end
 end }
@@ -269,6 +490,7 @@ local function changeHonor(amount)
     honorBalance = honorBalance + amount
     event("CURRENCY_DISPLAY_UPDATE", 1792, honorBalance, amount)
 end
+factionChanged = function() event("UPDATE_FACTION") end
 local function tick(seconds)
     if PerHour.Session.InWorld then playedTotal = playedTotal + seconds end
     now = now + seconds
@@ -282,52 +504,77 @@ local function tick(seconds)
         end
     end
 end
-local function click(module) module.ToggleStartButton.scripts.OnClick() end
+local function click(module) module.View.ToggleStartButton.scripts.OnClick() end
+-- Dispatch input through its registrations, including the mouse-down capture
+-- required before a button can receive the corresponding release/click.
+local function mouseClick(frame, mouseButton)
+    local function accepts(registration, phase)
+        for _, registered in ipairs(registration) do
+            if registered == mouseButton .. phase or registered == "Any" .. phase then return true end
+        end
+        return false
+    end
+    local mouseButtons = rawget(frame, "mouseButtons") or { "AnyDown", "AnyUp" }
+    local clickButtons = rawget(frame, "clickButtons") or { "LeftButtonUp" }
+    local receivesDown = accepts(mouseButtons, "Down")
+    if receivesDown and frame.scripts.OnMouseDown then frame.scripts.OnMouseDown(frame, mouseButton) end
+    if receivesDown and accepts(mouseButtons, "Up") and frame.scripts.OnMouseUp then
+        frame.scripts.OnMouseUp(frame, mouseButton)
+    end
+    if receivesDown and accepts(clickButtons, "Up") then frame:Click(mouseButton) end
+end
 local experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
 local function indicatorColor(module)
-    return table.concat(module.ActiveIndicator.vertexColor, ",")
+    return table.concat(module.View.ActiveIndicator.vertexColor, ",")
 end
 event("ADDON_LOADED", "another-addon")
+equal(experience.View, nil, "other addons do not initialize views")
+equal(experience.Store, nil, "other addons do not bind stores")
 event("ADDON_LOADED", "per-hour")
+do
+    local frame = experience.View.Frame
+    event("ADDON_LOADED", "per-hour")
+    equal(experience.View.Frame, frame, "addon initialization does not recreate panels")
+end
 event("PLAYER_ENTERING_WORLD")
 
 equal(indicatorColor(experience), "0.5,0.5,0.5", "idle indicator is gray")
-equal(experience.RestoreIndicator:IsShown(), false, "new session has no restore indicator")
-equal(experience.RestoreIndicator.parent, experience.Frame, "restore indicator belongs to panel")
-equal(experience.RestoreIndicator.point[1], "TOPLEFT", "restore indicator uses panel upper-left corner")
-equal(experience.RestoreIndicator.point[2], experience.Frame, "restore indicator anchors to panel")
-equal(experience.RestoreIndicator.point[3], "TOPLEFT", "restore indicator aligns with panel upper-left corner")
-equal(experience.RestoreIndicator:GetWidth(), experience.Frame.CloseButton:GetWidth(), "restore indicator matches close button size")
-equal(experience.Frame:IsShown(), true, "saved visibility")
-equal(reputation.Frame:IsShown(), false, "default visibility")
-equal(experience.Frame.point[1], "TOPLEFT", "saved window anchor restored")
-equal(experience.Frame.point[4], 90, "saved window X restored")
-equal(experience.Frame:GetTop(), 920, "saved window Y restored")
-equal(reputation.Frame.point[4] - honor.Frame.point[4] > honor.Frame:GetWidth(), true, "default panels do not overlap")
-local dragPanel = experience.Frame
+equal(experience.View.RestoreIndicator:IsShown(), false, "new session has no restore indicator")
+equal(experience.View.RestoreIndicator.parent, experience.View.Frame, "restore indicator belongs to panel")
+equal(experience.View.RestoreIndicator.point[1], "TOPLEFT", "restore indicator uses panel upper-left corner")
+equal(experience.View.RestoreIndicator.point[2], experience.View.Frame, "restore indicator anchors to panel")
+equal(experience.View.RestoreIndicator.point[3], "TOPLEFT", "restore indicator aligns with panel upper-left corner")
+equal(experience.View.RestoreIndicator:GetWidth(), experience.View.Frame.CloseButton:GetWidth(), "restore indicator matches close button size")
+equal(experience.View.Frame:IsShown(), true, "saved visibility")
+equal(reputation.View.Frame:IsShown(), false, "default visibility")
+equal(experience.View.Frame.point[1], "TOPLEFT", "saved window anchor restored")
+equal(experience.View.Frame.point[4], 90, "saved window X restored")
+equal(experience.View.Frame:GetTop(), 920, "saved window Y restored")
+equal(reputation.View.Frame.point[4] - honor.View.Frame.point[4] > honor.View.Frame:GetWidth(), true, "default panels do not overlap")
+local dragPanel = experience.View.Frame
 dragPanel.scripts.OnDragStart(dragPanel)
 equal(type(dragPanel.scripts.OnUpdate), "function", "panel starts cursor tracking")
-experience.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
+experience.View.Frame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -40, 80)
 dragPanel.scripts.OnDragStop(dragPanel)
 equal(dragPanel.scripts.OnUpdate, nil, "panel stops cursor tracking")
 equal(PerHourAccount_Settings.Experience.position.x, 1700, "drag saves window X")
 equal(PerHourAccount_Settings.Experience.position.y, 174, "drag saves window Y")
-experience.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+experience.View.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 PerHour.Displayer:RestorePositions()
-equal(experience.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
-equal(experience.Frame.point[4], 1700, "dragged window position restored")
-equal(experience.Frame.TitleText:GetText(), "Experience Per Hour", "panel title includes addon name")
-equal(honor.Frame.TitleText:GetText(), "Honor Per Hour", "honor title includes addon name")
-equal(reputation.Frame.TitleText:GetText(), "Reputation Per Hour", "reputation title includes addon name")
-equal(experience.Frame:GetWidth(), 180, "compact panel width")
-equal(experience.Frame:GetHeight(), 94, "compact panel height")
-equal(experience.DetailsButton, nil, "details toggle removed")
-equal(experience.DetailsFrame, nil, "expandable details removed")
-equal(experience.ToggleStartButton.point[2], experience.OptionsButton, "start button leaves room for the footer gear")
+equal(experience.View.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
+equal(experience.View.Frame.point[4], 1700, "dragged window position restored")
+equal(experience.View.Frame.TitleText:GetText(), "Experience", "experience title uses only the module name")
+equal(honor.View.Frame.TitleText:GetText(), "Honor", "honor title uses only the module name")
+equal(reputation.View.Frame.TitleText:GetText(), "Reputation", "reputation title uses only the module name")
+equal(experience.View.Frame:GetWidth(), 180, "compact panel width")
+equal(experience.View.Frame:GetHeight(), 94, "compact panel height")
+equal(experience.View.DetailsButton, nil, "details toggle removed")
+equal(experience.View.DetailsFrame, nil, "expandable details removed")
+equal(experience.View.ToggleStartButton.point[2], experience.View.OptionsButton, "start button leaves room for the footer gear")
 
 -- Close visibility follows panel geometry, including child controls and its protruding corner.
 do
-    local panel, close = experience.Frame, experience.Frame.CloseButton
+    local panel, close = experience.View.Frame, experience.View.Frame.CloseButton
     local savedCursorX, savedCursorY = cursorX, cursorY
     local function hoverAt(x, y, seconds)
         cursorX, cursorY = x * panel:GetEffectiveScale(), y * panel:GetEffectiveScale()
@@ -369,32 +616,31 @@ do
     equal(close:GetAlpha(), 0, "close remains transparent outside panel")
     cursorX, cursorY = savedCursorX, savedCursorY
 end
-local panelTop, panelLeft = experience.Frame:GetTop(), experience.Frame:GetLeft()
-experience.Frame.scripts.OnEnter(experience.Frame)
+local panelTop, panelLeft = experience.View.Frame:GetTop(), experience.View.Frame:GetLeft()
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 equal(GameTooltip:GetText(), "Experience", "session tooltip title")
 equal(GameTooltip.singleLines[1], "Not started", "idle session status")
 equal(GameTooltip.lines.Duration, "00:00", "idle duration")
 equal(GameTooltip.lines["Total XP"], "0", "idle XP total")
 equal(GameTooltip.lines["XP/h"], "0", "idle hourly rate")
 equal(GameTooltip.lines["XP/min"], "0", "idle minute rate")
-equal(experience.Frame:GetHeight(), 94, "hover keeps compact height")
-equal(experience.Frame:GetTop(), panelTop, "hover preserves panel top")
-equal(experience.Frame:GetLeft(), panelLeft, "hover preserves panel left")
-experience.Frame.scripts.OnLeave()
+equal(experience.View.Frame:GetHeight(), 94, "hover keeps compact height")
+equal(experience.View.Frame:GetTop(), panelTop, "hover preserves panel top")
+equal(experience.View.Frame:GetLeft(), panelLeft, "hover preserves panel left")
+experience.View.Frame.scripts.OnLeave()
 equal(GameTooltip:IsShown(), false, "leaving panel hides session tooltip")
-experience.OptionsButton.scripts.OnEnter(experience.OptionsButton)
-equal(GameTooltip:GetText(), "Options", "gear tooltip identifies options")
-equal(table.concat(experience.OptionsButton.Icon.texCoords, ","), "0,1,0,1", "gear displays its entire texture")
+equal(experience.View.OptionsButton.scripts.OnEnter, nil, "gear has no tooltip hint")
+equal(table.concat(experience.View.OptionsButton.Icon.texCoords, ","), "0,1,0,1", "gear displays its entire texture")
 for name, module in pairs(PerHour.Modules) do
-    equal(table.concat(module.RestoreIndicator.Border.vertexColor, ","),
-        table.concat(module.OptionsButton.Border.vertexColor, ","), name .. " uses the same gold for both circular borders")
-    equal(module.RestoreIndicator.Border ~= module.OptionsButton.Border, true, name .. " keeps circular artwork independent")
+    equal(table.concat(module.View.RestoreIndicator.Border.vertexColor, ","),
+        table.concat(module.View.OptionsButton.Border.vertexColor, ","), name .. " uses the same gold for both circular borders")
+    equal(module.View.RestoreIndicator.Border ~= module.View.OptionsButton.Border, true, name .. " keeps circular artwork independent")
 end
-experience.Frame.CloseButton.scripts.OnClick()
-equal(experience.Frame:IsShown(), false, "close button hides panel")
-equal(experience:IsShown(), false, "close button saves visibility")
-experience:SetIsShown(true)
-experience.Frame:Show()
+experience.View.Frame.CloseButton.scripts.OnClick()
+equal(experience.View.Frame:IsShown(), false, "close button hides panel")
+equal(experience.Settings:Get("isShown"), false, "close button saves visibility")
+experience.Settings:Set("isShown", true)
+experience.View.Frame:Show()
 local minimapButton = PerHour.MinimapButton
 equal(minimapButton.events.ADDON_LOADED, nil, "initialize once")
 equal(minimapButton:IsShown(), true, "minimap button visible")
@@ -402,24 +648,554 @@ equal(minimapButton:IsMenuOpen(), false, "menu starts closed")
 equal(PerHourAccount_Settings.minimap.angle, math.rad(225), "default minimap position")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
-equal(minimapButton.menuDescription.title, "Per Hour", "native menu title")
+equal(minimapButton.menuDescription.title, "Panels", "native menu title")
 equal(#minimapButton.menuDescription.items, 3, "all modules in menu")
 local experienceItem = minimapButton.menuDescription.items[1]
 equal(experienceItem.text, "Experience", "stable alphabetical menu order")
 equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
 experienceItem.callback(experienceItem.data)
-equal(experience.Frame:IsShown(), false, "menu hides module")
-equal(experience:IsShown(), false, "menu saves hidden module")
+equal(experience.View.Frame:IsShown(), false, "menu hides module")
+equal(experience.Settings:Get("isShown"), false, "menu saves hidden module")
 equal(experienceItem.isSelected(experienceItem.data), false, "menu check updates after hide")
 experienceItem.callback(experienceItem.data)
-equal(experience.Frame:IsShown(), true, "menu shows module")
-equal(experience:IsShown(), true, "menu saves visible module")
+equal(experience.View.Frame:IsShown(), true, "menu shows module")
+equal(experience.Settings:Get("isShown"), true, "menu saves visible module")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), false, "slash closes menu")
-minimapButton.scripts.OnMouseDown(minimapButton)
+local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
+mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
-minimapButton.scripts.OnMouseDown(minimapButton)
+equal(minimapButton.nativeMouseDownCalls, nativeMouseDownCalls + 1, "left click calls native menu handler exactly once")
+equal(#minimapButton.menuDescription.items, 3, "left click opens all three module options")
+mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
+
+-- Right-click opens a reusable settings panel without toggling the module menu.
+do
+    equal(PerHour.SettingsPanel.Frame, nil, "settings panel is created on demand")
+    mouseClick(minimapButton, "MiddleButton")
+    equal(PerHour.SettingsPanel.Frame, nil, "other mouse buttons do not open settings")
+    mouseClick(minimapButton, "LeftButton")
+    minimapButton.scripts.OnEnter(minimapButton)
+    equal(minimapButton:IsMenuOpen(), true, "left-button release does not toggle menu again")
+    equal(PerHour.SettingsPanel.Frame, nil, "left-button release does not open settings")
+    mouseClick(minimapButton, "RightButton")
+    local panel = PerHour.SettingsPanel.Frame
+    equal(panel ~= nil, true, "registered right mouse-down delivers settings action")
+    equal(table.concat(minimapButton.mouseButtons, ","),
+        "LeftButtonDown,LeftButtonUp,RightButtonDown,RightButtonUp", "minimap accepts both mouse buttons")
+    equal(panel:IsShown(), true, "right-click opens settings")
+    equal(minimapButton:IsMenuOpen(), false, "opening settings closes module menu")
+    equal(minimapButton.Tooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
+    equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
+    equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
+    equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
+    equal(panel:GetHeight(), 274, "settings height includes the indented reputation subfield")
+    equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
+    equal(#panel.Fields, 1, "settings contains one form group")
+    equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
+    equal(#panel.Fields[1].Fields, 3, "panels contains one row per module")
+    equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
+    equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
+    equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
+    local row = panel.Fields[1].Fields[1]
+    local visibility = row.Fields[1]
+    equal(row.Label:GetText(), "Experience", "shared label identifies the module")
+    equal(table.concat(row.Label.textColor, ","), "1,0.82,0", "field labels are gold")
+    equal(#row.Fields, 2, "module row contains visibility and rate controls")
+    equal(visibility:GetWidth() >= visibility.Control:GetWidth(), true, "checkbox fits its own click area")
+    equal(row.Fields[2].point[4] >= visibility:GetWidth(), true, "rate select starts after the checkbox click area")
+    equal(rawget(visibility, "Label"), nil, "inline checkbox uses the shared row label")
+    equal(rawget(row.Fields[2], "Label"), nil, "inline select uses the shared row label")
+    equal(visibility.Control:GetChecked(), true, "visibility control reads the saved setting")
+    visibility.Control:Click()
+    equal(visibility:GetValue(), false, "checkbox updates its value")
+    equal(experience.View.Frame:IsShown(), false, "checkbox immediately hides the XP panel")
+    equal(experience.Settings:Get("isShown"), false, "checkbox persists hidden visibility")
+    visibility.scripts.OnMouseUp(visibility, "LeftButton")
+    equal(visibility:GetValue(), true, "checkbox area toggles visibility back on")
+    equal(experience.View.Frame:IsShown(), true, "checkbox area immediately shows the XP panel")
+    equal(experience.Settings:Get("isShown"), true, "checkbox area persists visible state")
+    equal(experience.State.HasStarted, false, "visibility does not start tracking")
+    equal(honor.Settings:Get("isShown"), false, "XP control preserves honor visibility")
+    equal(reputation.Settings:Get("isShown"), false, "XP control preserves reputation visibility")
+    equal(row.Fields[2]:GetValue(), "hour", "rate control defaults to per hour")
+    local item = minimapButton.menuDescription.items[1]
+    item.callback(item.data)
+    equal(visibility:GetValue(), false, "open settings follow minimap menu changes")
+    item.callback(item.data)
+    equal(visibility:GetValue(), true, "open settings follow the menu showing a panel")
+    experience.View.Frame.CloseButton:Click()
+    equal(visibility:GetValue(), false, "open settings follow the tracking panel X")
+    visibility.Control:Click()
+    equal(panel.CloseButton:GetAlpha(), 1, "settings X stays visible without hovering")
+    equal(panel.CloseButton.scripts.OnUpdate, nil, "always-visible X does not poll cursor")
+    equal(panel.Actions.close:GetText(), "Close", "footer action closes settings")
+    equal(rawget(panel.Actions.close, "Indicator"), nil, "ordinary footer button has no tracking indicator")
+    near(panel.Actions.close:GetWidth(), 544 * 0.3, "close uses thirty percent of footer width")
+    panel.ActionBar.scripts.OnSizeChanged(panel.ActionBar, 330)
+    near(panel.Actions.close:GetWidth(), 330 * 0.3, "close proportion follows the visible background width")
+    equal(table.concat(panel.dragButtons, ","), "LeftButton", "settings supports left-button dragging")
+    equal(panel.Fields[1].scripts.OnDragStart, nil, "field does not start panel dragging")
+    panel.scripts.OnDragStart(panel)
+    equal(panel.moving, true, "settings background starts dragging")
+    panel.scripts.OnDragStop(panel)
+    equal(panel.moving, false, "settings drag stops on release")
+    panel.scripts.OnDragStart(panel)
+    panel.Actions.close:Click()
+    equal(panel:IsShown(), false, "footer closes settings")
+    equal(panel.moving, false, "closing settings stops dragging")
+    local frameCount = #frames
+    mouseClick(minimapButton, "RightButton")
+    equal(PerHour.SettingsPanel.Frame, panel, "reopening reuses settings panel")
+    equal(#frames, frameCount, "reopening creates no duplicate controls")
+    mouseClick(minimapButton, "RightButton")
+    equal(panel:IsShown(), true, "right-click keeps already-open settings visible")
+    panel.CloseButton:Click()
+    equal(panel:IsShown(), false, "X closes settings")
+    equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
+end
+
+-- The reputation subfield controls the game's watched faction, independently of panel visibility.
+do
+    local settings = PerHour.SettingsPanel
+    local originalWatched = watched
+    settings:Show()
+    local field = settings.ReputationField
+    local row = settings.Frame.Fields[1].Fields[3]
+    equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
+    equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
+    equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
+    equal(row.SubfieldStack.points.TOPLEFT[4], 16, "subfield label is indented sixteen pixels")
+    equal(row:GetHeight(), 72, "parent height includes the subfield and its spacing")
+    equal(row.ControlArea.point[1], "TOPRIGHT", "parent controls stay on their original row")
+    equal(field:GetValue(), 72, "selector reads the game's watched faction")
+    equal(field.Control:GetText(), "Stormwind", "selector displays the watched faction name")
+    local choices = field.Control.menuDescription.items
+    equal(field.Control.menuDescription.maxScrollExtent, 300, "long reputation lists use native scrolling")
+    equal(#choices, 5, "selector includes None and all trackable reputations")
+    equal(choices[1].text, "None", "selector offers clearing the watched faction")
+    equal(choices[2].data, 999, "headers with reputation are trackable")
+    equal(choices[3].data, 47, "nested collapsed factions are available")
+    equal(choices[5].data, 576, "inactive collapsed factions are available")
+    for _, data in ipairs(factionRows(true)) do
+        if data.isHeader then equal(data.isCollapsed, true, "enumeration restores " .. data.name) end
+    end
+    local shown = reputation.Settings:Get("isShown")
+    choices[3].callback(choices[3].data)
+    equal(watched.factionID, 47, "addon selection changes the game's watched faction by ID")
+    equal(field:GetValue(), 47, "addon selection follows the authoritative game value")
+    equal(reputation.Settings:Get("isShown"), shown, "selecting a reputation preserves panel visibility")
+    equal(reputation.State.HasStarted, false, "selecting a reputation does not start tracking")
+    C_Reputation.SetWatchedFactionByID(576)
+    equal(field:GetValue(), 576, "open settings follow changes made through the game")
+    equal(field.Control:GetText(), "Timbermaw Hold", "external changes update the displayed name")
+    field:SetValue(0)
+    equal(watched, nil, "None clears the game's watched faction")
+    equal(field.Control:GetText(), "None", "cleared faction displays None")
+    watched = { factionID = 1234, name = "New faction", currentStanding = 0 }
+    event("UPDATE_FACTION")
+    equal(field:GetValue(), 1234, "watched factions absent from the list still display correctly")
+    equal(field.Control:GetText(), "New faction", "missing list entries use the watched faction name")
+    settings.Frame:Hide()
+    watched = originalWatched
+    event("UPDATE_FACTION")
+    settings:Show()
+    equal(field:GetValue(), 72, "reopening settings rereads changes made while closed")
+    tick(0)
+    local newFaction = { name = "Discovered faction", factionID = 1235, currentStanding = 0 }
+    table.insert(factions, newFaction)
+    event("UPDATE_FACTION")
+    field:SetValue(1235)
+    equal(watched, newFaction, "newly discovered reputations become selectable while settings are open")
+    field:SetValue(72)
+    click(reputation)
+    watched.currentStanding = watched.currentStanding + 100
+    tick(2)
+    equal(reputation.State.Element, 100, "tracking still records gains after using the selector")
+    field:SetValue(47)
+    tick(2)
+    equal(reputation.State.HasStarted, false, "switching through settings keeps the existing session reset behavior")
+    equal(reputation.State.Element, 0, "switching factions never combines their totals")
+    table.remove(factions)
+    watched = originalWatched
+    settings.Frame:Hide()
+end
+
+-- Display rate choices apply independently without changing tracking state or saved sessions.
+do
+    local settings = PerHour.SettingsPanel
+    local savedSessions = PerHourCharacter_Values
+    local angle = PerHour.Stores.Settings:GetMinimapAngle()
+    settings:Show()
+    equal(settings.AngleField, nil, "settings no longer expose a minimap angle control")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local field = settings.RateFields[module.Name]
+        local state = module.State
+        local minute, hour = state.ElementPerMinute, state.ElementPerHour
+        local total, duration, started, paused = state.Element, state.Time, state.HasStarted, state.HasPaused
+        state.ElementPerMinute, state.ElementPerHour = 123.45, 7407
+        local shown = module.Settings:Get("isShown")
+        equal(field:GetValue(), "hour", module.Name .. " defaults to hourly display")
+        equal(field.Selector.template, "SettingsDropdownWithButtonsTemplate", "rate uses the native select")
+        mouseClick(field.Control, "LeftButton")
+        local choices = field.Control.menuDescription.items
+        equal(#choices, 2, "rate select offers hour and minute")
+        choices[2].callback(choices[2].data)
+        equal(module.Settings:Get("isShown"), shown, "changing the inline rate preserves visibility")
+        equal(settings.ModuleFields[module.Name]:GetValue(), shown, "changing the inline rate preserves its adjacent checkbox")
+        equal(module.Settings:Get("rate"), "minute", module.Name .. " persists its minute preference")
+        equal(module.View.RateValue:GetText(), "123", module.Name .. " displays its per-minute value")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/min", module.Name .. " displays its minute unit")
+        for _, other in ipairs({ experience, honor, reputation }) do
+            if other ~= module then
+                equal(other.Settings:Get("rate"), "hour", "rate selection preserves " .. other.Name)
+            end
+        end
+        field:SetValue("day")
+        equal(module.Settings:Get("rate"), "minute", "unknown rate options do not change preferences")
+        field.Selector.DecrementButton:Click()
+        equal(module.View.RateValue:GetText(), "7,407", module.Name .. " immediately returns to the hourly value")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/h", module.Name .. " returns to the hourly unit")
+        field.Selector.IncrementButton:Click()
+        equal(module.View.RateValue:GetText(), "123", "native stepper switches back to per minute")
+        settings.Frame:Hide()
+        settings:Show()
+        equal(field:GetValue(), "minute", "reopening reads the saved rate")
+        equal(field.Control:GetText(), "Per minute", "reopening restores the native select label")
+        state.ElementPerMinute, state.ElementPerHour = 1000000000000, 60000000000000
+        PerHour.Displayer:RefreshRate(module)
+        equal(abbreviatedValue, state.ElementPerMinute, "abbreviation uses the selected minute rate")
+        equal(module.View.RateValue:GetText(), "1T", "selected rate keeps overflow abbreviation")
+        equal(module.View.RateFrame:GetWidth() <= module.View.Frame:GetWidth() - 30, true, "rate and selected unit fit")
+        state.ElementPerMinute, state.ElementPerHour = minute, hour
+        field:SetValue("hour")
+        equal(state.Element, total, "display changes preserve session totals")
+        equal(state.Time, duration, "display changes preserve active duration")
+        equal(state.HasStarted, started, "display changes preserve started state")
+        equal(state.HasPaused, paused, "display changes preserve pause state")
+        equal(state.ElementPerMinute, minute, "display changes preserve the calculated minute rate")
+        equal(state.ElementPerHour, hour, "display changes preserve the calculated hourly rate")
+    end
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), angle, "rate controls preserve the minimap position")
+    equal(PerHourCharacter_Values, savedSessions, "preference changes leave saved sessions untouched")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local field = settings.ModuleFields[module.Name]
+        local shown = module.Settings:Get("isShown")
+        field:SetValue(not shown)
+        equal(module.View.Frame:IsShown(), not shown, module.Name .. " field targets its own panel")
+        equal(module.Settings:Get("isShown"), not shown, module.Name .. " field saves its own preference")
+        equal(module.State.HasStarted, false, module.Name .. " visibility does not start a session")
+        field:SetValue(shown)
+    end
+    click(experience)
+    settings.ModuleFields.Experience:SetValue(false)
+    equal(experience.State.HasStarted, true, "hiding through settings keeps an active session running")
+    equal(experience.State.HasPaused, false, "hiding through settings does not pause tracking")
+    settings.ModuleFields.Experience:SetValue(true)
+    BaseModule:ResetModule(experience)
+    settings.Frame:Hide()
+end
+
+-- Generic form controls remain usable without persistence or tracking side effects.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Form controls", width = 560, form = true })
+    panel:AddField(PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Tracking", fields = {
+            { type = "checkbox", label = "Example option", value = false },
+            { type = "select", label = "Display rate", value = "hour", options = {
+                { value = "hour", label = "Per hour" }, { value = "minute", label = "Per minute" },
+            } },
+            { type = "text", label = "Session name", value = "Example session" },
+        },
+    }))
+    panel:AddField(PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Appearance", fields = {
+            { type = "slider", label = "Panel opacity", value = 80, min = 25, max = 100, step = 5, suffix = "%" },
+            { type = "slider", label = "Decimal places", value = 1, min = 0, max = 3, step = 1 },
+        },
+    }))
+    local tracking, appearance = panel.Fields[1], panel.Fields[2]
+    local selection, text = tracking.Fields[2], tracking.Fields[3]
+    equal(tracking.Fields[1].Control.template, "SettingsCheckboxTemplate", "checkbox uses Forever Options template")
+    equal(tracking.Fields[1].Control:GetWidth(), 30, "checkbox keeps native width")
+    equal(tracking.Fields[1].Control:GetHeight(), 29, "checkbox keeps native height")
+    equal(selection.Selector.template, "SettingsDropdownWithButtonsTemplate", "select uses Forever Options dropdown")
+    mouseClick(selection.Control, "LeftButton")
+    equal(selection.Control:IsMenuOpen(), true, "select uses the native mouse-down menu")
+    local choices = selection.Control.menuDescription.items
+    equal(#choices, 2, "select offers both example rates")
+    equal(choices[1].isSelected(choices[1].data), true, "select marks its current value")
+    choices[2].callback(choices[2].data)
+    equal(selection:GetValue(), "minute", "select changes local field value")
+    equal(selection.Control:GetText(), "Per minute", "select updates displayed label")
+    equal(choices[1].isSelected(choices[1].data), false, "old choice becomes unselected")
+    selection.Selector.DecrementButton:Click()
+    equal(selection:GetValue(), "hour", "native dropdown left stepper selects previous choice")
+    selection.Selector.IncrementButton:Click()
+    equal(selection:GetValue(), "minute", "native dropdown right stepper selects next choice")
+    selection:SetValue("unavailable")
+    equal(selection:GetValue(), "minute", "select ignores values outside its options")
+    selection.Control:Hide()
+    equal(selection.Control:IsMenuOpen(), false, "hiding selection closes its menu")
+    selection.Control:Show()
+    equal(text.Control.autoFocus, false, "text field does not capture typing when form opens")
+    text.Control:SetFocus()
+    text.Control:SetText("Demo run")
+    text.Control.scripts.OnEnterPressed(text.Control)
+    equal(text:GetValue(), "Demo run", "Enter commits text")
+    equal(text.Control.focused, false, "Enter releases text focus")
+    text.Control:SetFocus()
+    text.Control:SetText("Discard this")
+    text.Control.scripts.OnEscapePressed(text.Control)
+    equal(text:GetValue(), "Demo run", "Escape keeps committed text")
+    equal(text.Control:GetText(), "Demo run", "Escape restores displayed text")
+    text.Control:SetFocus()
+    text.Control:SetText("Another example")
+    text.Control:ClearFocus()
+    equal(text:GetValue(), "Another example", "losing focus commits text")
+    local opacity, decimals = appearance.Fields[1], appearance.Fields[2]
+    equal(opacity.Control.template, "MinimalSliderWithSteppersTemplate", "numeric field uses Forever Options slider")
+    equal(opacity.Control:GetWidth(), 250, "slider keeps native width")
+    equal(opacity.Control:GetHeight(), 40, "slider keeps native height")
+    equal(opacity.Control.Slider.minimum, 25, "opacity has explicit minimum")
+    equal(opacity.Control.Slider.maximum, 100, "opacity has explicit maximum")
+    equal(opacity.Control.Slider.valueStep, 5, "opacity configures slider step")
+    equal(opacity.ValueText:GetText(), "80%", "slider shows value and suffix")
+    opacity.Control:SetValue(63)
+    equal(opacity:GetValue(), 65, "slider dragging snaps to its configured step")
+    opacity.Control.Back:Click()
+    equal(opacity:GetValue(), 60, "slider left arrow decrements one step")
+    opacity.Control.Forward:Click()
+    equal(opacity:GetValue(), 65, "slider right arrow increments one step")
+    opacity:SetValue(500)
+    equal(opacity:GetValue(), 100, "numeric value cannot exceed maximum")
+    equal(opacity.Control.Forward.enabled, false, "increment is disabled at maximum")
+    opacity:SetValue(-50)
+    equal(opacity:GetValue(), 25, "numeric value cannot fall below minimum")
+    equal(opacity.Control.Back.enabled, false, "decrement is disabled at minimum")
+    decimals:SetValue(2.8)
+    equal(decimals:GetValue(), 3, "decimal count uses integer steps")
+    equal(experience.State.HasStarted, false, "form examples never start tracking")
+    equal(experience.Settings:Get("isShown"), true, "form examples never hide tracking")
+    equal(PerHourAccount_Settings.opacity, nil, "opacity example is not persisted")
+    panel:Hide()
+end
+
+-- Subfields resize the form and keep later rows below their nested controls.
+do
+    local changed = 0
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Subfields", width = 560, form = true })
+    local group = PerHour.Components:CreateFormGroup(panel.Content, { title = "Options", fields = {
+        { type = "checkbox", label = "Parent", value = true, subfields = {
+            { type = "select", label = "Child", value = 1,
+                options = { { value = 1, label = "First" } },
+                onChanged = function() changed = changed + 1 end },
+        } },
+        { type = "text", label = "Following row", value = "Example" },
+    } })
+    panel:AddField(group)
+    local parent, following = group.Fields[1], group.Fields[2]
+    local child = parent.Subfields[1]
+    local height = panel:GetHeight()
+    equal(following.points.TOPLEFT[5], -80, "later rows leave space for the subfield")
+    equal(parent.ControlArea.points.TOPRIGHT[5], 0, "parent control stays at the top when expanded")
+    child:SetOptions({ { value = 2, label = "Replacement" } }, 2)
+    equal(child:GetValue(), 2, "dynamic options can replace the previous selection")
+    equal(child.Control:GetText(), "Replacement", "dynamic options refresh the displayed name")
+    equal(changed, 0, "refreshing external options does not fire the user callback")
+    child:SetValue(1)
+    equal(child:GetValue(), 2, "removed options cannot be selected")
+    child:AddSubfield({ type = "text", label = "Grandchild", value = "Nested" })
+    equal(panel:GetHeight(), height + 40, "nested subfields resize the enclosing panel")
+    equal(following.points.TOPLEFT[5], -120, "nested controls push later rows down")
+    parent:AddSubfield({ type = "checkbox", label = "Second child", value = false })
+    equal(panel:GetHeight(), height + 80, "adding another subfield grows the panel again")
+    equal(following.points.TOPLEFT[5], -160, "additional children preserve row spacing")
+    equal(parent:GetValue(), true, "subfields preserve their parent's value")
+    panel:Hide()
+end
+
+-- Composite rows also support text controls with independent values and callbacks.
+do
+    local monitoring = PerHour.Components:CreateFormField(UIParent, {
+        type = "group", label = "Experience", fields = {
+            { type = "checkbox", label = "Show Experience", value = true },
+            { type = "select", options = { { value = "hour", label = "Per hour" } } },
+        },
+    })
+    monitoring:SetWidth(500)
+    local checkbox, rate = monitoring.Fields[1], monitoring.Fields[2]
+    local previous, nextButton = rate.Selector.DecrementButton, rate.Selector.IncrementButton
+    equal(previous:GetLeft() >= rate:GetLeft(), true, "native left stepper stays inside its field")
+    equal(previous:GetLeft() >= checkbox.Control:GetLeft() + checkbox.Control:GetWidth() + 8,
+        true, "native left stepper clears the adjacent checkbox")
+    equal(nextButton:GetLeft() + nextButton:GetWidth() <= rate:GetLeft() + rate:GetWidth(),
+        true, "native right stepper stays inside its field")
+    local enabledChanges, nameChanges = 0, 0
+    local row = PerHour.Components:CreateFormField(UIParent, {
+        type = "group", label = "Session", spacing = 12, fields = {
+            { type = "checkbox", label = "Enable session", value = false,
+                onChanged = function() enabledChanges = enabledChanges + 1 end },
+            { type = "text", value = "Example", controlWidth = 240,
+                onChanged = function() nameChanges = nameChanges + 1 end },
+        },
+    })
+    local enabled, name = row.Fields[1], row.Fields[2]
+    equal(enabledChanges + nameChanges, 0, "composite initialization does not fire callbacks")
+    enabled.Control:Click()
+    equal(enabledChanges, 1, "inline checkbox fires its own callback")
+    equal(name:GetValue(), "Example", "inline checkbox leaves sibling text unchanged")
+    name.Control:SetText("New session")
+    name.Control.scripts.OnEnterPressed(name.Control)
+    equal(name:GetValue(), "New session", "inline text commits edits")
+    equal(nameChanges, 1, "inline text fires its own callback")
+    equal(enabled:GetValue(), true, "inline text leaves sibling checkbox unchanged")
+    enabled:SetValue(false, true)
+    equal(enabledChanges, 1, "inline controls support silent refresh")
+    equal(name.point[4], enabled:GetWidth() + 12, "composite row respects custom spacing")
+    equal(row.ControlArea:GetWidth(), enabled:GetWidth() + 12 + 240, "composite row fits custom child widths")
+end
+
+-- Changing a group's fields reflows subsequent groups and the enclosing panel.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Form", width = 500, form = true })
+    local first = PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "First", fields = { { type = "text", label = "Name", value = "Demo" } },
+    })
+    local second = PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Second", fields = { { type = "checkbox", label = "Enabled", value = false } },
+    })
+    panel:AddField(first)
+    panel:AddField(second)
+    equal(panel:GetHeight(), 264, "form fits two single-field groups")
+    equal(second.point[5], -92, "second group follows first with space")
+    first:AddField({ type = "text", label = "Another name", value = "Example" })
+    equal(panel:GetHeight(), 304, "adding grouped field resizes enclosing panel")
+    equal(second.point[5], -132, "adding a field repositions following group")
+    first.Fields[1]:SetHeight(48)
+    equal(panel:GetHeight(), 320, "resizing grouped field propagates to panel")
+    equal(second.point[5], -148, "resizing a field repositions following group")
+    panel:Hide()
+    for _, limits in ipairs({
+        { max = 100 }, { min = 0 }, { min = 10, max = 10 },
+        { min = 20, max = 10 }, { min = 0, max = math.huge }, { min = 0, max = 10, step = 0 },
+    }) do
+        limits.type, limits.label = "slider", "Invalid bounds"
+        local ok = pcall(function() PerHour.Components:CreateFormField(UIParent, limits) end)
+        equal(ok, false, "numeric fields reject missing or invalid bounds and steps")
+    end
+    local changes = 0
+    local slider = PerHour.Components:CreateFormField(UIParent, {
+        type = "slider", label = "Fraction", value = 0.5, min = -1, max = 1, step = 0.1, format = "%.1f",
+        onChanged = function() changes = changes + 1 end,
+    })
+    equal(changes, 0, "initial value does not fire change callback")
+    slider.Control:SetValue(0.23)
+    near(slider:GetValue(), 0.2, "numeric sliders also support fractional steps")
+    equal(slider.ValueText:GetText(), "0.2", "slider formats fractional values")
+    equal(changes, 1, "normalizing a slider fires change callback only once")
+    slider:Hide()
+end
+
+-- Title size and decoration are independent of the form layout.
+do
+    local default = PerHour.Components:CreatePanel(UIParent, { title = "Default", width = 360 })
+    equal(default.TitleText.template, "GameFontNormalLarge", "default title works without a form")
+    equal(rawget(default, "TitleBox"), nil, "title box is opt-in")
+    local small = PerHour.Components:CreatePanel(UIParent, {
+        title = "Small form", width = 360, form = true, titleSize = "small",
+    })
+    equal(small.TitleText.template, "GameFontHighlight", "form can use a small title")
+    equal(small:GetHeight(), default:GetHeight(), "small form retains room for form content")
+    for _, size in ipairs({ "small", "default" }) do
+        local panel = PerHour.Components:CreatePanel(UIParent, {
+            title = "A long title in a narrow panel", width = 180, titleSize = size, titleBox = true,
+        })
+        local box = panel.TitleBox
+        equal(panel.TitleText, box.Text, "boxed title exposes the native label")
+        if size == "small" then
+            equal(box:GetWidth(), panel:GetWidth() - 30, "small header fills the row with footer insets")
+        else
+            equal(box:GetWidth() <= panel:GetWidth() - 48, true, "long box leaves room for corners and close button")
+        end
+        equal(panel.TitleText:GetWidth(), box:GetWidth() - box.headerTextPadding, "long label stays inside box")
+        if size == "small" then
+            equal(box.point[1], "TOPLEFT", "small boxed header starts at the left inset")
+            equal(box.point[2], panel.Border.Bg, "small header shares the footer background anchor")
+            equal(box.point[4], 8, "small header shares the footer inset")
+        else
+            equal(box.point[5], 11, "default box retains the native centered anchor")
+        end
+        equal(panel.TitleText.template, size == "small" and "GameFontHighlight" or "GameFontNormalLarge",
+            "boxed title honors the selected size")
+        panel:SetSize(560, panel:GetHeight())
+        panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
+        equal(box:GetWidth(), size == "small" and panel:GetWidth() - 30
+            or panel.TitleText:GetStringWidth() + box.headerTextPadding,
+            "box follows its title style when the panel grows")
+        panel:Hide()
+    end
+    equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
+    for _, module in pairs(PerHour.Modules) do
+        local panel = module.View.Frame
+        equal(rawget(panel, "BrandText"), nil, "tracker has no branding")
+        equal(rawget(panel, "BrandPrefix"), nil, "tracker has no branding prefix")
+        equal(panel.TitleText:GetWidth() >= panel.TitleText:GetStringWidth(), true,
+            "branding does not truncate the module title")
+        equal(module.View.RateFrame.point[2].points.TOP[5], 0, "branding does not push the rate down")
+    end
+    equal(default.BrandText:GetText(), "powered by Per Hour", "default panel includes the full attribution")
+    equal(default.BrandText.template, "GameFontDisableSmall", "default branding keeps its small font")
+    equal(select(2, default.BrandText:GetFont()), 9, "default branding keeps its font size")
+    default:Hide()
+    small:Hide()
+end
+
+-- Shared panels size multiple fields and support icon actions with or without a menu.
+do
+    local enabled, directClicks, observedValue = false, 0, nil
+    local panel = PerHour.Components:CreatePanel(UIParent, {
+        title = "Configurable panel", width = 360, titleSize = "small", closeAlwaysVisible = true,
+        contentSpacing = 20,
+        actions = {
+            { key = "direct", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
+                onClick = function() directClicks = directClicks + 1 end },
+            { key = "toggle", type = "toggle", texture = "Interface\\Icons\\Trade_Engineering",
+                onTexture = "on", offTexture = "off", isOn = function() return enabled end,
+                onToggle = function(value) enabled = value end },
+        },
+    })
+    local first = PerHour.Components:CreateCheckbox(panel.Content, {
+        label = "First", onChanged = function(value) observedValue = value end,
+    })
+    panel:AddField(first)
+    first.Checkbox:Click()
+    equal(observedValue, true, "checkbox callback receives selected value")
+    local second = PerHour.Components:CreateCheckbox(panel.Content, { label = "Second" })
+    panel:AddField(second)
+    equal(panel:GetHeight(), 162, "custom header and footer spacing participates in field stack height")
+    equal(panel:GetHeight() - panel.ContentHeight - panel.Content.point[5], 48,
+        "custom spacing reserves twenty pixels after the header area")
+    equal(panel.Content.point[5] - panel.FooterSize, 22, "custom footer spacing follows header spacing plus two")
+    equal(second.point[5], -36, "fields are stacked with consistent spacing")
+    equal(panel.Actions.direct.kind, "Button", "direct circular action has no dropdown")
+    panel.Actions.direct:Click()
+    equal(directClicks, 1, "direct icon invokes its configured action")
+    equal(panel.Actions.toggle.Icon.texture, "off", "toggle initially displays off artwork")
+    panel.Actions.toggle:Click()
+    equal(enabled, true, "toggle switches caller-owned state on")
+    equal(panel.Actions.toggle.Icon.texture, "on", "toggle refreshes on artwork")
+    equal(table.concat(panel.Actions.toggle.Icon.vertexColor, ","), "0.2,1,0.2", "toggle indicates enabled state")
+    panel.Actions.toggle:Click()
+    equal(enabled, false, "toggle switches state off")
+    panel:Hide()
+    enabled = true
+    panel:Show()
+    equal(panel.Actions.toggle.Icon.texture, "on", "reopening refreshes externally changed toggle state")
+    panel.CloseButton:Click()
+    equal(panel:IsShown(), false, "shared panels close by default")
+end
 SlashCmdList.PERHOUR()
 minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
@@ -431,44 +1207,55 @@ cursorX, cursorY = 200, 600
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
-PerHour.Settings:Init()
+PerHour.Stores.Settings:Init()
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
 minimapButton.scripts.OnEnter(minimapButton)
-equal(GameTooltip:GetText(), "Per Hour", "minimap tooltip title")
-equal(GameTooltip:IsShown(), true, "minimap tooltip shown")
+equal(#minimapButton.Tooltip.singleLines, 3, "minimap tooltip has only three compact action lines")
+equal(minimapButton.Tooltip.singleLines[1], "|cffffd100Left-click:|r Menu", "minimap left-click action stays on the left")
+equal(minimapButton.Tooltip.singleLines[2], "|cffffd100Right-click:|r Settings", "minimap right-click action stays on the left")
+equal(minimapButton.Tooltip.singleLines[3], "|cffffd100Drag:|r Move", "minimap drag action stays on the left")
+equal(minimapButton.Tooltip, GameNoHeaderTooltip, "minimap uses native uniform body typography")
+equal(next(minimapButton.Tooltip.lines), nil, "minimap actions do not create a spaced right column")
+equal(table.concat(experience.View.RateValue.textColor, ","), table.concat(PerHour.Theme.gold.text, ","), "rate value uses DS gold")
+equal(table.concat(experience.View.RateUnit.textColor, ","), table.concat(PerHour.Theme.gold.text, ","), "rate unit uses DS gold")
+equal(minimapButton.Tooltip:IsShown(), true, "minimap tooltip shown")
 minimapButton.scripts.OnLeave(minimapButton)
-equal(GameTooltip:IsShown(), false, "minimap tooltip hidden")
+equal(minimapButton.Tooltip:IsShown(), false, "minimap tooltip hidden")
 
 click(experience)
-equal(experience.ToggleStartButton:GetText(), "Pause", "running action is Pause")
+equal(experience.View.ToggleStartButton:GetText(), "Pause", "running action is Pause")
 equal(indicatorColor(experience), "0.2,1,0.2", "running indicator is green")
-experience.Frame.scripts.OnEnter(experience.Frame)
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 equal(GameTooltip.singleLines[1], "Running", "running session status")
 xp = 150
 tick(2)
-equal(experience.Element, 50, "first XP gain")
-equal(experience.ElementPerHour, 90000, "XP per hour")
-equal(experience.ElementPerHourValue:GetText(), "90,000", "fitting rates retain full precision")
-equal(experience.RateUnit:GetText(), "XP/h", "inline rate unit")
+equal(experience.State.Element, 50, "first XP gain")
+equal(experience.State.ElementPerHour, 90000, "XP per hour")
+equal(experience.View.RateValue:GetText(), "90,000", "fitting rates retain full precision")
+equal(experience.View.RateUnit:GetText(), "XP/h", "inline rate unit")
+PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
+equal(experience.View.RateValue:GetText(), "1,500", "running XP session switches to its calculated minute rate")
+equal(experience.State.HasStarted, true, "rate selection keeps a running XP session active")
+PerHour.SettingsPanel.RateFields.Experience:SetValue("hour")
 equal(GameTooltip.lines.Duration, "00:02", "hovered duration updates live")
 equal(GameTooltip.lines["Total XP"], "50", "hovered XP total updates live")
-experience.Frame.scripts.OnEnter(experience.Frame)
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 equal(GameTooltip.lines["XP/min"], "1,500", "tooltip shows per-minute rate")
 equal(GameTooltip.lines["XP/h"], "90,000", "tooltip shows full hourly rate")
-experience.Frame.scripts.OnLeave()
-experience.Frame:Hide()
+experience.View.Frame.scripts.OnLeave()
+experience.View.Frame:Hide()
 xp = 200
 tick(2)
-equal(experience.Element, 100, "XP tracks while hidden")
+equal(experience.State.Element, 100, "XP tracks while hidden")
 equal(GameTooltip:IsShown(), false, "tracking does not reopen a dismissed tooltip")
-experience.Frame:Show()
-experience.Frame.scripts.OnEnter(experience.Frame)
+experience.View.Frame:Show()
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 xp = 250
 click(experience)
-equal(experience.Element, 150, "gain immediately before pause")
+equal(experience.State.Element, 150, "gain immediately before pause")
 equal(GameTooltip.lines["Total XP"], "150", "pause refreshes tooltip immediately")
 equal(GameTooltip.singleLines[1], "Paused", "tooltip reflects pause immediately")
-equal(experience.ToggleStartButton:GetText(), "Resume", "paused action is Resume")
+equal(experience.View.ToggleStartButton:GetText(), "Resume", "paused action is Resume")
 equal(indicatorColor(experience), "1,0.8,0", "paused indicator is yellow")
 xp = 300
 tick(2)
@@ -477,104 +1264,104 @@ equal(GameTooltip.lines["Total XP"], "150", "paused tooltip excludes gains")
 xp = 350
 click(experience)
 tick(2)
-equal(experience.ToggleStartButton:GetText(), "Pause", "resume restores Pause action")
+equal(experience.View.ToggleStartButton:GetText(), "Pause", "resume restores Pause action")
 equal(indicatorColor(experience), "0.2,1,0.2", "resuming restores green indicator")
-equal(experience.Element, 150, "paused XP excluded on resume")
-equal(experience.Time, 6, "pause duration excluded")
+equal(experience.State.Element, 150, "paused XP excluded on resume")
+equal(experience.State.Time, 6, "pause duration excluded")
 equal(GameTooltip.lines.Duration, "00:06", "resumed tooltip excludes paused time")
 equal(GameTooltip.singleLines[1], "Running", "resumed tooltip status")
 level, xp, xpMax = 11, 50, 900
 tick(2)
-equal(experience.Element, 850, "level up with lower XP requirement")
+equal(experience.State.Element, 850, "level up with lower XP requirement")
 xp = { secret = true }
 tick(2)
-equal(experience.Element, 850, "secret XP ignored")
+equal(experience.State.Element, 850, "secret XP ignored")
 xp = 100
 tick(2)
-equal(experience.Element, 900, "XP resumes when readable")
+equal(experience.State.Element, 900, "XP resumes when readable")
 -- Loading screens can temporarily expose empty player progress.
 xp, xpMax = 0, 0
 tick(2)
-equal(experience.Element, 900, "loading screen adds no XP")
+equal(experience.State.Element, 900, "loading screen adds no XP")
 xp, xpMax, level = 100, 900, 11
 tick(2)
-equal(experience.Element, 900, "hearthstone does not recount accumulated XP")
+equal(experience.State.Element, 900, "hearthstone does not recount accumulated XP")
 xp = 125
 tick(2)
-equal(experience.Element, 925, "real XP after travel is counted")
+equal(experience.State.Element, 925, "real XP after travel is counted")
 -- Also tolerate incomplete snapshots after the world has loaded.
 xp, xpMax, level = 0, 0, 0
 tick(2)
 xp, xpMax, level = 125, 900, 11
 tick(2)
-equal(experience.Element, 925, "empty player snapshot does not create XP")
+equal(experience.State.Element, 925, "empty player snapshot does not create XP")
 xp = 0
 tick(2)
 xp = 125
 tick(2)
-equal(experience.Element, 925, "temporary XP regression does not create XP")
+equal(experience.State.Element, 925, "temporary XP regression does not create XP")
 xpMax = 0
 tick(2)
 xp, xpMax, level = 25, 1000, 12
 tick(2)
-equal(experience.Element, 1725, "invalid maximum does not corrupt level-up XP")
+equal(experience.State.Element, 1725, "invalid maximum does not corrupt level-up XP")
 BaseModule:ResetModule(experience)
-equal(experience.Element, 0, "reset XP")
-equal(experience.HasStarted, false, "reset stops tracker")
-equal(experience.ToggleStartButton:GetText(), "Start", "reset restores Start action")
+equal(experience.State.Element, 0, "reset XP")
+equal(experience.State.HasStarted, false, "reset stops tracker")
+equal(experience.View.ToggleStartButton:GetText(), "Start", "reset restores Start action")
 equal(indicatorColor(experience), "0.5,0.5,0.5", "reset restores gray indicator")
 equal(GameTooltip.lines["Total XP"], "0", "reset clears hovered total")
 equal(GameTooltip.lines.Duration, "00:00", "reset clears hovered duration")
 equal(GameTooltip.singleLines[1], "Not started", "reset updates hovered status")
-experience.ElementPerHour = 1000000000000
+experience.State.ElementPerHour = 1000000000000
 BaseModule:RefreshDisplayedValues(experience)
-equal(abbreviatedValue, experience.ElementPerHour, "overflow uses native number abbreviation")
-equal(experience.ElementPerHourValue:GetText(), "1T", "panel displays native abbreviated result")
-equal(experience.RateFrame:GetWidth() <= experience.Frame:GetWidth() - 16, true, "abbreviated rate and unit fit together")
-experience.Frame.scripts.OnEnter(experience.Frame)
+equal(abbreviatedValue, experience.State.ElementPerHour, "overflow uses native number abbreviation")
+equal(experience.View.RateValue:GetText(), "1T", "panel displays native abbreviated result")
+equal(experience.View.RateFrame:GetWidth() <= experience.View.Frame:GetWidth() - 16, true, "abbreviated rate and unit fit together")
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 equal(GameTooltip.lines["XP/h"], "1,000,000,000,000", "tooltip retains full abbreviated rate")
-experience.Frame.scripts.OnLeave()
+experience.View.Frame.scripts.OnLeave()
 BaseModule:ResetModule(experience)
-equal(experience.ElementPerHourValue:GetText(), "0", "reset restores full rate formatting")
+equal(experience.View.RateValue:GetText(), "0", "reset restores full rate formatting")
 
 click(reputation)
-reputation:SetIsShown(true)
-reputation.Frame:Show()
-reputation.Frame.scripts.OnEnter(reputation.Frame)
+reputation.Settings:Set("isShown", true)
+reputation.View.Frame:Show()
+reputation.View.Frame.scripts.OnEnter(reputation.View.Frame)
 equal(GameTooltip.singleLines[2], "Stormwind", "tooltip identifies tracked faction")
 watched.currentStanding = 100
 tick(2)
-equal(reputation.Element, 100, "reputation gain from zero")
+equal(reputation.State.Element, 100, "reputation gain from zero")
 watched.currentStanding = -50
 tick(2)
-equal(reputation.Element, -50, "reputation loss")
+equal(reputation.State.Element, -50, "reputation loss")
 equal(GameTooltip.lines["Total Reputation"], "-50", "tooltip includes negative reputation total")
 click(reputation)
 watched.currentStanding = 200
 click(reputation)
 tick(2)
-equal(reputation.Element, -50, "paused reputation excluded")
+equal(reputation.State.Element, -50, "paused reputation excluded")
 local original = watched
 watched = nil
 tick(4)
 tick(4)
-equal(reputation.HasStarted, true, "missing faction grace period")
+equal(reputation.State.HasStarted, true, "missing faction grace period")
 watched = original
 tick(2)
-equal(reputation.HasStarted, true, "faction restored")
+equal(reputation.State.HasStarted, true, "faction restored")
 watched = { name = "Ironforge", factionID = 47, currentStanding = 100 }
 tick(2)
-equal(reputation.HasStarted, false, "faction change stops tracker")
-equal(reputation.Element, 0, "faction change resets totals")
-equal(reputation.ToggleStartButton:GetText(), "Start", "automatic reset restores Start action")
+equal(reputation.State.HasStarted, false, "faction change stops tracker")
+equal(reputation.State.Element, 0, "faction change resets totals")
+equal(reputation.View.ToggleStartButton:GetText(), "Start", "automatic reset restores Start action")
 equal(indicatorColor(reputation), "0.5,0.5,0.5", "automatic reset restores gray indicator")
 equal(GameTooltip.singleLines[2], "No active session", "reset clears tooltip faction")
 click(reputation)
 watched = nil
 tick(10)
-equal(reputation.HasStarted, false, "missing faction timeout in real seconds")
+equal(reputation.State.HasStarted, false, "missing faction timeout in real seconds")
 click(reputation)
-equal(reputation.HasStarted, false, "start requires watched faction")
+equal(reputation.State.HasStarted, false, "start requires watched faction")
 equal(indicatorColor(reputation), "0.5,0.5,0.5", "failed start keeps gray indicator")
 
 -- Live Forever reports honor as currency 1792 while UnitHonor stays at zero.
@@ -582,20 +1369,23 @@ do
     local balance = honorBalance
     honorBalance = 118
     click(honor)
-    equal(honor.Element, 0, "starting does not count the existing honor balance")
+    equal(honor.State.Element, 0, "starting does not count the existing honor balance")
     equal(C_CurrencyInfo.GetCurrencyInfo(1792).totalEarned, 0, "live honor currency has no useful lifetime total")
     equal(UnitHonor("player"), 0, "honor-level XP stays independent of spendable honor")
     tick(2)
     changeHonor(8)
-    equal(honor.Element, 8, "an eight-point honor currency gain is captured")
-    equal(honor.ElementPerHourValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
-    equal(honor.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
+    equal(honor.State.Element, 8, "an eight-point honor currency gain is captured")
+    equal(honor.View.RateValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("minute")
+    equal(honor.View.RateValue:GetText(), "240", "active honor session displays its minute rate")
+    equal(honor.View.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
     changeHonor(-100)
-    equal(honor.Element, 8, "spending does not subtract from earned honor")
+    equal(honor.State.Element, 8, "spending does not subtract from earned honor")
     changeHonor(8)
-    equal(honor.Element, 16, "gains count even when the balance is below the starting balance")
+    equal(honor.State.Element, 16, "gains count even when the balance is below the starting balance")
+    equal(honor.View.RateValue:GetText(), "480", "currency events refresh the selected minute rate")
     event("CHAT_MSG_COMBAT_HONOR_GAIN", "Enemy slain: 8 honor.")
-    equal(honor.Element, 16, "chat announcements do not double-count currency gains")
+    equal(honor.State.Element, 16, "chat announcements do not double-count currency gains")
     for _, payload in ipairs({
         { 1901, 100, 8 }, { 1602, 100, 8 }, {}, { 1792, 100 },
         { 1792, 100, 0 }, { 1792, 100, -8 }, { 1792, 100, math.huge },
@@ -603,65 +1393,67 @@ do
         { { secret = true }, 100, 8 },
     }) do
         event("CURRENCY_DISPLAY_UPDATE", unpack(payload))
-        equal(honor.Element, 16, "unrelated, invalid and non-gain currency updates are ignored")
+        equal(honor.State.Element, 16, "unrelated, invalid and non-gain currency updates are ignored")
     end
     click(honor)
     changeHonor(8)
-    equal(honor.Element, 16, "paused currency gains are excluded")
+    equal(honor.State.Element, 16, "paused currency gains are excluded")
     click(honor)
     changeHonor(3)
-    equal(honor.Element, 19, "resuming counts only new currency gains")
+    equal(honor.State.Element, 19, "resuming counts only new currency gains")
     event("PLAYER_LEAVING_WORLD")
     changeHonor(8)
-    equal(honor.Element, 19, "currency events outside the world are excluded")
+    equal(honor.State.Element, 19, "currency events outside the world are excluded")
     event("PLAYER_ENTERING_WORLD")
     changeHonor(2)
-    equal(honor.Element, 21, "returning to the world counts new gains")
+    equal(honor.State.Element, 21, "returning to the world counts new gains")
     event("PLAYER_LOGOUT")
     equal(PerHourCharacter_Values.sessions.Honor.total, 21, "logout saves currency gains without waiting for a tracker tick")
     BaseModule:ResetModule(honor)
     changeHonor(8)
-    equal(honor.Element, 0, "reset stops currency event tracking")
+    equal(honor.State.Element, 0, "reset stops currency event tracking")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "reset preserves the selected display period")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
     honorBalance = balance
 end
 
 minimapButton.scripts.OnEnter(minimapButton)
 click(honor)
-equal(honor.ElementPerHour, 0, "zero-time start has finite rate")
+equal(honor.State.ElementPerHour, 0, "zero-time start has finite rate")
 changeHonor(25)
 tick(2)
-equal(honor.Element, 25, "honor from the currency gain event")
-equal(GameTooltip:GetText(), "Per Hour", "tracker updates preserve another owner's tooltip")
+equal(honor.State.Element, 25, "honor from the currency gain event")
+equal(minimapButton.Tooltip.singleLines[1], "|cffffd100Left-click:|r Menu", "tracker updates preserve minimap tooltip")
 minimapButton.scripts.OnLeave(minimapButton)
-honor:SetIsShown(true)
-honor.Frame:Show()
-honor.Frame.scripts.OnEnter(honor.Frame)
+honor.Settings:Set("isShown", true)
+honor.View.Frame:Show()
+honor.View.Frame.scripts.OnEnter(honor.View.Frame)
 equal(GameTooltip.lines["Total Honor"], "25", "honor tooltip uses its own unit")
-honor.Frame.scripts.OnLeave()
+honor.View.Frame.scripts.OnLeave()
 changeHonor(100)
 tick(2)
-equal(honor.Element, 125, "bonus honor")
+equal(honor.State.Element, 125, "bonus honor")
 changeHonor(325)
 tick(2)
-equal(honor.Element, 450, "currency rewards accumulate without honor-level changes")
+equal(honor.State.Element, 450, "currency rewards accumulate without honor-level changes")
 changeHonor(-500)
-equal(honor.Element, 450, "spending honor does not reduce earned totals")
+equal(honor.State.Element, 450, "spending honor does not reduce earned totals")
 event("CURRENCY_DISPLAY_UPDATE", 1792, honorBalance, { secret = true })
 tick(2)
-equal(honor.Element, 450, "secret honor ignored")
+equal(honor.State.Element, 450, "secret honor ignored")
 changeHonor(25)
 tick(2)
-equal(honor.Element, 475, "honor resumes when readable")
+equal(honor.State.Element, 475, "honor resumes when readable")
 click(honor)
 changeHonor(25)
 click(honor)
 tick(2)
-equal(honor.Element, 475, "paused honor ignored")
+equal(honor.State.Element, 475, "paused honor ignored")
 BaseModule:SendTo(honor, "Party")
 equal(sent[1][2], "PARTY", "modern chat API and channel")
-local options = honor.OptionsButton
+local options = honor.View.OptionsButton
 options:SetMenuOpen(true)
-local announce = options.menuDescription.items[2]
+local announce = options.menuDescription.items[3]
 equal(announce.text, "Announce", "native announcement submenu")
 equal(#announce.items, 5, "all announcement channels available")
 local expectedChannels = { "SAY", "YELL", "PARTY", "GUILD", "RAID" }
@@ -673,30 +1465,30 @@ end
 local reset = options.menuDescription.items[1]
 equal(reset.text, "Reset", "reset available in Options")
 reset.callback()
-equal(honor.Element, 0, "Options reset clears results")
-equal(honor.HasStarted, false, "Options reset stops tracking")
-equal(honor.ToggleStartButton:GetText(), "Start", "Options reset restores Start action")
+equal(honor.State.Element, 0, "Options reset clears results")
+equal(honor.State.HasStarted, false, "Options reset stops tracking")
+equal(honor.View.ToggleStartButton:GetText(), "Start", "Options reset restores Start action")
 equal(indicatorColor(honor), "0.5,0.5,0.5", "Options reset restores gray indicator")
 equal(Utils:DisplayTimer(90061), "25:01:01", "timers longer than 24 hours")
 
 local panels = { experience, honor, reputation }
 local function setPanelPosition(module, x, y)
-    module.Frame:ClearAllPoints()
-    module.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+    module.View.Frame:ClearAllPoints()
+    module.View.Frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
 end
 local function showPanel(module, shown)
-    module:SetIsShown(shown)
-    module.Frame:SetShown(shown)
+    module.Settings:Set("isShown", shown)
+    module.View.Frame:SetShown(shown)
 end
 local function assertPanelLayout(label)
     for index, module in ipairs(panels) do
-        local frame = module.Frame
+        local frame = module.View.Frame
         if frame:IsShown() then
             equal(frame:GetLeft() >= 0 and frame:GetLeft() + frame:GetWidth() <= UIParent:GetWidth()
                 and frame:GetTop() <= UIParent:GetHeight() and frame:GetTop() - frame:GetHeight() >= 0,
                 true, label .. ": " .. module.Name .. " stays on screen")
             for otherIndex = index + 1, #panels do
-                local other = panels[otherIndex].Frame
+                local other = panels[otherIndex].View.Frame
                 if other:IsShown() then
                     equal(frame:GetLeft() + frame:GetWidth() <= other:GetLeft()
                         or other:GetLeft() + other:GetWidth() <= frame:GetLeft()
@@ -713,7 +1505,7 @@ for index, module in ipairs(panels) do
     setPanelPosition(module, 100 + (index - 1) * 400, 500)
 end
 for _, module in ipairs(panels) do showPanel(module, true) end
-local honorLeft, honorTop = honor.Frame:GetLeft(), honor.Frame:GetTop()
+local honorLeft, honorTop = honor.View.Frame:GetLeft(), honor.View.Frame:GetTop()
 cursorX, cursorY = 400, 400
 dragPanel.scripts.OnDragStart(dragPanel)
 for _, target in ipairs({
@@ -725,13 +1517,13 @@ for _, target in ipairs({
     assertPanelLayout("drag target " .. target[1] .. "," .. target[2])
 end
 dragPanel.scripts.OnDragStop(dragPanel)
-equal(honor.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
-equal(honor.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
-equal(PerHourAccount_Settings.Experience.position.x, experience.Frame:GetLeft(), "drag persists collision-free X")
-equal(PerHourAccount_Settings.Experience.position.y, experience.Frame:GetTop(), "drag persists collision-free Y")
+equal(honor.View.Frame:GetLeft(), honorLeft, "drag leaves neighboring X unchanged")
+equal(honor.View.Frame:GetTop(), honorTop, "drag leaves neighboring Y unchanged")
+equal(PerHourAccount_Settings.Experience.position.x, experience.View.Frame:GetLeft(), "drag persists collision-free X")
+equal(PerHourAccount_Settings.Experience.position.y, experience.View.Frame:GetTop(), "drag persists collision-free Y")
 
 showPanel(honor, false)
-setPanelPosition(honor, experience.Frame:GetLeft(), experience.Frame:GetTop())
+setPanelPosition(honor, experience.View.Frame:GetLeft(), experience.View.Frame:GetTop())
 showPanel(honor, true)
 assertPanelLayout("reopening an overlapping panel")
 for _, module in ipairs(panels) do
@@ -741,11 +1533,11 @@ PerHour.Displayer:RestorePositions()
 assertPanelLayout("restoring three identical saved positions")
 local resolvedPositions = {}
 for index, module in ipairs(panels) do
-    resolvedPositions[index] = module.Frame:GetLeft() .. "," .. module.Frame:GetTop()
+    resolvedPositions[index] = module.View.Frame:GetLeft() .. "," .. module.View.Frame:GetTop()
 end
 PerHour.Displayer:RestorePositions()
 for index, module in ipairs(panels) do
-    equal(module.Frame:GetLeft() .. "," .. module.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
+    equal(module.View.Frame:GetLeft() .. "," .. module.View.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
 end
 PerHourAccount_Settings.Experience.position.x, PerHourAccount_Settings.Experience.position.y = 5000, -100
 PerHour.Displayer:RestorePositions()
@@ -756,11 +1548,11 @@ setPanelPosition(experience, 300, 500)
 setPanelPosition(honor, 300, 380)
 setPanelPosition(reputation, 800, 500)
 for _, module in ipairs(panels) do showPanel(module, true) end
-experience.Frame.scripts.OnEnter(experience.Frame)
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
 assertPanelLayout("hover near another panel")
-equal(experience.Frame:GetHeight(), 94, "hover does not resize panels")
-equal(honor.Frame:GetTop(), 380, "hover leaves neighbor in place")
-experience.Frame.scripts.OnLeave()
+equal(experience.View.Frame:GetHeight(), 94, "hover does not resize panels")
+equal(honor.View.Frame:GetTop(), 380, "hover leaves neighbor in place")
+experience.View.Frame.scripts.OnLeave()
 
 dragPanel.scripts.OnDragStart(dragPanel)
 showPanel(experience, false)
@@ -771,11 +1563,16 @@ UIParent:SetSize(180, 94)
 setPanelPosition(experience, 0, 94)
 showPanel(experience, true)
 showPanel(honor, true)
-equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
-equal(honor:IsShown(), false, "no free space saves hidden visibility")
-experience.Frame.scripts.OnEnter(experience.Frame)
-equal(experience.Frame:GetHeight(), 94, "hover fits compact screen")
-experience.Time = 90061
+equal(honor.View.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
+equal(honor.Settings:Get("isShown"), false, "no free space saves hidden visibility")
+PerHour.SettingsPanel:Show()
+PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
+equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), false, "rejected visibility restores the checkbox")
+equal(honor.View.Frame:IsShown(), false, "settings cannot open a panel without free space")
+PerHour.SettingsPanel.Frame:Hide()
+experience.View.Frame.scripts.OnEnter(experience.View.Frame)
+equal(experience.View.Frame:GetHeight(), 94, "hover fits compact screen")
+experience.State.Time = 90061
 BaseModule:RefreshDisplayedValues(experience)
 equal(GameTooltip.lines.Duration, "25:01:01", "tooltip supports sessions longer than 24 hours")
 showPanel(experience, false)
@@ -804,16 +1601,20 @@ local function login(savedValues, clock, options)
     now = clock
     loadAddon()
     experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
-    equal(PerHourCharacter_Values, loaded, "initial panel reset preserves saved sessions")
+    equal(PerHourCharacter_Values, loaded, "source loading leaves saved sessions untouched")
+    local savedExperience = type(loaded) == "table" and type(loaded.sessions) == "table" and loaded.sessions.Experience
     event("ADDON_LOADED", "per-hour")
+    if type(loaded) == "table" and (loaded.version == 1 or loaded.version == 2) and type(loaded.sessions) == "table" then
+        equal(PerHourCharacter_Values.sessions.Experience, savedExperience, "initial panel reset preserves saved sessions")
+    end
     local loadingSeconds = options.loadingSeconds or 4
     tick(loadingSeconds)
     playedTotal = playedTotal + loadingSeconds
-    equal(experience.HasStarted, false, "restore waits for world entry")
+    equal(experience.State.HasStarted, false, "restore waits for world entry")
     event("PLAYER_ENTERING_WORLD")
 end
 local function showRestoreTooltip(module)
-    module.RestoreIndicator.scripts.OnEnter(module.RestoreIndicator)
+    module.View.RestoreIndicator.scripts.OnEnter(module.View.RestoreIndicator)
 end
 
 for _, module in pairs(PerHour.Modules) do BaseModule:ResetModule(module) end
@@ -849,44 +1650,44 @@ local requestsBefore = playedRequests
 login(saved, now + 7200)
 equal(playedRequests, requestsBefore + 1, "one played query serves all modules")
 for name, module in pairs(PerHour.Modules) do
-    equal(module.RestoreStatus, "success", name .. " shares successful continuity check")
-    equal(module.RestoreIndicator.Icon.atlas, READY_CHECK_READY_TEXTURE_RAID, name .. " shows positive icon")
+    equal(module.State.RestoreStatus, "success", name .. " shares successful continuity check")
+    equal(module.View.RestoreIndicator.Icon.atlas, READY_CHECK_READY_TEXTURE_RAID, name .. " shows positive icon")
 end
-equal(experience.Element, 125, "reload preserves XP total and excludes offline gains")
-equal(experience.Time, 2.5, "reload excludes offline and initialization time")
-equal(experience.ElementPerHour, 180000, "restored rates use active duration")
-equal(honor.HasPaused, true, "manual pause survives successful validation")
-equal(reputation.LastFactionID, 72, "reputation retains faction context")
+equal(experience.State.Element, 125, "reload preserves XP total and excludes offline gains")
+equal(experience.State.Time, 2.5, "reload excludes offline and initialization time")
+equal(experience.State.ElementPerHour, 180000, "restored rates use active duration")
+equal(honor.State.HasPaused, true, "manual pause survives successful validation")
+equal(reputation.State.LastFactionID, 72, "reputation retains faction context")
 showRestoreTooltip(experience)
 equal(GameTooltip:GetText(), "Session restored successfully.", "success tooltip title")
 equal(GameTooltip.singleLines[1], "Played time matches the saved session (30-second tolerance).", "success tooltip explains global check")
 xp, watched.currentStanding = 450, 120
 changeHonor(50)
 tick(2)
-equal(experience.Element, 175, "first XP gain after restore is included")
-equal(experience.Time, 4.5, "active duration continues after restore")
-equal(honor.Element, 25, "restored pause excludes gains")
-equal(honor.Time, 2, "restored pause freezes duration")
-equal(reputation.Element, 60, "first reputation gain after restore is included")
+equal(experience.State.Element, 175, "first XP gain after restore is included")
+equal(experience.State.Time, 4.5, "active duration continues after restore")
+equal(honor.State.Element, 25, "restored pause excludes gains")
+equal(honor.State.Time, 2, "restored pause freezes duration")
+equal(reputation.State.Element, 60, "first reputation gain after restore is included")
 equal(GameTooltip:GetText(), "Session restored successfully.", "tracker preserves indicator tooltip")
-experience.Frame:Hide()
+experience.View.Frame:Hide()
 equal(GameTooltip:IsShown(), false, "hiding panel dismisses restore tooltip")
-experience.Frame:Show()
+experience.View.Frame:Show()
 click(honor)
 changeHonor(25)
 tick(2)
-equal(honor.Element, 50, "honor resumes counting new currency events")
-equal(honor.Time, 4, "honor excludes the full manual pause")
+equal(honor.State.Element, 50, "honor resumes counting new currency events")
+equal(honor.State.Time, 4, "honor excludes the full manual pause")
 event("PLAYER_LOGOUT")
 local resumedSave = copy(PerHourCharacter_Values)
 login(resumedSave, 0)
-equal(experience.Time, 6.5, "relogin survives a restarted local clock")
-equal(experience.HasPaused, false, "running session resumes after relogin")
+equal(experience.State.Time, 6.5, "relogin survives a restarted local clock")
+equal(experience.State.HasPaused, false, "running session resumes after relogin")
 xp = 475
 changeHonor(25)
 tick(2)
-equal(experience.Element, 200, "XP continues after relogin")
-equal(honor.Element, 75, "honor continues after relogin")
+equal(experience.State.Element, 200, "XP continues after relogin")
+equal(honor.State.Element, 75, "honor continues after relogin")
 
 -- Losing only duration is enough to fail, even when no module counter changes.
 event("PLAYER_LOGOUT")
@@ -897,7 +1698,7 @@ equal(xp, unchangedXP, "duration-only interruption leaves XP unchanged")
 equal(honorBalance, unchangedHonor, "duration-only interruption leaves honor unchanged")
 equal(watched.currentStanding, unchangedReputation, "duration-only interruption leaves reputation unchanged")
 for name, module in pairs(PerHour.Modules) do
-    equal(module.RestoreStatus, "error", name .. " detects unsaved duration without gains")
+    equal(module.State.RestoreStatus, "error", name .. " detects unsaved duration without gains")
 end
 
 -- Tolerance is shared, inclusive, and independent of gains or progression levels.
@@ -905,10 +1706,10 @@ for _, delta in ipairs({ -31, -30, 0, 30, 31, 120 }) do
     login(saved, 0, { total = saved.playedAtSave + delta })
     local expected = math.abs(delta) <= 30 and "success" or "error"
     for name, module in pairs(PerHour.Modules) do
-        equal(module.RestoreStatus, expected, name .. " validates played delta " .. delta)
+        equal(module.State.RestoreStatus, expected, name .. " validates played delta " .. delta)
         if expected == "error" then
-            equal(module.HasPaused, true, name .. " pauses after continuity loss")
-            equal(module.Element, saved.sessions[name].total, name .. " preserves totals after continuity loss")
+            equal(module.State.HasPaused, true, name .. " pauses after continuity loss")
+            equal(module.State.Element, saved.sessions[name].total, name .. " preserves totals after continuity loss")
         end
     end
 end
@@ -917,55 +1718,55 @@ equal(GameTooltip:GetText(), "Session integrity check failed.", "error tooltip t
 equal(GameTooltip.singleLines[1], "Played time differs from the last save by more than 30 seconds.", "error explains played-time mismatch")
 equal(GameTooltip.singleLines[3], "Exit the game normally to save your session.", "error recommends only normal exit")
 tick(30)
-equal(experience.RestoreIndicator:IsShown(), true, "unresolved error has no timeout")
-equal(experience.Time, saved.sessions.Experience.duration, "error does not accrue active time")
+equal(experience.View.RestoreIndicator:IsShown(), true, "unresolved error has no timeout")
+equal(experience.State.Time, saved.sessions.Experience.duration, "error does not accrue active time")
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.sessions.Experience.needsReview, true, "unresolved error remains saved")
 login(PerHourCharacter_Values, 0)
 showRestoreTooltip(experience)
 equal(GameTooltip.singleLines[1], "This session contains unverified progress.", "new checkpoint does not hide unresolved review")
 click(experience)
-equal(experience.RestoreStatus, nil, "Resume acknowledges error")
+equal(experience.State.RestoreStatus, nil, "Resume acknowledges error")
 equal(GameTooltip:IsShown(), false, "Resume dismisses error tooltip")
 tick(0.5)
-equal(experience.RestoreIndicator:GetAlpha(), 1, "error waits half a second after decision")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "error waits half a second after decision")
 tick(0.04)
-near(experience.RestoreIndicator:GetAlpha(), 0.5, "error fades halfway after 0.04 seconds")
+near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "error fades halfway after 0.04 seconds")
 tick(0.05)
-equal(experience.RestoreIndicator:IsShown(), false, "error hides at end of fade")
-equal(honor.RestoreStatus, "error", "acknowledging one module leaves others for review")
+equal(experience.View.RestoreIndicator:IsShown(), false, "error hides at end of fade")
+equal(honor.State.RestoreStatus, "error", "acknowledging one module leaves others for review")
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.sessions.Experience.needsReview, false, "acknowledged error is no longer persisted")
-honor.Frame:Show()
+honor.View.Frame:Show()
 BaseModule:ResetModule(honor)
 tick(0.5)
-equal(honor.RestoreIndicator:GetAlpha(), 1, "Reset also waits before fading error")
+equal(honor.View.RestoreIndicator:GetAlpha(), 1, "Reset also waits before fading error")
 tick(0.04)
-near(honor.RestoreIndicator:GetAlpha(), 0.5, "Reset uses the standard fade out")
+near(honor.View.RestoreIndicator:GetAlpha(), 0.5, "Reset uses the standard fade out")
 tick(0.05)
-equal(honor.RestoreIndicator:IsShown(), false, "Reset completes error fade")
+equal(honor.View.RestoreIndicator:IsShown(), false, "Reset completes error fade")
 equal(PerHourCharacter_Values.sessions.Honor, nil, "Reset clears saved session")
 
 -- Normalize delayed replies: 28 extra seconds plus 8 seconds in this login still pass.
 login(saved, 0, { total = saved.playedAtSave + 28, autoReply = false })
-equal(experience.RestoreIndicator:GetAlpha(), 0, "pending indicator starts transparent")
+equal(experience.View.RestoreIndicator:GetAlpha(), 0, "pending indicator starts transparent")
 tick(0.04)
-near(experience.RestoreIndicator:GetAlpha(), 0.5, "pending indicator uses the standard fade in")
+near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "pending indicator uses the standard fade in")
 tick(0.05)
-equal(experience.RestoreIndicator:GetAlpha(), 1, "pending indicator completes fade in")
-equal(experience.RestoreIndicator.scripts.OnUpdate, nil, "persistent indicator stops updating after fade in")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "pending indicator completes fade in")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "persistent indicator stops updating after fade in")
 for name, module in pairs(PerHour.Modules) do
-    equal(module.RestoreStatus, "pending", name .. " waits for played reply")
-    equal(module.ToggleStartButton.enabled, false, name .. " cannot resume before check")
+    equal(module.State.RestoreStatus, "pending", name .. " waits for played reply")
+    equal(module.View.ToggleStartButton.enabled, false, name .. " cannot resume before check")
 end
 changeHonor(8)
-equal(honor.Element, saved.sessions.Honor.total, "currency gains during pending restore are excluded")
+equal(honor.State.Element, saved.sessions.Honor.total, "currency gains during pending restore are excluded")
 click(experience)
-equal(experience.HasPaused, true, "pending validation blocks early Resume")
+equal(experience.State.HasPaused, true, "pending validation blocks early Resume")
 tick(8)
-equal(experience.Time, 2.5, "waiting for reply does not inflate session duration")
+equal(experience.State.Time, 2.5, "waiting for reply does not inflate session duration")
 event("TIME_PLAYED_MSG", playedTotal, 0)
-equal(experience.RestoreStatus, "success", "delayed reply excludes time since login")
+equal(experience.State.RestoreStatus, "success", "delayed reply excludes time since login")
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.playedAtSave, playedTotal, "save uses received played sample")
 tick(7)
@@ -986,26 +1787,26 @@ login(saved, 0, { autoReply = false })
 event("TIME_PLAYED_MSG", { secret = true }, 0)
 event("TIME_PLAYED_MSG", math.huge, 0)
 event("TIME_PLAYED_MSG", -1, 0)
-equal(experience.RestoreStatus, "pending", "unreadable played replies are ignored")
+equal(experience.State.RestoreStatus, "pending", "unreadable played replies are ignored")
 tick(10)
-equal(experience.RestoreStatus, "error", "played query timeout reports failure")
-equal(experience.RestoreIssue, "Could not verify played time.", "timeout explains unavailable verification")
-equal(experience.ToggleStartButton.enabled, true, "timeout allows explicit Resume or Reset")
+equal(experience.State.RestoreStatus, "error", "played query timeout reports failure")
+equal(experience.State.RestoreIssue, "Could not verify played time.", "timeout explains unavailable verification")
+equal(experience.View.ToggleStartButton.enabled, true, "timeout allows explicit Resume or Reset")
 event("TIME_PLAYED_MSG", playedTotal, 0)
-equal(experience.RestoreStatus, "error", "late reply does not silently resume failed session")
+equal(experience.State.RestoreStatus, "error", "late reply does not silently resume failed session")
 local requestPlayed = RequestTimePlayed
 RequestTimePlayed = nil
 login(saved, 0)
-equal(experience.RestoreIssue, "Played time is unavailable.", "missing API fails safely")
+equal(experience.State.RestoreIssue, "Played time is unavailable.", "missing API fails safely")
 RequestTimePlayed = function() error("API unavailable") end
 login(saved, 0)
-equal(experience.RestoreStatus, "error", "API error does not break addon loading")
+equal(experience.State.RestoreStatus, "error", "API error does not break addon loading")
 RequestTimePlayed = requestPlayed
 
 -- Time spent loading before world entry is part of the new login, not an interruption.
 login(saved, 0, { loadingSeconds = 90 })
-equal(experience.RestoreStatus, "success", "long loading screen is excluded from continuity delta")
-equal(experience.Time, saved.sessions.Experience.duration, "loading screen does not inflate active duration")
+equal(experience.State.RestoreStatus, "success", "long loading screen is excluded from continuity delta")
+equal(experience.State.Time, saved.sessions.Experience.duration, "loading screen does not inflate active duration")
 
 -- A new run without a server sample cannot reuse an older reference for newer totals.
 login(saved, 0, { autoReply = false })
@@ -1019,7 +1820,7 @@ xp, xpMax, level = 0, 0, 0
 watched = nil
 login(saved, 0)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.RestoreStatus, name == "Honor" and "success" or "pending",
+    equal(module.State.RestoreStatus, name == "Honor" and "success" or "pending",
         name .. " requires a baseline only when tracking counter differences")
 end
 tick(2)
@@ -1028,49 +1829,49 @@ honorBalance = 400
 watched = { name = "Stormwind", factionID = 72, currentStanding = 500 }
 tick(2)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.RestoreStatus, "success", name .. " accepts delayed baseline without checkpoint")
+    equal(module.State.RestoreStatus, "success", name .. " accepts delayed baseline without checkpoint")
 end
-equal(experience.Element, 125, "delayed XP baseline does not add unavailable-period gains")
-equal(reputation.Element, 40, "delayed reputation baseline does not add unavailable-period gains")
+equal(experience.State.Element, 125, "delayed XP baseline does not add unavailable-period gains")
+equal(reputation.State.Element, 40, "delayed reputation baseline does not add unavailable-period gains")
 xp, watched.currentStanding = 625, 510
 tick(2)
-equal(experience.Element, 150, "XP tracks after delayed baseline")
-equal(reputation.Element, 50, "reputation tracks after delayed baseline")
+equal(experience.State.Element, 150, "XP tracks after delayed baseline")
+equal(reputation.State.Element, 50, "reputation tracks after delayed baseline")
 
 -- Reputation identity remains module context, separate from the shared continuity check.
 watched = { name = "Ironforge", factionID = 47, currentStanding = 100 }
 login(saved, 0)
-equal(reputation.HasStarted, false, "changed faction resets reputation")
-equal(reputation.RestoreStatus, "error", "changed faction is reported")
-equal(experience.RestoreStatus, "success", "faction reset does not affect XP validation")
+equal(reputation.State.HasStarted, false, "changed faction resets reputation")
+equal(reputation.State.RestoreStatus, "error", "changed faction is reported")
+equal(experience.State.RestoreStatus, "success", "faction reset does not affect XP validation")
 watched = { name = "Stormwind", factionID = 72, currentStanding = 100 }
 
 -- Old snapshots retain totals but require review until a played reference exists.
 login({ version = 1, sessions = {
     Experience = { total = 50, duration = 2, paused = false, checkpoint = { value = xp, level = level } },
 } }, 0)
-equal(experience.Element, 50, "legacy save preserves totals")
-equal(experience.RestoreStatus, "error", "legacy save cannot claim played verification")
-equal(experience.RestoreIssue, "No saved played-time reference is available.", "legacy warning identifies missing reference")
+equal(experience.State.Element, 50, "legacy save preserves totals")
+equal(experience.State.RestoreStatus, "error", "legacy save cannot claim played verification")
+equal(experience.State.RestoreIssue, "No saved played-time reference is available.", "legacy warning identifies missing reference")
 click(experience)
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.version, 2, "legacy save upgrades format")
 equal(PerHourCharacter_Values.sessions.Experience.checkpoint, nil, "legacy checkpoint is removed on next save")
 login(PerHourCharacter_Values, 0)
-equal(experience.RestoreStatus, "success", "acknowledged legacy session verifies next time")
+equal(experience.State.RestoreStatus, "success", "acknowledged legacy session verifies next time")
 
 login(nil, 0)
-equal(honor.HasStarted, false, "new character does not inherit sessions")
+equal(honor.State.HasStarted, false, "new character does not inherit sessions")
 login({ version = 99, sessions = saved.sessions }, 0)
-equal(experience.HasStarted, false, "unsupported format is ignored")
+equal(experience.State.HasStarted, false, "unsupported format is ignored")
 login({ version = 2, playedAtSave = 100000, sessions = {
     Experience = { total = 10, duration = -1, paused = false },
     Honor = { total = math.huge, duration = 10, paused = false },
     Reputation = { total = -20, duration = 10, paused = true, context = {} },
 } }, 0)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.HasStarted, false, name .. " rejects malformed save")
-    equal(module.RestoreStatus, "error", name .. " explains malformed save")
+    equal(module.State.HasStarted, false, name .. " rejects malformed save")
+    equal(module.State.RestoreStatus, "error", name .. " explains malformed save")
 end
 
 -- Preserve success lifetime, error fades, circular appearance and parent-alpha isolation.
@@ -1078,48 +1879,48 @@ local verifiedSave = { version = 2, playedAtSave = 100000, sessions = {
     Experience = { total = 50, duration = 2, paused = false },
 } }
 login(verifiedSave, 0)
-equal(experience.RestoreIndicator:GetAlpha(), 0, "success indicator starts transparent")
+equal(experience.View.RestoreIndicator:GetAlpha(), 0, "success indicator starts transparent")
 tick(0.04)
-near(experience.RestoreIndicator:GetAlpha(), 0.5, "success indicator fades halfway in after 0.04 seconds")
+near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "success indicator fades halfway in after 0.04 seconds")
 tick(0.05)
-equal(experience.RestoreIndicator:GetAlpha(), 1, "success indicator completes the standard fade in")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "success indicator completes the standard fade in")
 tick(4)
-equal(experience.RestoreIndicator:GetAlpha(), 1, "success remains opaque before five seconds")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "success remains opaque before five seconds")
 tick(0.91)
-near(experience.RestoreIndicator:GetAlpha(), 1, "success starts fade at five seconds")
+near(experience.View.RestoreIndicator:GetAlpha(), 1, "success starts fade at five seconds")
 tick(0.04)
-near(experience.RestoreIndicator:GetAlpha(), 0.5, "success uses the standard fade out")
+near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "success uses the standard fade out")
 showRestoreTooltip(experience)
 tick(0.05)
-equal(experience.RestoreIndicator:IsShown(), false, "success hides after fade")
+equal(experience.View.RestoreIndicator:IsShown(), false, "success hides after fade")
 equal(GameTooltip:IsShown(), false, "success fade closes tooltip")
-equal(experience.RestoreIndicator.scripts.OnUpdate, nil, "success fade removes callback")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "success fade removes callback")
 tick(2)
-equal(experience.RestoreIndicator:IsShown(), false, "tracker cannot restart dismissed success")
+equal(experience.View.RestoreIndicator:IsShown(), false, "tracker cannot restart dismissed success")
 verifiedSave.sessions.Experience.paused = true
 login(verifiedSave, 0)
 tick(5.04)
-near(experience.RestoreIndicator:GetAlpha(), 0.5, "paused session success also fades")
+near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "paused session success also fades")
 tick(0.05)
-equal(experience.HasPaused, true, "fade preserves manual pause")
+equal(experience.State.HasPaused, true, "fade preserves manual pause")
 login(verifiedSave, 0)
-experience.Frame:Hide()
+experience.View.Frame:Hide()
 tick(20)
-experience.Frame:Show()
+experience.View.Frame:Show()
 tick(0.1)
-equal(experience.RestoreIndicator:IsShown(), false, "reopening panel does not restart expired success")
+equal(experience.View.RestoreIndicator:IsShown(), false, "reopening panel does not restart expired success")
 login(verifiedSave, 0)
 tick(5.04)
 BaseModule:ResetModule(experience)
-equal(experience.RestoreIndicator:GetAlpha(), 1, "Reset clears partial fade")
-equal(experience.RestoreIndicator.scripts.OnUpdate, nil, "Reset cancels active fade")
-experience.Frame:SetAlpha(0.5)
-equal(experience.RestoreIndicator:GetEffectiveAlpha(), 1, "panel transparency does not dim indicator")
-experience.Frame:SetAlpha(1)
-local background = experience.RestoreIndicator.Background
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "Reset clears partial fade")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "Reset cancels active fade")
+experience.View.Frame:SetAlpha(0.5)
+equal(experience.View.RestoreIndicator:GetEffectiveAlpha(), 1, "panel transparency does not dim indicator")
+experience.View.Frame:SetAlpha(1)
+local background = experience.View.RestoreIndicator.Background
 equal(background.color[4], 1, "background fill is fully opaque")
 equal(background.mask.texture, "Interface\\CharacterFrame\\TempPortraitAlphaMask", "background uses native circular mask")
-equal(experience.OptionsButton.Icon.texture, "Interface\\Icons\\Trade_Engineering", "restore status preserves options artwork")
+equal(experience.View.OptionsButton.Icon.texture, "Interface\\Icons\\Trade_Engineering", "restore status preserves options artwork")
 
 -- Normal character selection saves before teardown and queries again only on a new login.
 login(saved, 0)
@@ -1140,14 +1941,121 @@ xp, xpMax, level = 675, 1000, 10
 honorBalance = 400
 watched = { name = "Stormwind", factionID = 72, currentStanding = 100 }
 login(selectionSave, 0)
-equal(experience.RestoreStatus, "success", "normal character selection passes played validation")
+equal(experience.State.RestoreStatus, "success", "normal character selection passes played validation")
 requestsBefore = playedRequests
-local previousTotal = experience.Element
+local previousTotal = experience.State.Element
 event("PLAYER_LEAVING_WORLD")
 tick(10)
 event("PLAYER_ENTERING_WORLD")
 equal(playedRequests, requestsBefore, "zone transitions do not request played time again")
 xp = 700
 tick(2)
-equal(experience.Element, previousTotal + 25, "zone transitions retain current totals")
+equal(experience.State.Element, previousTotal + 25, "zone transitions retain current totals")
+-- Recreate the addon using only saved preferences and session data, as on reload.
+do
+    PerHour.SettingsPanel:Show()
+    PerHour.SettingsPanel.ModuleFields.Experience:SetValue(false)
+    PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
+    PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
+    PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
+    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
+    PerHour.SettingsPanel.RateFields.Reputation:SetValue("minute")
+    PerHour.MinimapButton:SetAngle(math.rad(315))
+    local account = copy(PerHourAccount_Settings)
+    event("PLAYER_LOGOUT")
+    local savedSessions = copy(PerHourCharacter_Values)
+    PerHourAccount_Settings = copy(account)
+    login(savedSessions, 0)
+    equal(PerHour.SettingsPanel.Frame, nil, "reload keeps settings creation lazy")
+    equal(experience.View.Frame:IsShown(), false, "reload restores the hidden XP preference")
+    equal(honor.View.Frame:IsShown(), true, "reload restores the visible honor preference")
+    equal(reputation.View.Frame:IsShown(), false, "reload restores the hidden reputation preference")
+    equal(experience.State.Element, savedSessions.sessions.Experience.total, "preferences preserve restored session totals")
+    equal(experience.State.HasPaused, false, "hidden XP session resumes after reload")
+    PerHour.SettingsPanel:Show()
+    equal(PerHour.SettingsPanel.ModuleFields.Experience:GetValue(), false, "reloaded form reads hidden XP")
+    equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), true, "reloaded form reads visible honor")
+    equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
+    equal(PerHour.SettingsPanel.RateFields.Experience:GetValue(), "minute", "reloaded form reads XP rate preference")
+    equal(PerHour.SettingsPanel.RateFields.Honor:GetValue(), "hour", "reloaded form reads honor rate preference")
+    equal(PerHour.SettingsPanel.RateFields.Reputation:GetValue(), "minute", "reloaded form reads reputation rate preference")
+    equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
+    equal(honor.View.RateUnit:GetText(), "hon/h", "reload applies the independent honor unit")
+    equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
+    equal(experience.View.RateValue:GetText(), Utils:DisplayRoundedNumber(experience.State.ElementPerMinute, 0),
+        "reload displays the selected rate from restored session values")
+    near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
+    near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
+    PerHour.SettingsPanel.Frame:Hide()
+end
+-- Reset one runtime without replacing containers held by callbacks or neighboring modules.
+do
+    local state, view = honor.State, honor.View
+    local frame, tracker, start = view.Frame, view.TrackerFrame, view.ToggleStartButton
+    local xpState, xpView = experience.State, experience.View
+    if not honor.State.HasStarted then click(honor) end
+    PerHour.Session:Save()
+    local savedXP = experience.Store:ReadSession()
+    local lastXP, faction = xpState.LastXp, reputation.State.LastFactionID
+    local shown = honor.Settings:Get("isShown")
+    BaseModule:ResetModule(honor)
+    equal(honor.State, state, "reset preserves the state container held by callbacks")
+    equal(honor.View, view, "reset preserves the view container held by callbacks")
+    equal(view.Frame, frame, "reset reuses the existing panel")
+    equal(view.TrackerFrame, tracker, "reset reuses the independent tracker")
+    equal(view.ToggleStartButton, start, "reset reuses tracking controls")
+    equal(state.HasStarted, false, "reset stops event-based honor tracking")
+    equal(state.Element, 0, "reset clears the module's runtime total")
+    equal(start:GetText(), "Start", "reused controls render the reset state")
+    equal(honor.Store:ReadSession(), nil, "runtime reset clears only its saved session")
+    equal(honor.Settings:Get("isShown"), shown, "runtime reset preserves its visibility preference")
+    equal(experience.State, xpState, "honor reset preserves the XP state container")
+    equal(experience.View, xpView, "honor reset preserves the XP view container")
+    equal(xpState.LastXp, lastXP, "honor reset preserves the XP progression baseline")
+    equal(reputation.State.LastFactionID, faction, "honor reset preserves reputation context")
+    equal(experience.Store:ReadSession().total, savedXP.total, "honor reset preserves saved XP")
+    local fields = { total = true, duration = true, paused = true, context = true, needsReview = true }
+    for _, snapshot in pairs(PerHourCharacter_Values.sessions) do
+        for key in pairs(snapshot) do
+            equal(fields[key], true, "session snapshots retain the existing save schema")
+        end
+    end
+end
+-- During reload the final UI dimensions may arrive after ADDON_LOADED.
+do
+    local positions = {
+        Experience = { x = 86, y = 768 },
+        Honor = { x = 934, y = 492 },
+        Reputation = { x = 1443, y = 729 },
+    }
+    PerHourAccount_Settings = {}
+    for name, position in pairs(positions) do
+        PerHourAccount_Settings[name] = {
+            isShown = true,
+            position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = position.x, y = position.y },
+        }
+    end
+    for attempt = 1, 3 do
+        frames, names, timers = {}, {}, {}
+        GameTooltip:Hide()
+        PerHourAccount_Settings = copy(PerHourAccount_Settings)
+        PerHourCharacter_Values = nil
+        UIParent:SetSize(1024, 1080)
+        loadAddon()
+        event("ADDON_LOADED", "per-hour")
+        for name, position in pairs(positions) do
+            equal(PerHour.Modules[name].Settings:Get("position").x, position.x,
+                name .. " does not overwrite saved X using temporary screen dimensions")
+        end
+        UIParent:SetSize(1920, 1080)
+        event("PLAYER_ENTERING_WORLD")
+        for name, position in pairs(positions) do
+            local module = PerHour.Modules[name]
+            near(module.View.Frame:GetLeft(), position.x, name .. " retains its X after reload " .. attempt)
+            near(module.View.Frame:GetTop(), position.y, name .. " retains its Y after reload " .. attempt)
+            near(module.Settings:Get("position").x, position.x, name .. " preserves persisted X after reload")
+        end
+    end
+end
+assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
