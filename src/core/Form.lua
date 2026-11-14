@@ -50,7 +50,7 @@ function Components:CreateFormField(parent, settings, inline)
     if not inline then
         field.Label = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         field.Label:SetText(settings.label)
-        field.Label:SetTextColor(unpack(Theme.formLabel))
+        field.Label:SetTextColor(unpack(Theme.gold.text))
         field.Label:SetPoint("LEFT", field, "LEFT", 0, 0)
         field.Label:SetPoint("RIGHT", field.ControlArea, "LEFT", -12, 0)
         field.Label:SetJustifyH("LEFT")

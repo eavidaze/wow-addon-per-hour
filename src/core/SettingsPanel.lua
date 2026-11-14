@@ -14,7 +14,7 @@ function SettingsPanel:Show()
     if not self.Frame then
         local frame = Components:CreatePanel(UIParent, {
             name = "PerHourSettingsPanel",
-            title = "Per Hour Settings",
+            title = PerHour.Theme:GoldText("Per Hour") .. " Settings",
             width = 560,
             form = true,
             closeAlwaysVisible = true,
@@ -26,7 +26,7 @@ function SettingsPanel:Show()
         })
         frame:SetFrameStrata("DIALOG")
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        local monitoring = Components:CreateFormGroup(frame.Content, { title = "Monitoring" })
+        local panels = Components:CreateFormGroup(frame.Content, { title = "Panels" })
         local modules = {}
         for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
         table.sort(modules, function(a, b) return a.Name < b.Name end)
@@ -34,7 +34,7 @@ function SettingsPanel:Show()
         self.RateFields = {}
         for _, context in ipairs(modules) do
             local module = context
-            local row = monitoring:AddField({
+            local row = panels:AddField({
                 type = "group", label = module.Name,
                 fields = {
                     {
@@ -65,7 +65,7 @@ function SettingsPanel:Show()
             module.View.Frame:HookScript("OnShow", function() self:Refresh() end)
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
-        frame:AddField(monitoring)
+        frame:AddField(panels)
         self.Frame = frame
     end
     self:Refresh()

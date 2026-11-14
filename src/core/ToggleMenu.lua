@@ -22,7 +22,7 @@ function ToggleMenu:Init(button)
     table.sort(modules, function(a, b) return a.Name < b.Name end)
 
     button:SetupMenu(function(_, rootDescription)
-        rootDescription:CreateTitle("Per Hour")
+        rootDescription:CreateTitle("Panels")
         for _, module in ipairs(modules) do
             rootDescription:CreateCheckbox(module.Name, IsModuleShown, ToggleModule, module)
         end

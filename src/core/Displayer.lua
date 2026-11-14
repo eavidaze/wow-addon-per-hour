@@ -3,6 +3,7 @@ local Utils = Utils
 local BaseModule = BaseModule
 local Components = PerHour.Components
 local Theme = PerHour.Theme
+local goldR, goldG, goldB = unpack(Theme.gold.text)
 local Displayer = {}
 PerHour.Displayer = Displayer
 
@@ -61,7 +62,7 @@ local function ShowRestoreTooltip(module)
         GameTooltip:AddLine("Waiting for played time or character data.", 1, 1, 1, true)
     else
         GameTooltip:AddLine(module.State.RestoreIssue, 1, 1, 1, true)
-        GameTooltip:AddLine("Reset for accurate results, or Resume to keep saved totals.", 1, 0.82, 0, true)
+        GameTooltip:AddLine("Reset for accurate results, or Resume to keep saved totals.", goldR, goldG, goldB, true)
         GameTooltip:AddLine("Exit the game normally to save your session.", 0.8, 0.8, 0.8, true)
     end
     GameTooltip:Show()
@@ -197,16 +198,16 @@ end
 local function ShowRunTooltip(module)
     local _, status, r, g, b = GetTrackingState(module)
     local totalUnit = module.Name == "Experience" and "XP" or module.Name
-    GameTooltip:SetText(module.Name, 1, 0.82, 0)
+    GameTooltip:SetText(module.Name, goldR, goldG, goldB)
     GameTooltip:AddLine(status, r, g, b)
     if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 0.8, 0.8, 0.8, true) end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Session", 1, 0.82, 0)
+    GameTooltip:AddLine("Session", goldR, goldG, goldB)
     GameTooltip:AddDoubleLine("Duration", Utils:DisplayTimer(module.State.Time), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Total " .. totalUnit, Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, 1, 0.82, 0)
+    GameTooltip:AddDoubleLine("Total " .. totalUnit, Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, goldR, goldG, goldB)
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Rates", 1, 0.82, 0)
-    GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.State.ElementPerHour, 0), 0.7, 0.7, 0.7, 1, 0.82, 0)
+    GameTooltip:AddLine("Rates", goldR, goldG, goldB)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.State.ElementPerHour, 0), 0.7, 0.7, 0.7, goldR, goldG, goldB)
     GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.State.ElementPerMinute, 0), 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:Show()
 end

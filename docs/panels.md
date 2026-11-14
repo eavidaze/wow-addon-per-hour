@@ -51,6 +51,13 @@ explicit 220 × 20 layout size. Per Hour supplies the surrounding groups, labels
 placement and value callbacks. The outer panel and footer retain Per Hour's
 shared design.
 
+`Theme.gold.text` is the shared gold text color for rate values and units,
+form labels and tooltip labels. The minimap uses the native `GameNoHeaderTooltip`
+with three compact lines aligned to the left and no title, so the first action
+uses the same body font as the others. `Theme:GoldText(text)` applies the shared
+gold color inline to each label, followed immediately by the white action.
+See Forever's [tooltip definitions](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_GameTooltip/Mainline/GameTooltip.xml).
+
 ```lua
 local group = Components:CreateFormGroup(panel.Content, {
     title = "Appearance",
@@ -98,8 +105,10 @@ panel opens; call `button:Refresh()` after changing state elsewhere while open.
 Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
-`SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click. The
-**Monitoring** group has one row per module, sorted by name. Each row shares
+The minimap left-click menu is titled **Panels**.
+`SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
+only **Per Hour** in DS gold and **Settings** in white. The
+**Panels** group has one row per module, sorted by name. Each row shares
 the module's label between a visibility checkbox and a native dropdown for
 **Per hour** or **Per minute**, defaulting to hourly display. Each selection immediately changes
 that panel's numeric rate and unit, for example `XP/h` or `XP/min`; Honor and
