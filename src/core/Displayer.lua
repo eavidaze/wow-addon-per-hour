@@ -14,6 +14,7 @@ local PANEL_GAP = 4
 local RESTORE_SUCCESS_SECONDS = 5
 local RESTORE_ERROR_DELAY_SECONDS = 0.5
 local modules = {}
+local positionsReady = false
 local RESTORE_STATUS = {
     pending = { atlas = READY_CHECK_WAITING_TEXTURE_RAID, title = "Checking saved session...", r = 1, g = 0.8, b = 0 },
     success = { atlas = READY_CHECK_READY_TEXTURE_RAID, title = "Session restored successfully.", r = 0.2, g = 1, b = 0.2 },
@@ -113,6 +114,7 @@ local function FindFreePosition(module, x, y)
 end
 
 local function PlaceShownPanel(module)
+    if not positionsReady then return end
     if not Displayer:SavePosition(module) then
         module.Settings:Set("isShown", false)
         module.View.Frame:Hide()
@@ -361,6 +363,7 @@ function Displayer:RefreshRate(module)
 end
 
 function Displayer:RestorePositions()
+    positionsReady = false
     for _, module in ipairs(modules) do
         local position = module.Settings:Get("position")
         if position then
@@ -368,6 +371,7 @@ function Displayer:RestorePositions()
             module.View.Frame:SetPoint(position.point, UIParent, position.relativePoint, position.x, position.y)
         end
     end
+    positionsReady = true
     for _, module in ipairs(modules) do
         if module.View.Frame:IsShown() and module.Settings:Get("isShown") then PlaceShownPanel(module) end
     end

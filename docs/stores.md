@@ -6,10 +6,12 @@ SavedVariables directly. Both retain the existing names and layout declared in
 sessions in `PerHourCharacter_Values`.
 
 `core/Bootstrap.lua` handles the addon's `ADDON_LOADED` once. It initializes both
-stores, binds module access, creates tracking panels, restores positions and
-initializes the module menu and minimap position. Creating panels resets runtime
-state while preserving saved sessions. Session restoration still waits for
-`PLAYER_ENTERING_WORLD`.
+stores, binds module access, creates tracking panels and initializes the module
+menu and minimap position. Creating panels resets runtime state while preserving
+saved sessions. Panel positions and sessions restore on the first
+`PLAYER_ENTERING_WORLD`. Until then, showing panels does not adjust or save their
+positions using temporary loading-screen dimensions. All saved anchors are
+applied before collision resolution begins.
 
 ## Module runtime
 

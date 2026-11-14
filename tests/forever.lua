@@ -1610,5 +1610,41 @@ do
         end
     end
 end
+-- During reload the final UI dimensions may arrive after ADDON_LOADED.
+do
+    local positions = {
+        Experience = { x = 86, y = 768 },
+        Honor = { x = 934, y = 492 },
+        Reputation = { x = 1443, y = 729 },
+    }
+    PerHourAccount_Settings = {}
+    for name, position in pairs(positions) do
+        PerHourAccount_Settings[name] = {
+            isShown = true,
+            position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = position.x, y = position.y },
+        }
+    end
+    for attempt = 1, 3 do
+        frames, names, timers = {}, {}, {}
+        GameTooltip:Hide()
+        PerHourAccount_Settings = copy(PerHourAccount_Settings)
+        PerHourCharacter_Values = nil
+        UIParent:SetSize(1024, 1080)
+        loadAddon()
+        event("ADDON_LOADED", "per-hour")
+        for name, position in pairs(positions) do
+            equal(PerHour.Modules[name].Settings:Get("position").x, position.x,
+                name .. " does not overwrite saved X using temporary screen dimensions")
+        end
+        UIParent:SetSize(1920, 1080)
+        event("PLAYER_ENTERING_WORLD")
+        for name, position in pairs(positions) do
+            local module = PerHour.Modules[name]
+            near(module.View.Frame:GetLeft(), position.x, name .. " retains its X after reload " .. attempt)
+            near(module.View.Frame:GetTop(), position.y, name .. " retains its Y after reload " .. attempt)
+            near(module.Settings:Get("position").x, position.x, name .. " preserves persisted X after reload")
+        end
+    end
+end
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
