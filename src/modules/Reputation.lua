@@ -16,6 +16,32 @@ local function GetWatchedFaction()
     end
 end
 
+-- Expand only while reading so collapsed and inactive groups remain selectable.
+function Module:GetTrackableFactions()
+    local options, seen, expanded = {}, {}, {}
+    local index = 1
+    while index <= C_Reputation.GetNumFactions() do
+        local data = C_Reputation.GetFactionDataByIndex(index)
+        if data then
+            if data.isHeader and data.isCollapsed then
+                table.insert(expanded, index)
+                C_Reputation.ExpandFactionHeader(index)
+            end
+            if (not data.isHeader or data.isHeaderWithRep) and data.factionID > 0
+                and not seen[data.factionID] then
+                table.insert(options, { value = data.factionID, label = data.name })
+                seen[data.factionID] = true
+            end
+        end
+        index = index + 1
+    end
+    -- Restore nested headers before their parents, keeping the original indices valid.
+    for i = #expanded, 1, -1 do C_Reputation.CollapseFactionHeader(expanded[i]) end
+    table.sort(options, function(a, b) return a.label < b.label end)
+    table.insert(options, 1, { value = 0, label = "None" })
+    return options
+end
+
 Module.CustomReset = function()
     Module.State.LastReputationName = ""
     Module.State.LastFactionID = nil

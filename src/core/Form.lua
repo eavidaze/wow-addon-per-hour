@@ -30,6 +30,24 @@ local function CreateSlider(field, settings)
     return slider
 end
 
+local function SetupSubfields(field, settings)
+    field.SubfieldStack = false
+    function field:AddSubfield(childSettings)
+        if not self.SubfieldStack then
+            local stack = CreateFrame("Frame", nil, self)
+            stack:SetPoint("TOPLEFT", self, "TOPLEFT", 16, -ROW_HEIGHT - 8)
+            stack:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, -ROW_HEIGHT - 8)
+            Components:SetupFieldStack(stack, stack, 0, 8)
+            stack:HookScript("OnSizeChanged", function()
+                self:SetHeight(ROW_HEIGHT + 8 + stack:GetHeight())
+            end)
+            self.SubfieldStack, self.Subfields = stack, stack.Fields
+        end
+        return self.SubfieldStack:AddField(Components:CreateFormField(self.SubfieldStack, childSettings))
+    end
+    for _, childSettings in ipairs(settings.subfields or {}) do field:AddSubfield(childSettings) end
+end
+
 function Components:CreateFormField(parent, settings, inline)
     assert(settings.type == "checkbox" or settings.type == "select" or settings.type == "slider"
         or settings.type == "text" or settings.type == "group", "Unsupported form field type")
@@ -46,12 +64,12 @@ function Components:CreateFormField(parent, settings, inline)
     local controlWidth = settings.controlWidth
         or (inline and settings.type == "checkbox" and 32) or CONTROL_WIDTH
     field.ControlArea:SetSize(controlWidth, ROW_HEIGHT)
-    field.ControlArea:SetPoint("RIGHT", field, "RIGHT", 0, 0)
+    field.ControlArea:SetPoint("TOPRIGHT", field, "TOPRIGHT", 0, 0)
     if not inline then
         field.Label = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         field.Label:SetText(settings.label)
         field.Label:SetTextColor(unpack(Theme.gold.text))
-        field.Label:SetPoint("LEFT", field, "LEFT", 0, 0)
+        field.Label:SetPoint("LEFT", field, "TOPLEFT", 0, -ROW_HEIGHT / 2)
         field.Label:SetPoint("RIGHT", field.ControlArea, "LEFT", -12, 0)
         field.Label:SetJustifyH("LEFT")
         field.Label:SetWordWrap(false)
@@ -69,10 +87,17 @@ function Components:CreateFormField(parent, settings, inline)
             table.insert(field.Fields, child)
         end
         field.ControlArea:SetWidth(width)
+        SetupSubfields(field, settings)
         return field
     end
 
     function field:GetValue() return self.Value end
+    if settings.type == "select" then
+        function field:SetOptions(options, value)
+            settings.options = options
+            self:SetValue(value, true)
+        end
+    end
     function field:SetValue(value, silent)
         local option
         if settings.type == "select" then
@@ -123,6 +148,7 @@ function Components:CreateFormField(parent, settings, inline)
         field.Control = control
         control:SetWidth(220)
         control:SetupMenu(function(_, root)
+            if settings.maxMenuHeight then root:SetScrollMode(settings.maxMenuHeight) end
             for _, option in ipairs(settings.options) do
                 root:CreateRadio(option.label, function(value) return field:GetValue() == value end,
                     function(value) field:SetValue(value) end, option.value)
@@ -155,6 +181,7 @@ function Components:CreateFormField(parent, settings, inline)
         elseif settings.type == "slider" then value = settings.min end
     end
     field:SetValue(value, true)
+    SetupSubfields(field, settings)
     return field
 end
 

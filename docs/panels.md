@@ -66,6 +66,17 @@ or update a field. Sliders round to the configured step and clamp to their
 bounds. Form controls keep values in memory; callers decide whether to persist
 them or apply them to the addon.
 
+Fields accept a `subfields` array, or `field:AddSubfield(settings)` after
+creation. Subfields use the same field settings and appear below their parent,
+with 16 px of additional left indentation and an 8 px gap. Controls keep their
+right alignment. Access them through `field.Subfields[index]`; composite rows
+keep their inline controls in `field.Fields`. Nested subfields and later rows
+resize and reposition the enclosing group and panel automatically.
+
+Select fields also provide `field:SetOptions(options, value)` to replace their
+choices and refresh the selected value silently, without calling `onChanged`.
+An optional `maxMenuHeight` enables native menu scrolling at that height.
+
 In a `group` row, child labels are omitted from the layout; a checkbox's label
 still supplies its tooltip. Each child keeps its own value and callback.
 Checkboxes reserve 32 pixels by default in these rows; other controls reserve
@@ -105,7 +116,7 @@ panel:AddField(group)
 To share a label between controls, add a composite row:
 
 ```lua
-group:AddField({
+local row = group:AddField({
     type = "group", label = "Experience",
     fields = {
         { type = "checkbox", label = "Show Experience", value = true },
@@ -114,6 +125,16 @@ group:AddField({
             { value = "minute", label = "Per minute" },
         } },
     },
+})
+```
+
+To place a related setting below a row:
+
+```lua
+row:AddSubfield({
+    type = "select", label = "Tracked faction", value = 72,
+    options = { { value = 72, label = "Stormwind" } },
+    onChanged = function(factionID) C_Reputation.SetWatchedFactionByID(factionID) end,
 })
 ```
 
@@ -157,6 +178,19 @@ Reputation use the same independent preference. Changes persist through the
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
 
+The Reputation row has an indented **Tracked faction** dropdown. It displays
+the game's watched faction and changes it directly through
+[`C_Reputation`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ReputationInfoDocumentation.lua).
+`UPDATE_FACTION` keeps the open form synchronized with changes made in the
+game's reputation panel. The alphabetized list includes known reputations in
+collapsed and inactive groups, plus headers that have their own reputation.
+Reading the list restores the original collapsed states. **None** clears the
+watched faction, and long lists use native scrolling. Reopening settings reads
+the current game state; no separate addon preference is saved. The selector
+works while the tracker is hidden or stopped and does not start a session.
+Changing factions preserves the tracker's existing automatic session reset;
+gains from different factions are never combined.
+
 Hiding a panel keeps its session running. The form follows visibility changes
 from the minimap menu and panel X and reads saved preferences silently when
 reopened. Reposition the minimap button by dragging it; settings have no angle
@@ -173,4 +207,6 @@ the form content and **Close**, independently of the compact tracker layout.
 Validate appearance, checkbox interaction, each rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected rates and minimap position match saved preferences.
+Validate the reputation subfield's indentation and scrolling, switching factions
+through both interfaces, **None**, and session reset after switching factions.
 Lua simulation checks do not validate rendering or native mouse routing.

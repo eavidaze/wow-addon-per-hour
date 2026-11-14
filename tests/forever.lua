@@ -128,7 +128,11 @@ function methods:GetHeight() return self.height end
 function methods:GetStringWidth()
     return #self.text * (self.template == "GameFontNormalHuge" and 10 or 6)
 end
-function methods:SetPoint(...) self.point = { ... } end
+function methods:SetPoint(...)
+    self.point = { ... }
+    self.points = rawget(self, "points") or {}
+    self.points[self.point[1]] = self.point
+end
 function methods:GetPoint() return unpack(self.point) end
 function methods:GetLeft()
     local point = rawget(self, "point")
@@ -152,7 +156,7 @@ function methods:GetTop()
     elseif not anchor:find("TOP") then top = top + self:GetHeight() / 2 end
     return top
 end
-function methods:ClearAllPoints() self.point = nil end
+function methods:ClearAllPoints() self.point, self.points = nil, {} end
 function methods:StartMoving() self.moving = true end
 function methods:StopMovingOrSizing() self.moving = false end
 function methods:GetCenter() return 100, 200 end
@@ -162,6 +166,7 @@ function methods:IsMenuOpen() return self.menuOpen == true end
 function methods:CloseMenu() self.menuOpen = false end
 local function menuDescription()
     local root = { items = {} }
+    function root:SetScrollMode(height) self.maxScrollExtent = height end
     function root:CreateTitle(text) self.title = text end
     function root:CreateCheckbox(text, isSelected, callback, data)
         self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
@@ -384,7 +389,55 @@ function UnitHonorMax(_unit) return 5500 end
 function UnitHonorLevel(_unit) return 1 end
 function issecretvalue(value) return type(value) == "table" and value.secret == true end
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, message) messages[#messages + 1] = message end }
-C_Reputation = { GetWatchedFactionData = function() return watched end }
+local factionChanged
+local factions = {
+    { name = "Alliance", factionID = 0, isHeader = true, isCollapsed = true, children = {
+        { name = "Stormwind", factionID = 72, currentStanding = 0 },
+        { name = "Cities", factionID = 0, isHeader = true, isCollapsed = true, children = {
+            { name = "Ironforge", factionID = 47, currentStanding = 100 },
+        } },
+    } },
+    { name = "Inactive", factionID = 0, isHeader = true, isCollapsed = true, children = {
+        { name = "Timbermaw Hold", factionID = 576, currentStanding = -100 },
+    } },
+    { name = "Faction with reputation", factionID = 999, currentStanding = 0,
+        isHeader = true, isHeaderWithRep = true, isCollapsed = true },
+}
+local function factionRows(all)
+    local rows = {}
+    local function add(nodes)
+        for _, data in ipairs(nodes) do
+            rows[#rows + 1] = data
+            if data.children and (all or not data.isCollapsed) then add(data.children) end
+        end
+    end
+    add(factions)
+    return rows
+end
+C_Reputation = {
+    GetWatchedFactionData = function() return watched end,
+    GetNumFactions = function() return #factionRows() end,
+    GetFactionDataByIndex = function(index) return factionRows()[index] end,
+    ExpandFactionHeader = function(index)
+        factionRows()[index].isCollapsed = false
+        if factionChanged then factionChanged() end
+    end,
+    CollapseFactionHeader = function(index)
+        factionRows()[index].isCollapsed = true
+        if factionChanged then factionChanged() end
+    end,
+    SetWatchedFactionByID = function(id)
+        for _, data in ipairs(factionRows(true)) do
+            if data.factionID == id then watched = data; break end
+        end
+        if factionChanged then factionChanged() end
+    end,
+    SetWatchedFactionByIndex = function(index)
+        equal(index, 0, "clearing watched reputation uses index zero")
+        watched = nil
+        if factionChanged then factionChanged() end
+    end,
+}
 C_CurrencyInfo = { GetCurrencyInfo = function(id)
     if id == 1792 then return { name = "Honor Points", quantity = honorBalance, totalEarned = 0 } end
 end }
@@ -429,6 +482,7 @@ local function changeHonor(amount)
     honorBalance = honorBalance + amount
     event("CURRENCY_DISPLAY_UPDATE", 1792, honorBalance, amount)
 end
+factionChanged = function() event("UPDATE_FACTION") end
 local function tick(seconds)
     if PerHour.Session.InWorld then playedTotal = playedTotal + seconds end
     now = now + seconds
@@ -628,7 +682,7 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 234, "settings height fits rows with twelve pixels after header and fourteen before footer")
+    equal(panel:GetHeight(), 274, "settings height includes the indented reputation subfield")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 1, "settings contains one form group")
     equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
@@ -692,6 +746,72 @@ do
     panel.CloseButton:Click()
     equal(panel:IsShown(), false, "X closes settings")
     equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
+end
+
+-- The reputation subfield controls the game's watched faction, independently of panel visibility.
+do
+    local settings = PerHour.SettingsPanel
+    local originalWatched = watched
+    settings:Show()
+    local field = settings.ReputationField
+    local row = settings.Frame.Fields[1].Fields[3]
+    equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
+    equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
+    equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
+    equal(row.SubfieldStack.points.TOPLEFT[4], 16, "subfield label is indented sixteen pixels")
+    equal(row:GetHeight(), 72, "parent height includes the subfield and its spacing")
+    equal(row.ControlArea.point[1], "TOPRIGHT", "parent controls stay on their original row")
+    equal(field:GetValue(), 72, "selector reads the game's watched faction")
+    equal(field.Control:GetText(), "Stormwind", "selector displays the watched faction name")
+    local choices = field.Control.menuDescription.items
+    equal(field.Control.menuDescription.maxScrollExtent, 300, "long reputation lists use native scrolling")
+    equal(#choices, 5, "selector includes None and all trackable reputations")
+    equal(choices[1].text, "None", "selector offers clearing the watched faction")
+    equal(choices[2].data, 999, "headers with reputation are trackable")
+    equal(choices[3].data, 47, "nested collapsed factions are available")
+    equal(choices[5].data, 576, "inactive collapsed factions are available")
+    for _, data in ipairs(factionRows(true)) do
+        if data.isHeader then equal(data.isCollapsed, true, "enumeration restores " .. data.name) end
+    end
+    local shown = reputation.Settings:Get("isShown")
+    choices[3].callback(choices[3].data)
+    equal(watched.factionID, 47, "addon selection changes the game's watched faction by ID")
+    equal(field:GetValue(), 47, "addon selection follows the authoritative game value")
+    equal(reputation.Settings:Get("isShown"), shown, "selecting a reputation preserves panel visibility")
+    equal(reputation.State.HasStarted, false, "selecting a reputation does not start tracking")
+    C_Reputation.SetWatchedFactionByID(576)
+    equal(field:GetValue(), 576, "open settings follow changes made through the game")
+    equal(field.Control:GetText(), "Timbermaw Hold", "external changes update the displayed name")
+    field:SetValue(0)
+    equal(watched, nil, "None clears the game's watched faction")
+    equal(field.Control:GetText(), "None", "cleared faction displays None")
+    watched = { factionID = 1234, name = "New faction", currentStanding = 0 }
+    event("UPDATE_FACTION")
+    equal(field:GetValue(), 1234, "watched factions absent from the list still display correctly")
+    equal(field.Control:GetText(), "New faction", "missing list entries use the watched faction name")
+    settings.Frame:Hide()
+    watched = originalWatched
+    event("UPDATE_FACTION")
+    settings:Show()
+    equal(field:GetValue(), 72, "reopening settings rereads changes made while closed")
+    tick(0)
+    local newFaction = { name = "Discovered faction", factionID = 1235, currentStanding = 0 }
+    table.insert(factions, newFaction)
+    event("UPDATE_FACTION")
+    field:SetValue(1235)
+    equal(watched, newFaction, "newly discovered reputations become selectable while settings are open")
+    field:SetValue(72)
+    click(reputation)
+    watched.currentStanding = watched.currentStanding + 100
+    tick(2)
+    equal(reputation.State.Element, 100, "tracking still records gains after using the selector")
+    field:SetValue(47)
+    tick(2)
+    equal(reputation.State.HasStarted, false, "switching through settings keeps the existing session reset behavior")
+    equal(reputation.State.Element, 0, "switching factions never combines their totals")
+    table.remove(factions)
+    watched = originalWatched
+    settings.Frame:Hide()
 end
 
 -- Display rate choices apply independently without changing tracking state or saved sessions.
@@ -851,6 +971,40 @@ do
     equal(experience.State.HasStarted, false, "form examples never start tracking")
     equal(experience.Settings:Get("isShown"), true, "form examples never hide tracking")
     equal(PerHourAccount_Settings.opacity, nil, "opacity example is not persisted")
+    panel:Hide()
+end
+
+-- Subfields resize the form and keep later rows below their nested controls.
+do
+    local changed = 0
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Subfields", width = 560, form = true })
+    local group = PerHour.Components:CreateFormGroup(panel.Content, { title = "Options", fields = {
+        { type = "checkbox", label = "Parent", value = true, subfields = {
+            { type = "select", label = "Child", value = 1,
+                options = { { value = 1, label = "First" } },
+                onChanged = function() changed = changed + 1 end },
+        } },
+        { type = "text", label = "Following row", value = "Example" },
+    } })
+    panel:AddField(group)
+    local parent, following = group.Fields[1], group.Fields[2]
+    local child = parent.Subfields[1]
+    local height = panel:GetHeight()
+    equal(following.points.TOPLEFT[5], -80, "later rows leave space for the subfield")
+    equal(parent.ControlArea.points.TOPRIGHT[5], 0, "parent control stays at the top when expanded")
+    child:SetOptions({ { value = 2, label = "Replacement" } }, 2)
+    equal(child:GetValue(), 2, "dynamic options can replace the previous selection")
+    equal(child.Control:GetText(), "Replacement", "dynamic options refresh the displayed name")
+    equal(changed, 0, "refreshing external options does not fire the user callback")
+    child:SetValue(1)
+    equal(child:GetValue(), 2, "removed options cannot be selected")
+    child:AddSubfield({ type = "text", label = "Grandchild", value = "Nested" })
+    equal(panel:GetHeight(), height + 40, "nested subfields resize the enclosing panel")
+    equal(following.points.TOPLEFT[5], -120, "nested controls push later rows down")
+    parent:AddSubfield({ type = "checkbox", label = "Second child", value = false })
+    equal(panel:GetHeight(), height + 80, "adding another subfield grows the panel again")
+    equal(following.points.TOPLEFT[5], -160, "additional children preserve row spacing")
+    equal(parent:GetValue(), true, "subfields preserve their parent's value")
     panel:Hide()
 end
 
