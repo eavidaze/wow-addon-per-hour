@@ -72,15 +72,22 @@ panel opens; call `button:Refresh()` after changing state elsewhere while open.
 Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
-`SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click. Its
-**Tracking** and **Appearance** groups demonstrate a checkbox, dropdown, text
-field and numeric sliders. These examples have no effect on addon settings and
-are not saved. The panel has one centered footer action, **Close**, at 30% of the
+`SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click. The
+**Panels** group has one visibility checkbox for each module, sorted by name.
+The **Minimap** group adjusts the button position from 0 to 360 degrees; zero is
+right, 90 is top, 180 is left and 270 is bottom. Changes apply immediately and
+persist through the [settings store](stores.md). Hiding a panel keeps its session
+running. The form follows visibility changes from the minimap menu and panel X,
+and position changes from dragging the minimap button. Refreshing controls reads
+saved values silently, without rewriting or rounding the stored angle.
+
+The panel has one centered footer action, **Close**, at 30% of the
 available footer width, and an always-visible
 X. Drag its background, including
 the title area, to move it; fields and buttons handle their own mouse input.
 The panel retains its position while the addon remains loaded.
 
-Validate appearance, checkbox interaction, dragging and both close controls in
-WoW Forever after `/reload`. Lua simulation checks do not validate rendering or
-native mouse routing.
+Validate appearance, checkbox interaction, the position slider, dragging and
+both close controls in WoW Forever. After `/reload` and a normal logout/login,
+confirm that panel visibility and minimap position match the saved preferences.
+Lua simulation checks do not validate rendering or native mouse routing.

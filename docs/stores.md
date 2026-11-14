@@ -24,8 +24,11 @@ malformed data using defaults. Invalid positions are discarded so panels use
 their default layout. Setters reject invalid values. Position reads and writes
 copy tables, so callers cannot mutate stored positions indirectly.
 
-Forms keep their generic `value` and `onChanged` interface. The current settings
-panel remains a demonstration; connecting real preferences is a separate step.
+Forms keep their generic `value` and `onChanged` interface. The settings panel
+connects module visibility and minimap position to the stores and applies each
+change immediately. It refreshes silently when opened and when the corresponding
+UI changes elsewhere. The minimap slider displays degrees while the store keeps
+the existing angle in radians; displaying a rounded value never rewrites it.
 
 ## Sessions
 

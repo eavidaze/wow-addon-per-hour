@@ -35,12 +35,17 @@ local function UpdatePosition()
         math.sin(angle) * (Minimap:GetHeight() / 2 + 5))
 end
 
+function button:SetAngle(angle)
+    PerHour.Stores.Settings:SetMinimapAngle(angle)
+    UpdatePosition()
+    PerHour.SettingsPanel:Refresh()
+end
+
 local function UpdateDragPosition()
     local x, y = GetCursorPosition()
     local centerX, centerY = Minimap:GetCenter()
     local scale = Minimap:GetEffectiveScale()
-    PerHour.Stores.Settings:SetMinimapAngle(math.atan2(y / scale - centerY, x / scale - centerX))
-    UpdatePosition()
+    button:SetAngle(math.atan2(y / scale - centerY, x / scale - centerX))
 end
 
 button:SetScript("OnDragStart", function(self)

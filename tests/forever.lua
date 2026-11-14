@@ -587,25 +587,39 @@ do
     equal(GameTooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 384, "settings height follows both groups and their fields")
+    equal(panel:GetHeight(), 344, "settings height follows both groups and their fields")
     equal(#panel.Fields, 2, "settings contains two form groups")
-    equal(panel.Fields[1].TitleText:GetText(), "Tracking", "first group title")
-    equal(panel.Fields[2].TitleText:GetText(), "Appearance", "second group title")
-    equal(#panel.Fields[1].Fields, 3, "tracking group contains checkbox, select and text")
-    equal(#panel.Fields[2].Fields, 2, "appearance group contains numeric sliders")
+    equal(panel.Fields[1].TitleText:GetText(), "Panels", "first group title")
+    equal(panel.Fields[2].TitleText:GetText(), "Minimap", "second group title")
+    equal(#panel.Fields[1].Fields, 3, "panels group contains one checkbox per module")
+    equal(#panel.Fields[2].Fields, 1, "minimap group contains the position slider")
     equal(panel.TitleText.template, experience.ElementPerHourValue.template, "form title uses the rate number font")
     equal(panel.Fields[1].TitleText.template, experience.ElementPerHourValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
-    local example = panel.Fields[1].Fields[1]
-    equal(example.Label:GetText(), "Example option", "example has a simple label")
-    equal(table.concat(example.Label.textColor, ","), "1,0.82,0", "field labels are gold")
-    equal(example.Control:GetChecked(), false, "example starts unchecked")
-    example.Control:Click()
-    equal(example:GetValue(), true, "example checkbox responds to clicks")
-    example.scripts.OnMouseUp(example, "LeftButton")
-    equal(example:GetValue(), false, "example label toggles checkbox")
-    equal(experience.Settings:Get("isShown"), true, "example does not change module visibility")
-    equal(experience.HasStarted, false, "example does not start tracking")
+    local visibility = panel.Fields[1].Fields[1]
+    equal(visibility.Label:GetText(), "Show Experience", "visibility control identifies its module")
+    equal(table.concat(visibility.Label.textColor, ","), "1,0.82,0", "field labels are gold")
+    equal(visibility.Control:GetChecked(), true, "visibility control reads the saved setting")
+    visibility.Control:Click()
+    equal(visibility:GetValue(), false, "checkbox updates its value")
+    equal(experience.Frame:IsShown(), false, "checkbox immediately hides the XP panel")
+    equal(experience.Settings:Get("isShown"), false, "checkbox persists hidden visibility")
+    visibility.scripts.OnMouseUp(visibility, "LeftButton")
+    equal(visibility:GetValue(), true, "label toggles visibility back on")
+    equal(experience.Frame:IsShown(), true, "label immediately shows the XP panel")
+    equal(experience.Settings:Get("isShown"), true, "label persists visible state")
+    equal(experience.HasStarted, false, "visibility does not start tracking")
+    equal(honor.Settings:Get("isShown"), false, "XP control preserves honor visibility")
+    equal(reputation.Settings:Get("isShown"), false, "XP control preserves reputation visibility")
+    equal(panel.Fields[2].Fields[1]:GetValue(), 225, "minimap control reads the saved angle")
+    local item = minimapButton.menuDescription.items[1]
+    item.callback(item.data)
+    equal(visibility:GetValue(), false, "open settings follow minimap menu changes")
+    item.callback(item.data)
+    equal(visibility:GetValue(), true, "open settings follow the menu showing a panel")
+    experience.Frame.CloseButton:Click()
+    equal(visibility:GetValue(), false, "open settings follow the tracking panel X")
+    visibility.Control:Click()
     equal(panel.CloseButton:GetAlpha(), 1, "settings X stays visible without hovering")
     equal(panel.CloseButton.scripts.OnUpdate, nil, "always-visible X does not poll cursor")
     equal(panel.Actions.close:GetText(), "Close", "footer action closes settings")
@@ -634,9 +648,75 @@ do
     equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
 end
 
--- Form examples interact locally, with numeric limits and no tracking side effects.
+-- Real preferences apply immediately without quantizing drag positions or touching sessions.
 do
-    local panel = PerHour.SettingsPanel.Frame
+    local settings = PerHour.SettingsPanel
+    local savedSessions = PerHourCharacter_Values
+    settings:Show()
+    local angle = settings.AngleField
+    equal(angle.Control.template, "MinimalSliderWithSteppersTemplate", "minimap position uses the native slider")
+    equal(angle.Control.Slider.minimum, 0, "minimap position starts at zero degrees")
+    equal(angle.Control.Slider.maximum, 360, "minimap position covers the full circle")
+    equal(angle.ValueText:GetText(), "225 deg", "minimap slider shows degrees")
+    angle.Control:SetValue(90)
+    near(PerHour.Stores.Settings:GetMinimapAngle(), math.pi / 2, "position slider persists radians")
+    near(minimapButton.point[4], 0, "position slider immediately updates minimap X")
+    near(minimapButton.point[5], 75, "position slider immediately updates minimap Y")
+    angle.Control.Back:Click()
+    equal(angle:GetValue(), 89, "minimap position stepper moves one degree")
+    near(PerHour.Stores.Settings:GetMinimapAngle(), math.rad(89), "position stepper persists its value")
+    angle:SetValue(500)
+    equal(angle:GetValue(), 360, "position slider retains its upper endpoint")
+    near(PerHour.Stores.Settings:GetMinimapAngle(), 2 * math.pi, "upper endpoint is persisted")
+    angle:SetValue(-50)
+    equal(angle:GetValue(), 0, "position slider clamps to its lower endpoint")
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), 0, "zero angle is persisted")
+    minimapButton:SetAngle(-math.pi / 2)
+    equal(angle:GetValue(), 270, "negative drag angles display within the full circle")
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), -math.pi / 2, "refresh preserves signed drag angles")
+    minimapButton:SetAngle(math.rad(12.4))
+    equal(angle:GetValue(), 12, "form displays a rounded drag position")
+    settings.Frame:Hide()
+    settings:Show()
+    near(PerHour.Stores.Settings:GetMinimapAngle(), math.rad(12.4), "reopening never rounds the persisted angle")
+    equal(PerHourCharacter_Values, savedSessions, "preference changes leave saved sessions untouched")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local field = settings.ModuleFields[module.Name]
+        local shown = module.Settings:Get("isShown")
+        field:SetValue(not shown)
+        equal(module.Frame:IsShown(), not shown, module.Name .. " field targets its own panel")
+        equal(module.Settings:Get("isShown"), not shown, module.Name .. " field saves its own preference")
+        equal(module.HasStarted, false, module.Name .. " visibility does not start a session")
+        field:SetValue(shown)
+    end
+    click(experience)
+    settings.ModuleFields.Experience:SetValue(false)
+    equal(experience.HasStarted, true, "hiding through settings keeps an active session running")
+    equal(experience.HasPaused, false, "hiding through settings does not pause tracking")
+    settings.ModuleFields.Experience:SetValue(true)
+    BaseModule:ResetModule(experience)
+    minimapButton:SetAngle(math.rad(225))
+    settings.Frame:Hide()
+end
+
+-- Generic form controls remain usable without persistence or tracking side effects.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Form controls", width = 560, form = true })
+    panel:AddField(PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Tracking", fields = {
+            { type = "checkbox", label = "Example option", value = false },
+            { type = "select", label = "Display rate", value = "hour", options = {
+                { value = "hour", label = "Per hour" }, { value = "minute", label = "Per minute" },
+            } },
+            { type = "text", label = "Session name", value = "Example session" },
+        },
+    }))
+    panel:AddField(PerHour.Components:CreateFormGroup(panel.Content, {
+        title = "Appearance", fields = {
+            { type = "slider", label = "Panel opacity", value = 80, min = 25, max = 100, step = 5, suffix = "%" },
+            { type = "slider", label = "Decimal places", value = 1, min = 0, max = 3, step = 1 },
+        },
+    }))
     local tracking, appearance = panel.Fields[1], panel.Fields[2]
     local selection, text = tracking.Fields[2], tracking.Fields[3]
     equal(tracking.Fields[1].Control.template, "SettingsCheckboxTemplate", "checkbox uses Forever Options template")
@@ -701,6 +781,7 @@ do
     equal(experience.HasStarted, false, "form examples never start tracking")
     equal(experience.Settings:Get("isShown"), true, "form examples never hide tracking")
     equal(PerHourAccount_Settings.opacity, nil, "opacity example is not persisted")
+    panel:Hide()
 end
 
 -- Changing a group's fields reflows subsequent groups and the enclosing panel.
@@ -789,12 +870,14 @@ minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
 minimapButton.scripts.OnUpdate(minimapButton)
 equal(PerHourAccount_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
+equal(PerHour.SettingsPanel.AngleField:GetValue(), 0, "minimap drag refreshes the position field")
 equal(minimapButton.point[4], 75, "drag stays on minimap edge")
 equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
 cursorX, cursorY = 200, 600
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")
+equal(PerHour.SettingsPanel.AngleField:GetValue(), 90, "drag stop refreshes the position field")
 PerHour.Stores.Settings:Init()
 equal(PerHourAccount_Settings.minimap.angle, math.pi / 2, "saved position survives settings initialization")
 minimapButton.scripts.OnEnter(minimapButton)
@@ -1087,6 +1170,11 @@ showPanel(experience, true)
 showPanel(honor, true)
 equal(honor.Frame:IsShown(), false, "no free space prevents showing an overlapping panel")
 equal(honor.Settings:Get("isShown"), false, "no free space saves hidden visibility")
+PerHour.SettingsPanel:Show()
+PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
+equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), false, "rejected visibility restores the checkbox")
+equal(honor.Frame:IsShown(), false, "settings cannot open a panel without free space")
+PerHour.SettingsPanel.Frame:Hide()
 experience.Frame.scripts.OnEnter(experience.Frame)
 equal(experience.Frame:GetHeight(), 94, "hover fits compact screen")
 experience.Time = 90061
@@ -1462,5 +1550,32 @@ equal(playedRequests, requestsBefore, "zone transitions do not request played ti
 xp = 700
 tick(2)
 equal(experience.Element, previousTotal + 25, "zone transitions retain current totals")
+-- Recreate the addon using only saved preferences and session data, as on reload.
+do
+    PerHour.SettingsPanel:Show()
+    PerHour.SettingsPanel.ModuleFields.Experience:SetValue(false)
+    PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
+    PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
+    PerHour.SettingsPanel.AngleField:SetValue(315)
+    local account = copy(PerHourAccount_Settings)
+    event("PLAYER_LOGOUT")
+    local savedSessions = copy(PerHourCharacter_Values)
+    PerHourAccount_Settings = copy(account)
+    login(savedSessions, 0)
+    equal(PerHour.SettingsPanel.Frame, nil, "reload keeps settings creation lazy")
+    equal(experience.Frame:IsShown(), false, "reload restores the hidden XP preference")
+    equal(honor.Frame:IsShown(), true, "reload restores the visible honor preference")
+    equal(reputation.Frame:IsShown(), false, "reload restores the hidden reputation preference")
+    equal(experience.Element, savedSessions.sessions.Experience.total, "preferences preserve restored session totals")
+    equal(experience.HasPaused, false, "hidden XP session resumes after reload")
+    PerHour.SettingsPanel:Show()
+    equal(PerHour.SettingsPanel.ModuleFields.Experience:GetValue(), false, "reloaded form reads hidden XP")
+    equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), true, "reloaded form reads visible honor")
+    equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
+    equal(PerHour.SettingsPanel.AngleField:GetValue(), 315, "reloaded form reads the saved minimap position")
+    near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
+    near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
+    PerHour.SettingsPanel.Frame:Hide()
+end
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
