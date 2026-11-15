@@ -173,8 +173,32 @@ function Components:CreatePanel(parent, settings)
     frame.Content = CreateFrame("Frame", nil, frame)
     frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
     frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + footerSpacing)
+    frame.ContentComponent = false
     self:SetupFieldStack(frame, frame.Content, baseHeight,
         settings.form and 20 or FIELD_GAP)
+
+    -- A custom component uses the panel's content region; forms keep AddField's layout.
+    function frame:SetContent(component)
+        if self.ContentComponent and self.ContentComponent ~= component then self.ContentComponent:Hide() end
+        self.ContentComponent = component
+        self.Content:ClearAllPoints()
+        if self.TitleBox then
+            self.Content:SetPoint("TOP", self.TitleBox, "BOTTOM", 0, 0)
+        else
+            self.Content:SetPoint("TOP", self, "TOP", 0, -headerHeight)
+        end
+        if self.ActionBar then
+            self.Content:SetPoint("BOTTOM", self.ActionBar, "TOP", 0, 0)
+        else
+            self.Content:SetPoint("BOTTOM", self, "BOTTOM", 0, footerSize + footerSpacing)
+        end
+        self.Content:SetPoint("LEFT", self, "LEFT", 15, 0)
+        self.Content:SetPoint("RIGHT", self, "RIGHT", -15, 0)
+        component:SetParent(self.Content)
+        component:ClearAllPoints()
+        component:SetPoint("CENTER", self.Content, "CENTER", 0, self.TitleBox and 1 or 0)
+        component:Show()
+    end
 
     if settings.draggable then
         frame:SetMovable(true)
@@ -336,6 +360,7 @@ function Components:CreatePanelActions(frame, actions)
     else
         Layout(footer, footer:GetWidth())
     end
+    if frame.ContentComponent then frame:SetContent(frame.ContentComponent) end
 end
 
 function Components:CreateCheckbox(parent, settings)
@@ -372,6 +397,15 @@ function Components:CreateRateDisplay(parent, unitText)
     frame.Unit:SetTextColor(unpack(Theme.gold.text))
     frame.Unit:SetPoint("BOTTOMLEFT", frame.Value, "BOTTOMRIGHT", 4, 0)
     frame.Unit:SetText(unitText)
+    function frame:SetRate(value, unit)
+        self.Unit:SetText(unit)
+        self.Value:SetText(Utils:DisplayRoundedNumber(value, 0))
+        local width = self:GetParent():GetWidth()
+        if self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4 > width then
+            self.Value:SetText(AbbreviateLargeNumbers(Utils:RoundValue(value, 0)))
+        end
+        self:SetWidth(self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4)
+    end
     return frame
 end
 

@@ -78,7 +78,7 @@ function SettingsPanel:Show()
                         },
                         onChanged = function(value)
                             module.Settings:Set("rate", value)
-                            PerHour.Displayer:RefreshRate(module)
+                            PerHour.TrackerPanels:RefreshRate(module)
                         end,
                     },
                 },

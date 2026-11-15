@@ -20,6 +20,6 @@ src / `Init.xml`
 
 - core / `Init.xml`
 
-  - Displayer.lua
+  - TrackerPanels.lua
   - ToggleMenu.lua
   - CommandLine.lua

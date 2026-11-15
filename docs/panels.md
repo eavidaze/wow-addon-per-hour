@@ -46,6 +46,18 @@ local panel = Components:CreatePanel(UIParent, {
 })
 ```
 
+For custom content, use `panel:SetContent(component)`. It reparents the component
+into `panel.Content` and centers it between the title and footer, preserving the
+panel's configured size. Replacing the component hides the previous one. A composite
+component can contain multiple displays. Adding footer actions later updates the
+content boundary. Use custom content or form fields for a given panel.
+
+`TrackerPanels.lua` creates and coordinates the three monitors, including session
+controls, positioning and refreshes. Each monitor mounts a `CreateRateDisplay`
+component through `SetContent`. Its `SetRate(value, unit)` method formats the number,
+unit and overflow abbreviation using its parent's width. The coordinator supplies
+the calculated rate; it does not create another content region.
+
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
 height automatically. `Components:CreateCheckbox(panel.Content, settings)`

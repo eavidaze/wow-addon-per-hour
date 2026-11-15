@@ -30,10 +30,10 @@ function BaseModule:SendTo(contextModule, chatType)
 end
 
 function BaseModule:RefreshDisplayedValues(contextModule)
-    PerHour.Displayer:RefreshRate(contextModule)
-    PerHour.Displayer:RefreshTrackingState(contextModule)
-    PerHour.Displayer:RefreshRestoreStatus(contextModule)
-    PerHour.Displayer:RefreshTooltip(contextModule)
+    PerHour.TrackerPanels:RefreshRate(contextModule)
+    PerHour.TrackerPanels:RefreshTrackingState(contextModule)
+    PerHour.TrackerPanels:RefreshRestoreStatus(contextModule)
+    PerHour.TrackerPanels:RefreshTooltip(contextModule)
 end
 
 function BaseModule:UpdateRates(contextModule)

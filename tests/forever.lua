@@ -112,6 +112,8 @@ end
 function methods:AddMaskTexture(mask) self.mask = mask end
 function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
+function methods:SetParent(parent) self.parent = parent end
+function methods:GetParent() return self.parent end
 function methods:SetWidth(value) self.width = value end
 function methods:SetHeight(value)
     local previous = rawget(self, "height")
@@ -137,7 +139,17 @@ function methods:ClearFocus()
     if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
 end
 function methods:SetTexCoord(...) self.texCoords = { ... } end
-function methods:GetWidth() return self.width end
+function methods:GetWidth()
+    local width = rawget(self, "width")
+    if width then return width end
+    local points = rawget(self, "points") or {}
+    local left = points.LEFT or points.TOPLEFT or points.BOTTOMLEFT
+    local right = points.RIGHT or points.TOPRIGHT or points.BOTTOMRIGHT
+    if left and right and left[2] == right[2] then
+        return left[2]:GetWidth() + right[4] - left[4]
+    end
+    return 0
+end
 function methods:GetHeight() return self.height end
 function methods:GetStringWidth()
     local width = self.template == "GameFontNormalHuge" and 10 or 6
@@ -568,7 +580,7 @@ equal(dragPanel.scripts.OnUpdate, nil, "panel stops cursor tracking")
 equal(PerHourCharacter_Settings.Experience.position.x, 1700, "drag saves window X")
 equal(PerHourCharacter_Settings.Experience.position.y, 174, "drag saves window Y")
 experience.View.Frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-PerHour.Displayer:RestorePositions()
+PerHour.TrackerPanels:RestorePositions()
 equal(experience.View.Frame.point[1], "TOPLEFT", "dragged window anchor restored")
 equal(experience.View.Frame.point[4], 1700, "dragged window position restored")
 equal(experience.View.Frame.TitleText:GetText(), "Experience", "experience title uses only the module name")
@@ -872,7 +884,7 @@ do
         equal(field:GetValue(), "minute", "reopening reads the saved rate")
         equal(field.Control:GetText(), "Per minute", "reopening restores the native select label")
         state.ElementPerMinute, state.ElementPerHour = 1000000000000, 60000000000000
-        PerHour.Displayer:RefreshRate(module)
+        PerHour.TrackerPanels:RefreshRate(module)
         equal(abbreviatedValue, state.ElementPerMinute, "abbreviation uses the selected minute rate")
         equal(module.View.RateValue:GetText(), "1T", "selected rate keeps overflow abbreviation")
         equal(module.View.RateFrame:GetWidth() <= module.View.Frame:GetWidth() - 30, true, "rate and selected unit fit")
@@ -1182,6 +1194,10 @@ do
     equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
     for _, module in pairs(PerHour.Modules) do
         local panel = module.View.Frame
+        equal(module.View.RateFrame:GetParent(), panel.Content, "tracker rate belongs to the shared content region")
+        equal(panel.ContentComponent, module.View.RateFrame, "tracker mounts its rate through the panel content API")
+        equal(panel.Content.points.TOP[2], panel.TitleBox, "panel owns the content anchor below its title")
+        equal(panel.Content.points.BOTTOM[2], panel.ActionBar, "panel owns the content anchor above its actions")
         equal(rawget(panel, "BrandText"), nil, "tracker has no branding")
         equal(rawget(panel, "BrandPrefix"), nil, "tracker has no branding prefix")
         equal(panel.TitleText:GetWidth() >= panel.TitleText:GetStringWidth(), true,
@@ -1193,6 +1209,29 @@ do
     equal(select(2, default.BrandText:GetFont()), 9, "default branding keeps its font size")
     default:Hide()
     small:Hide()
+end
+
+-- Custom content is mounted independently of form fields and footer construction order.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, { title = "Custom content", width = 180, height = 94 })
+    local rate = PerHour.Components:CreateRateDisplay(UIParent, "XP/h")
+    panel:SetContent(rate)
+    equal(rate:GetParent(), panel.Content, "mounting content reparents the component into the panel")
+    equal(rate.point[2], panel.Content, "mounting content centers it in the panel region")
+    equal(panel:GetHeight(), 94, "mounting content preserves explicit panel height")
+    PerHour.Components:CreatePanelActions(panel, { { text = "Close" } })
+    equal(panel.Content.points.BOTTOM[2], panel.ActionBar, "adding actions later updates the content boundary")
+    rate:SetRate(25000, "XP/h")
+    equal(rate.Value:GetText(), "25,000", "numeric display formats its own rate")
+    equal(rate.Unit:GetText(), "XP/h", "numeric display updates its own unit")
+    equal(rate:GetWidth() <= panel.Content:GetWidth(), true, "numeric display fits the panel content width")
+    local replacement = PerHour.Components:CreateRateDisplay(panel.Content, "XP/min")
+    panel:SetContent(replacement)
+    equal(rate:IsShown(), false, "replacing custom content hides the previous component")
+    equal(replacement:IsShown(), true, "replacement content is visible")
+    replacement:SetRate(1000000000000, "XP/min")
+    equal(replacement.Value:GetText(), "1T", "numeric display preserves native overflow abbreviation")
+    panel:Hide()
 end
 
 -- Shared panels size multiple fields and support icon actions with or without a menu.
@@ -1572,18 +1611,18 @@ assertPanelLayout("reopening an overlapping panel")
 for _, module in ipairs(panels) do
     PerHourCharacter_Settings[module.Name].position = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = 750, y = 700 }
 end
-PerHour.Displayer:RestorePositions()
+PerHour.TrackerPanels:RestorePositions()
 assertPanelLayout("restoring three identical saved positions")
 local resolvedPositions = {}
 for index, module in ipairs(panels) do
     resolvedPositions[index] = module.View.Frame:GetLeft() .. "," .. module.View.Frame:GetTop()
 end
-PerHour.Displayer:RestorePositions()
+PerHour.TrackerPanels:RestorePositions()
 for index, module in ipairs(panels) do
     equal(module.View.Frame:GetLeft() .. "," .. module.View.Frame:GetTop(), resolvedPositions[index], "resolved position stays stable for " .. module.Name)
 end
 PerHourCharacter_Settings.Experience.position.x, PerHourCharacter_Settings.Experience.position.y = 5000, -100
-PerHour.Displayer:RestorePositions()
+PerHour.TrackerPanels:RestorePositions()
 assertPanelLayout("restoring off-screen positions")
 
 for _, module in ipairs(panels) do showPanel(module, false) end
@@ -2117,7 +2156,7 @@ do
     equal(experience.Settings:Get("position"), nil, "another character starts without a saved XP position")
     showPanel(experience, false)
     showPanel(honor, true)
-    PerHour.Displayer:SavePosition(honor, 600, 700)
+    PerHour.TrackerPanels:SavePosition(honor, 600, 700)
     PerHour.MinimapButton:SetAngle(0)
     experience.Settings:Set("rate", "minute")
     event("PLAYER_LOGOUT")

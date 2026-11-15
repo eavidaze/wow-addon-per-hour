@@ -4,8 +4,8 @@ local BaseModule = BaseModule
 local Components = PerHour.Components
 local Theme = PerHour.Theme
 local goldR, goldG, goldB = unpack(Theme.gold.text)
-local Displayer = {}
-PerHour.Displayer = Displayer
+local TrackerPanels = {}
+PerHour.TrackerPanels = TrackerPanels
 
 local WIDTH, HEIGHT = 180, 94
 local CONTROL_SIZE = 28
@@ -45,7 +45,7 @@ local function AnimateRestoreIndicator(module, delay)
             self:Hide()
             self:SetAlpha(1)
             module.State.RestoreStatus = nil
-            Displayer:RefreshRestoreStatus(module)
+            TrackerPanels:RefreshRestoreStatus(module)
         elseif not fadeOutAt and alpha == 1 then
             self:SetScript("OnUpdate", nil)
         end
@@ -116,7 +116,7 @@ end
 
 local function PlaceShownPanel(module)
     if not positionsReady then return end
-    if not Displayer:SavePosition(module) then
+    if not TrackerPanels:SavePosition(module) then
         module.Settings:Set("isShown", false)
         module.View.Frame:Hide()
         Utils:AddonMessage("No room to show " .. module.Name .. ".")
@@ -175,12 +175,12 @@ local function CreatePanel(module, index, count)
         local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
         self:SetScript("OnUpdate", function()
             local x, y = GetCursorPosition()
-            Displayer:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale)
+            TrackerPanels:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale)
         end)
     end)
     frame:SetScript("OnDragStop", function(self)
         self:SetScript("OnUpdate", nil)
-        Displayer:SavePosition(module)
+        TrackerPanels:SavePosition(module)
     end)
     frame:HookScript("OnHide", function()
         frame:SetScript("OnUpdate", nil)
@@ -216,14 +216,8 @@ end
 
 local function CreateValues(module)
     local frame = module.View.Frame
-    local content = CreateFrame("Frame", nil, frame)
-    -- Center the rate in the space between the full header box and footer controls.
-    content:SetPoint("TOP", frame.TitleBox, "BOTTOM", 0, 0)
-    content:SetPoint("BOTTOM", frame.ActionBar, "TOP", 0, 0)
-    content:SetPoint("LEFT", frame, "LEFT", 15, 0)
-    content:SetPoint("RIGHT", frame, "RIGHT", -15, 0)
-    local rateFrame = Components:CreateRateDisplay(frame, module.ShortName .. "/h")
-    rateFrame:SetPoint("CENTER", content, "CENTER", 0, frame.TitleBox and 1 or 0)
+    local rateFrame = Components:CreateRateDisplay(frame.Content, module.ShortName .. "/h")
+    frame:SetContent(rateFrame)
     module.View.RateFrame = rateFrame
 
     module.View.RateValue = rateFrame.Value
@@ -308,7 +302,7 @@ local function CreateTracker(module)
     for _, event in ipairs(module.RegisteredEvents) do tracker:RegisterEvent(event) end
 end
 
-function Displayer:SavePosition(module, x, y)
+function TrackerPanels:SavePosition(module, x, y)
     local frame = module.View.Frame
     x, y = FindFreePosition(module, x or frame:GetLeft(), y or frame:GetTop())
     if not x then return false end
@@ -318,14 +312,14 @@ function Displayer:SavePosition(module, x, y)
     return true
 end
 
-function Displayer:RefreshTrackingState(module)
+function TrackerPanels:RefreshTrackingState(module)
     local text, _, r, g, b = GetTrackingState(module)
     module.View.ToggleStartButton:SetText(text)
     module.View.ToggleStartButton:SetEnabled(module.State.PendingRestore == nil)
     module.View.ActiveIndicator:SetVertexColor(r, g, b)
 end
 
-function Displayer:RefreshRestoreStatus(module)
+function TrackerPanels:RefreshRestoreStatus(module)
     local status = RESTORE_STATUS[module.State.RestoreStatus]
     local indicator = module.View.RestoreIndicator
     local currentStatus = module.State.RestoreStatus or "none"
@@ -355,23 +349,17 @@ function Displayer:RefreshRestoreStatus(module)
     if GameTooltip:IsShown() and GameTooltip:IsOwned(indicator) then ShowRestoreTooltip(module) end
 end
 
-function Displayer:RefreshTooltip(module)
+function TrackerPanels:RefreshTooltip(module)
     if GameTooltip:IsShown() and GameTooltip:IsOwned(module.View.Frame) then ShowRunTooltip(module) end
 end
 
-function Displayer:RefreshRate(module)
-    local rate, unit = module.View.RateValue, module.View.RateUnit
+function TrackerPanels:RefreshRate(module)
     local perMinute = module.Settings:Get("rate") == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
-    unit:SetText(module.ShortName .. (perMinute and "/min" or "/h"))
-    rate:SetText(Utils:DisplayRoundedNumber(value, 0))
-    if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.View.Frame:GetWidth() - 30 then
-        rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(value, 0)))
-    end
-    module.View.RateFrame:SetWidth(rate:GetStringWidth() + unit:GetStringWidth() + 4)
+    module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
 end
 
-function Displayer:RestorePositions()
+function TrackerPanels:RestorePositions()
     positionsReady = false
     for _, module in ipairs(modules) do
         local position = module.Settings:Get("position")
@@ -386,7 +374,7 @@ function Displayer:RestorePositions()
     end
 end
 
-function Displayer:Init()
+function TrackerPanels:Init()
     for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
     table.sort(modules, function(a, b) return a.Name < b.Name end)
     for index, module in ipairs(modules) do
