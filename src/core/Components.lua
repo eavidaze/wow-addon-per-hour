@@ -14,7 +14,7 @@ local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, closeAlwaysVisible = false },
+    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130, closeAlwaysVisible = false },
     default = { font = "GameFontNormalLarge", headerHeight = 56, closeAlwaysVisible = true },
 }
 
@@ -39,7 +39,7 @@ local function CreatePanelTitle(frame, settings, style)
         box:Setup(settings.title)
         if small then
             box:ClearAllPoints()
-            box:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, DIALOG_BORDER_INSET + 11)
+            box:SetPoint("TOP", frame.Border.Bg, "TOP", 0, DIALOG_BORDER_INSET + 11)
         end
         frame.TitleText:ClearAllPoints()
         frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
@@ -47,7 +47,8 @@ local function CreatePanelTitle(frame, settings, style)
             local padding = box.headerTextPadding
             local width
             if small then
-                width = math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING))
+                width = math.min(math.max(style.boxMinWidth, frame.TitleText:GetStringWidth() + padding),
+                    math.max(style.boxMinWidth, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING)))
             else
                 width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
                     math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
@@ -149,6 +150,7 @@ function Components:CreatePanel(parent, settings)
     local baseHeight = headerHeight + footerSpacing + footerSize
     frame:SetSize(settings.width, settings.height or baseHeight)
     frame.FooterSize = footerSize
+    frame.FooterMinWidth = settings.titleSize == "small" and 130 or false
     -- Use the same border and translucent background as Blizzard's Edit Mode.
     frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
     frame.Border:SetPoint("TOPLEFT", frame, "TOPLEFT")
@@ -268,15 +270,20 @@ function Components:CreatePanelActions(frame, actions)
         else
             flexibleCount = flexibleCount + 1
         end
-        buttons[index] = { button = button, width = width, widthFraction = widthFraction, align = action.align }
+        buttons[index] = { button = button, width = width, widthFraction = widthFraction, align = action.align,
+            textPadding = action.type == "status" and 52 or 32 }
         frame.Actions[action.key or index] = button
     end
     -- Anchor to the visible background, whose insets are owned by the template.
     local footer = CreateFrame("Frame", nil, frame)
     frame.ActionBar = footer
     footer:SetSize(frame:GetWidth() - FOOTER_PADDING * 2, frame.FooterSize)
-    footer:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
-    footer:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
+    if frame.FooterMinWidth then
+        footer:SetPoint("CENTER", frame.Border.Bg, "BOTTOM", 0, 0)
+    else
+        footer:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
+        footer:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
+    end
     local function Layout(_, width)
         local available = width * (1 - relativeWidth) - ACTION_GAP * (#buttons - 1) - fixedWidth
         local offset = 0
@@ -303,7 +310,32 @@ function Components:CreatePanelActions(frame, actions)
         end
     end
     footer:SetScript("OnSizeChanged", Layout)
-    Layout(footer, footer:GetWidth())
+    if frame.FooterMinWidth then
+        local function FitActions()
+            local required = fixedWidth + ACTION_GAP * math.max(0, #buttons - 1)
+            local minimum = frame.FooterMinWidth
+            for _, item in ipairs(buttons) do
+                if not item.width then
+                    local label = item.button:GetFontString()
+                    local width = math.max(80, (label and label:GetStringWidth() or 0) + item.textPadding)
+                    if item.widthFraction then
+                        minimum = math.max(minimum, width / item.widthFraction)
+                    else
+                        required = required + width
+                    end
+                end
+            end
+            if relativeWidth < 1 then minimum = math.max(minimum, required / (1 - relativeWidth)) end
+            footer:SetWidth(minimum)
+            Layout(footer, minimum)
+        end
+        for _, item in ipairs(buttons) do
+            if not item.width then hooksecurefunc(item.button, "SetText", FitActions) end
+        end
+        FitActions()
+    else
+        Layout(footer, footer:GetWidth())
+    end
 end
 
 function Components:CreateCheckbox(parent, settings)

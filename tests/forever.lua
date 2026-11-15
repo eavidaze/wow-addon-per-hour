@@ -26,6 +26,13 @@ function methods:HookScript(event, callback)
         callback(...)
     end
 end
+function hooksecurefunc(target, method, callback)
+    local previous = target[method]
+    target[method] = function(...)
+        previous(...)
+        callback(...)
+    end
+end
 function methods:RegisterEvent(event) self.events[event] = true end
 function methods:UnregisterEvent(event) self.events[event] = nil end
 function methods:Show()
@@ -59,6 +66,7 @@ function methods:SetText(value)
         and not rawget(self, "fontString") then
         self.fontString = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     end
+    if rawget(self, "fontString") then self.fontString:SetText(value) end
 end
 function methods:GetText() return self.text end
 function methods:SetOwner(owner) self.owner = owner end
@@ -1098,6 +1106,36 @@ do
     slider:Hide()
 end
 
+-- Small footers fit their controls independently of content width.
+do
+    local panel = PerHour.Components:CreatePanel(UIParent, {
+        title = "XP", width = 180, titleSize = "small", titleBox = true,
+        actions = {
+            { key = "start", type = "status", text = "Start" },
+            { key = "options", type = "icon", texture = "gear" },
+        },
+    })
+    local footer = panel.ActionBar
+    equal(footer:GetWidth(), 130, "small footer uses the reference minimum width")
+    equal(footer.points.RIGHT, nil, "small footer is not stretched to the panel right edge")
+    equal(footer.point[1], "CENTER", "small footer uses its center anchor")
+    equal(footer.point[2], panel.Border.Bg, "small footer anchors to the visible background")
+    equal(footer.point[3], "BOTTOM", "small footer is centered at the bottom edge")
+    equal(footer.point[4], 0, "small footer has no horizontal offset")
+    panel:SetSize(420, panel:GetHeight())
+    panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
+    equal(panel.TitleBox:GetWidth(), 130, "content expansion keeps the small header width")
+    equal(footer:GetWidth(), 130, "content expansion keeps the small footer width")
+    panel.Actions.start:SetText("Resume this tracking session")
+    local required = panel.Actions.start:GetFontString():GetStringWidth() + 52 + 24 + 3
+    equal(footer:GetWidth(), required, "small footer grows to fit a longer action and its icon")
+    equal(panel.TitleBox:GetWidth(), 130, "footer expansion does not stretch the header")
+    equal(panel.Actions.start:GetWidth(), required - 24 - 3, "status button has room for its label and indicator")
+    panel.Actions.start:SetText("Pause")
+    equal(footer:GetWidth(), 130, "small footer returns to minimum when controls fit again")
+    panel:Hide()
+end
+
 -- Title size and decoration are independent of the form layout.
 do
     local default = PerHour.Components:CreatePanel(UIParent, { title = "Default", width = 360 })
@@ -1115,15 +1153,16 @@ do
         local box = panel.TitleBox
         equal(panel.TitleText, box.Text, "boxed title exposes the native label")
         if size == "small" then
-            equal(box:GetWidth(), panel:GetWidth() - 30, "small header fills the row with footer insets")
+            equal(box:GetWidth(), 150, "long small header uses the available width in a narrow panel")
         else
             equal(box:GetWidth() <= panel:GetWidth() - 48, true, "long box leaves room for corners and close button")
         end
         equal(panel.TitleText:GetWidth(), box:GetWidth() - box.headerTextPadding, "long label stays inside box")
         if size == "small" then
-            equal(box.point[1], "TOPLEFT", "small boxed header starts at the left inset")
+            equal(box.point[1], "TOP", "small boxed header uses its top center anchor")
             equal(box.point[2], panel.Border.Bg, "small header shares the footer background anchor")
-            equal(box.point[4], 8, "small header shares the footer inset")
+            equal(box.point[3], "TOP", "small header is centered at the top edge")
+            equal(box.point[4], 0, "small header has no horizontal offset")
         else
             equal(box.point[5], 11, "default box retains the native centered anchor")
         end
@@ -1131,9 +1170,13 @@ do
             "boxed title honors the selected size")
         panel:SetSize(560, panel:GetHeight())
         panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
-        equal(box:GetWidth(), size == "small" and panel:GetWidth() - 30
-            or panel.TitleText:GetStringWidth() + box.headerTextPadding,
-            "box follows its title style when the panel grows")
+        equal(box:GetWidth(), panel.TitleText:GetStringWidth() + box.headerTextPadding,
+            "box fits its title when the panel grows")
+        if size == "small" then
+            panel.TitleText:SetText("XP")
+            panel.scripts.OnSizeChanged(panel, panel:GetWidth(), panel:GetHeight())
+            equal(box:GetWidth(), 130, "short small title keeps the reference minimum width in a wide panel")
+        end
         panel:Hide()
     end
     equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
