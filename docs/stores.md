@@ -49,6 +49,15 @@ plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
 `nil` removes it. The display rate is `hour` (default) or `minute`, independently
 for Experience, Honor and Reputation. Invalid saved rates recover the default.
 
+`GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control one
+character-wide preference for all three monitors, disabled by default.
+`GetSpeedometerMaximum(rate)` and `SetSpeedometerMaximum(rate, value)` use `hour`
+or `minute`. Hourly bounds are 10,000–100,000 (default 50,000); minute bounds are
+160–1,600 (default 800). The store requires finite integers within these bounds.
+These values live in `PerHourCharacter_Settings.speedometer` as `enabled`, `hour`
+and `minute`. Changing characters restores their own toggle and maxima; the
+existing account-wide rate selections remain independent.
+
 The store routes `isShown` and `position` to `PerHourCharacter_Settings` and
 `rate` to `PerHourAccount_Settings`. The minimap angle is also per character.
 Callers use the same API regardless of persistence scope; session saving and

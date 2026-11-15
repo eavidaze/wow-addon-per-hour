@@ -53,10 +53,13 @@ component can contain multiple displays. Adding footer actions later updates the
 content boundary. Use custom content or form fields for a given panel.
 
 `TrackerPanels.lua` creates and coordinates the three monitors, including session
-controls, positioning and refreshes. Each monitor mounts a `CreateRateDisplay`
-component through `SetContent`. Its `SetRate(value, unit)` method formats the number,
-unit and overflow abbreviation using its parent's width. The coordinator supplies
-the calculated rate; it does not create another content region.
+controls, positioning and refreshes. Each monitor mounts a composite through
+`SetContent`. It always contains a `CreateRateDisplay` component, whose
+`SetRate(value, unit)` method formats the number, unit and overflow abbreviation
+using its parent's width. When enabled, a `CreateSpeedometerDisplay` component
+sits above that numeric display. Its `SetRate(value, maximum)` method updates only
+the dial labels and animated needle. The coordinator supplies the existing
+session rate to both displays, without changing the tracking calculation.
 
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
@@ -197,6 +200,32 @@ Reputation use the same independent preference. Changes persist through the
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
 
+The **Speedometer** group has one **Show on all panels** checkbox. It defaults
+to disabled and applies to Experience, Honor and Reputation together, for the
+current character. The numeric rate stays visible in either mode. Enabling the
+gauge expands each monitor from 180 x 94 to 240 x 204; disabling it restores the
+compact layout. The existing placement rules keep visible panels on screen and
+avoid overlaps. Tracking and pause state are preserved.
+
+**Maximum per hour** uses a numeric slider from 10,000 to 100,000 in steps of
+1,000 (default 50,000). **Maximum per minute** uses 160 to 1,600 in steps of 10
+(default 800). These two independent integer maxima are saved per character and
+shared by all three gauges. Each panel uses the maximum matching its selected
+rate unit. Above the maximum, the needle stops at the end while the numeric
+display keeps the actual rate. The gauge uses two transparent, antialiased TGA
+textures with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
+ticks and center cap, and `SpeedometerNeedle.tga` for the rotating pointer.
+Both are white artwork tinted in Lua; the five scale labels remain dynamic text.
+The pointer uses the darker red in `Theme.speedometer.needle`. Both artworks have
+black shadow copies at 45% opacity, offset one UI pixel right and down. The needle's
+shadow shares its rotation while keeping that screen-relative offset.
+It animates the needle over 0.2 seconds and does not include another numeric readout.
+Regenerate the textures with `python scripts/generate-speedometer-assets.py`
+(development dependencies: Pillow and Lupa with Lua 5.1). The generator executes
+`Theme.lua` to read the dial, needle, shadow and text colors for its preview;
+the TGA assets remain white with transparency. It also writes a magnified illustration to
+`dist/SpeedometerPreview.png`; that preview is not an in-game screenshot.
+
 The Reputation row has an indented **Tracked faction** dropdown. It displays
 the game's watched faction and changes it directly through
 [`C_Reputation`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ReputationInfoDocumentation.lua).
@@ -233,6 +262,9 @@ both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected rates and minimap position match saved preferences.
 Switch between two characters and confirm their layouts remain independent while
 hourly/per-minute selections are shared.
+Verify that the speedometer checkbox applies to all three monitors, keeps the
+numeric rate below the dial and restores after reload. Check both scale sliders,
+pause/resume, overflow and switching characters with different gauge preferences.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.
 Lua simulation checks do not validate rendering or native mouse routing.

@@ -81,10 +81,12 @@ end
 function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:SetTextColor(...) self.textColor = { ... } end
-function methods:SetTexture(texture)
+function methods:SetTexture(texture, wrapHorizontal, wrapVertical, filterMode)
     assert(texture ~= nil, "texture must be available")
     self.texture = texture
+    self.filterMode = filterMode
 end
+function methods:SetRotation(radians) self.rotation = radians end
 function methods:SetColorTexture(...) self.color = { ... } end
 function methods:SetAtlas(atlas)
     assert(type(atlas) == "string", "atlas must be available")
@@ -244,6 +246,9 @@ function methods:CreateFontString(name, layer, template)
     return fontString
 end
 function methods:CreateTexture() return object() end
+function methods:CreateLine() return object() end
+function methods:SetStartPoint(...) self.startPoint = { ... } end
+function methods:SetEndPoint(...) self.endPoint = { ... } end
 function methods:CreateMaskTexture() return object() end
 function methods:AddLine(text)
     self.singleLines = rawget(self, "singleLines") or {}
@@ -710,9 +715,9 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 274, "settings height includes the indented reputation subfield")
+    equal(panel:GetHeight(), 446, "settings height includes the character speedometer options")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
-    equal(#panel.Fields, 1, "settings contains one form group")
+    equal(#panel.Fields, 2, "settings contains panel and speedometer groups")
     equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
     equal(#panel.Fields[1].Fields, 3, "panels contains one row per module")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
@@ -913,6 +918,98 @@ do
     equal(experience.State.HasStarted, true, "hiding through settings keeps an active session running")
     equal(experience.State.HasPaused, false, "hiding through settings does not pause tracking")
     settings.ModuleFields.Experience:SetValue(true)
+    BaseModule:ResetModule(experience)
+    settings.Frame:Hide()
+end
+
+-- One character preference adds a gauge above the existing numeric display in all trackers.
+do
+    local settings, store = PerHour.SettingsPanel, PerHour.Stores.Settings
+    settings:Show()
+    equal(settings.SpeedometerField:GetValue(), false, "speedometer is disabled by default")
+    local saved, rates, visibility = {}, {}, {}
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.Speedometer, nil, "disabled preference does not create a gauge")
+        saved[module.Name] = module.View.RateFrame
+        rates[module.Name] = { module.State.ElementPerHour, module.State.ElementPerMinute, module.Settings:Get("rate") }
+        visibility[module.Name] = module.Settings:Get("isShown")
+        settings.ModuleFields[module.Name]:SetValue(true)
+        module.State.ElementPerHour, module.State.ElementPerMinute = 25000, 400
+    end
+    click(experience)
+    experience.State.ElementPerHour, experience.State.ElementPerMinute = 25000, 400
+    local total, duration, sessions = experience.State.Element, experience.State.Time, PerHourCharacter_Values
+    settings.SpeedometerField:SetValue(true)
+    equal(store:GetSpeedometerEnabled(), true, "checkbox persists the character preference")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local view = module.View
+        equal(view.Speedometer:IsShown(), true, "one checkbox enables the gauge for " .. module.Name)
+        equal(view.RateFrame, saved[module.Name], "enabling preserves the existing numeric component")
+        equal(view.RateFrame:IsShown(), true, "numeric display stays visible with the gauge")
+        equal(view.RateFrame.point[2], view.Speedometer, "numeric display is placed below the gauge")
+        equal(view.Frame:GetWidth(), 240, "panel grows to fit the dial width")
+        equal(view.Frame:GetHeight(), 204, "panel grows to fit both displays")
+        equal(view.Speedometer.Target, 0.5, "needle uses the existing hourly session rate")
+        equal(rawget(view.Speedometer, "Readout"), nil, "gauge does not duplicate the numeric readout")
+        equal(view.Speedometer.Dial.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerDial.tga",
+            "dial uses the bundled transparent artwork")
+        equal(view.Speedometer.Needle.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerNeedle.tga",
+            "needle uses its own rotatable texture")
+        equal(view.Speedometer.Dial.filterMode, "LINEAR", "dial uses linear texture filtering")
+        equal(view.Speedometer.Needle.filterMode, "LINEAR", "needle uses linear texture filtering")
+        view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
+        equal(view.Speedometer.Fraction, 0.5, "needle reaches its target smoothly")
+        near(view.Speedometer.Needle.rotation, math.pi / 2, "half-scale rotates the needle upward")
+        near(view.Speedometer.NeedleShadow.rotation, view.Speedometer.Needle.rotation,
+            "needle shadow follows the animated needle rotation")
+        equal(view.Speedometer.NeedleShadow.point[4], 1, "needle shadow is offset to the right")
+        equal(view.Speedometer.NeedleShadow.point[5], view.Speedometer.Needle.point[5] - 1,
+            "needle shadow stays below the pointer pivot")
+        near(view.Speedometer.NeedleShadow.vertexColor[4], 0.45, "needle shadow stays subtle")
+        equal(view.Speedometer:GetScript("OnUpdate"), nil, "settled needle stops polling")
+    end
+    settings.RateFields.Honor:SetValue("minute")
+    equal(honor.View.Speedometer.Maximum, 800, "minute panels use the minute scale")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "numeric unit still follows the panel preference")
+    settings.SpeedometerHourField:SetValue(0)
+    equal(store:GetSpeedometerMaximum("hour"), 10000, "hourly maximum clamps to 10000")
+    settings.SpeedometerHourField:SetValue(200000)
+    equal(store:GetSpeedometerMaximum("hour"), 100000, "hourly maximum clamps to 100000")
+    equal(experience.View.Speedometer.Target, 0.25, "hourly scale changes update hourly needles")
+    equal(honor.View.Speedometer.Target, 0.5, "hourly scale changes preserve minute needles")
+    settings.SpeedometerMinuteField:SetValue(0)
+    equal(store:GetSpeedometerMaximum("minute"), 160, "minute maximum clamps to 160")
+    settings.SpeedometerMinuteField:SetValue(9999)
+    equal(store:GetSpeedometerMaximum("minute"), 1600, "minute maximum clamps to 1600")
+    settings.SpeedometerMinuteField.Control.Back:Click()
+    equal(store:GetSpeedometerMaximum("minute"), 1590, "minute maximum uses integer steps")
+    honor.State.ElementPerMinute = 2000
+    PerHour.TrackerPanels:RefreshRate(honor)
+    equal(honor.View.Speedometer.Target, 1, "needle stops at the end of the dial on overflow")
+    honor.View.Speedometer:GetScript("OnUpdate")(honor.View.Speedometer, 0.2)
+    near(honor.View.Speedometer.Needle.rotation, 0, "full-scale rotates the needle to the right")
+    equal(honor.View.RateValue:GetText(), "2,000", "overflow keeps the actual numeric rate visible")
+    equal(experience.State.Element, total, "display preferences preserve session totals")
+    equal(experience.State.Time, duration, "display preferences preserve session duration")
+    equal(experience.State.HasStarted, true, "display preferences keep active tracking running")
+    equal(experience.State.HasPaused, false, "display preferences do not pause tracking")
+    equal(PerHourCharacter_Values, sessions, "display preferences preserve session storage")
+    click(experience)
+    settings.SpeedometerField:SetValue(false)
+    equal(experience.State.HasPaused, true, "disabling the gauge preserves an intentional pause")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.Speedometer:IsShown(), false, "disabling hides only the gauge")
+        equal(module.View.Speedometer:GetScript("OnUpdate"), nil, "disabled gauge stops animating")
+        equal(module.View.RateFrame:IsShown(), true, "numeric readout stays visible without the gauge")
+        equal(module.View.Frame:GetWidth(), 180, "disabling restores compact panel width")
+        equal(module.View.Frame:GetHeight(), 94, "disabling restores compact panel height")
+        module.State.ElementPerHour, module.State.ElementPerMinute = unpack(rates[module.Name])
+        settings.RateFields[module.Name]:SetValue(rates[module.Name][3])
+        PerHour.TrackerPanels:RefreshRate(module)
+        settings.ModuleFields[module.Name]:SetValue(visibility[module.Name])
+    end
+    settings.SpeedometerHourField:SetValue(50000)
+    settings.SpeedometerMinuteField:SetValue(800)
     BaseModule:ResetModule(experience)
     settings.Frame:Hide()
 end
@@ -1194,15 +1291,15 @@ do
     equal(experience.View.Frame.TitleText.template, "GameFontHighlight", "tracker title stays small")
     for _, module in pairs(PerHour.Modules) do
         local panel = module.View.Frame
-        equal(module.View.RateFrame:GetParent(), panel.Content, "tracker rate belongs to the shared content region")
-        equal(panel.ContentComponent, module.View.RateFrame, "tracker mounts its rate through the panel content API")
+        equal(module.View.RateFrame:GetParent(), module.View.DisplayContent, "tracker rate belongs to the composite content")
+        equal(panel.ContentComponent, module.View.DisplayContent, "tracker mounts its composite through the panel content API")
         equal(panel.Content.points.TOP[2], panel.TitleBox, "panel owns the content anchor below its title")
         equal(panel.Content.points.BOTTOM[2], panel.ActionBar, "panel owns the content anchor above its actions")
         equal(rawget(panel, "BrandText"), nil, "tracker has no branding")
         equal(rawget(panel, "BrandPrefix"), nil, "tracker has no branding prefix")
         equal(panel.TitleText:GetWidth() >= panel.TitleText:GetStringWidth(), true,
             "branding does not truncate the module title")
-        equal(module.View.RateFrame.point[2].points.TOP[5], 0, "branding does not push the rate down")
+        equal(module.View.DisplayContent.point[2].points.TOP[5], 0, "branding does not push the rate down")
     end
     equal(default.BrandText:GetText(), "powered by Per Hour", "default panel includes the full attribution")
     equal(default.BrandText.template, "GameFontDisableSmall", "default branding keeps its small font")
@@ -1624,6 +1721,10 @@ end
 PerHourCharacter_Settings.Experience.position.x, PerHourCharacter_Settings.Experience.position.y = 5000, -100
 PerHour.TrackerPanels:RestorePositions()
 assertPanelLayout("restoring off-screen positions")
+PerHour.SettingsPanel.SpeedometerField:SetValue(true)
+assertPanelLayout("enabling gauges on all three visible panels")
+PerHour.SettingsPanel.SpeedometerField:SetValue(false)
+assertPanelLayout("returning all three panels to compact displays")
 
 for _, module in ipairs(panels) do showPanel(module, false) end
 setPanelPosition(experience, 300, 500)
@@ -2043,6 +2144,9 @@ do
     PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
     PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
     PerHour.SettingsPanel.RateFields.Reputation:SetValue("minute")
+    PerHour.SettingsPanel.SpeedometerHourField:SetValue(70000)
+    PerHour.SettingsPanel.SpeedometerMinuteField:SetValue(1100)
+    PerHour.SettingsPanel.SpeedometerField:SetValue(true)
     PerHour.MinimapButton:SetAngle(math.rad(315))
     local account = copy(PerHourAccount_Settings)
     event("PLAYER_LOGOUT")
@@ -2062,6 +2166,15 @@ do
     equal(PerHour.SettingsPanel.RateFields.Experience:GetValue(), "minute", "reloaded form reads XP rate preference")
     equal(PerHour.SettingsPanel.RateFields.Honor:GetValue(), "hour", "reloaded form reads honor rate preference")
     equal(PerHour.SettingsPanel.RateFields.Reputation:GetValue(), "minute", "reloaded form reads reputation rate preference")
+    equal(PerHour.SettingsPanel.SpeedometerField:GetValue(), true, "reload restores the character gauge preference")
+    equal(PerHour.SettingsPanel.SpeedometerHourField:GetValue(), 70000, "reload restores the hourly maximum")
+    equal(PerHour.SettingsPanel.SpeedometerMinuteField:GetValue(), 1100, "reload restores the minute maximum")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.Speedometer:IsShown(), true, "reload enables the gauge in " .. module.Name)
+        equal(module.View.RateFrame:IsShown(), true, "reload keeps the numeric display enabled")
+        equal(module.View.Speedometer.Maximum, module.Settings:Get("rate") == "minute" and 1100 or 70000,
+            "reload selects the scale matching the panel unit")
+    end
     equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
     equal(honor.View.RateUnit:GetText(), "hon/h", "reload applies the independent honor unit")
     equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
@@ -2069,6 +2182,9 @@ do
         "reload displays the selected rate from restored session values")
     near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
     near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
+    PerHour.SettingsPanel.SpeedometerField:SetValue(false)
+    PerHour.SettingsPanel.SpeedometerHourField:SetValue(50000)
+    PerHour.SettingsPanel.SpeedometerMinuteField:SetValue(800)
     PerHour.SettingsPanel.Frame:Hide()
 end
 -- Reset one runtime without replacing containers held by callbacks or neighboring modules.

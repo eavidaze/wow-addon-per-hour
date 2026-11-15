@@ -25,6 +25,9 @@ end
 
 function SettingsPanel:Refresh()
     if not self.Frame then return end
+    self.SpeedometerField:SetValue(PerHour.Stores.Settings:GetSpeedometerEnabled(), true)
+    self.SpeedometerHourField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("hour"), true)
+    self.SpeedometerMinuteField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("minute"), true)
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
         self.RateFields[name]:SetValue(PerHour.Modules[name].Settings:Get("rate"), true)
@@ -102,6 +105,32 @@ function SettingsPanel:Show()
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
         frame:AddField(panels)
+        local speedometer = Components:CreateFormGroup(frame.Content, { title = "Speedometer" })
+        self.SpeedometerField = speedometer:AddField({
+            type = "checkbox", label = "Show on all panels",
+            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
+            onChanged = function(enabled)
+                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.SpeedometerHourField = speedometer:AddField({
+            type = "slider", label = "Maximum per hour", min = 10000, max = 100000, step = 1000, format = "%.0f",
+            value = PerHour.Stores.Settings:GetSpeedometerMaximum("hour"),
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetSpeedometerMaximum("hour", value)
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.SpeedometerMinuteField = speedometer:AddField({
+            type = "slider", label = "Maximum per minute", min = 160, max = 1600, step = 10, format = "%.0f",
+            value = PerHour.Stores.Settings:GetSpeedometerMaximum("minute"),
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetSpeedometerMaximum("minute", value)
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        frame:AddField(speedometer)
         self.Frame = frame
         frame:RegisterEvent("UPDATE_FACTION")
         frame:SetScript("OnEvent", function()

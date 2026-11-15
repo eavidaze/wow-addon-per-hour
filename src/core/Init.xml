@@ -2,6 +2,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <Script file="Theme.lua" />
     <Script file="Components.lua" />
+    <Script file="Speedometer.lua" />
     <Script file="Form.lua" />
     <Script file="SettingsPanel.lua" />
     <Script file="TrackerPanels.lua" />

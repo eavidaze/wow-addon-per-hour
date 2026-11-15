@@ -216,8 +216,13 @@ end
 
 local function CreateValues(module)
     local frame = module.View.Frame
-    local rateFrame = Components:CreateRateDisplay(frame.Content, module.ShortName .. "/h")
-    frame:SetContent(rateFrame)
+    local content = CreateFrame("Frame", nil, frame.Content)
+    content:SetWidth(WIDTH - 30)
+    local rateFrame = Components:CreateRateDisplay(content, module.ShortName .. "/h")
+    content:SetHeight(rateFrame:GetHeight())
+    frame:SetContent(content)
+    module.View.DisplayContent = content
+    rateFrame:SetPoint("CENTER", content, "CENTER", 0, 0)
     module.View.RateFrame = rateFrame
 
     module.View.RateValue = rateFrame.Value
@@ -230,6 +235,34 @@ local function CreateValues(module)
     frame:SetScript("OnLeave", function()
         if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
     end)
+end
+
+local function RefreshDisplayLayout(module)
+    local enabled = PerHour.Stores.Settings:GetSpeedometerEnabled()
+    if module.View.SpeedometerEnabled == enabled then return end
+    local frame, content, rate = module.View.Frame, module.View.DisplayContent, module.View.RateFrame
+    local left, top = frame:GetLeft(), frame:GetTop()
+    if enabled and not module.View.Speedometer then
+        module.View.Speedometer = Components:CreateSpeedometerDisplay(content)
+        module.View.Speedometer:SetPoint("TOP", content, "TOP", 0, 0)
+    end
+    local gaugeHeight = enabled and module.View.Speedometer:GetHeight() or 0
+    local contentWidth = enabled and math.max(WIDTH - 30, module.View.Speedometer:GetWidth()) or WIDTH - 30
+    frame:SetWidth(contentWidth + 30)
+    frame:SetHeight(HEIGHT + gaugeHeight)
+    content:SetSize(contentWidth, rate:GetHeight() + gaugeHeight)
+    rate:ClearAllPoints()
+    if enabled then
+        module.View.Speedometer:Show()
+        rate:SetPoint("TOP", module.View.Speedometer, "BOTTOM", 0, 0)
+    else
+        if module.View.Speedometer then module.View.Speedometer:Hide() end
+        rate:SetPoint("CENTER", content, "CENTER", 0, 0)
+    end
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    module.View.SpeedometerEnabled = enabled
+    if frame:IsShown() and module.Settings:Get("isShown") then PlaceShownPanel(module) end
 end
 
 local function CreateRestoreIndicator(module)
@@ -354,9 +387,18 @@ function TrackerPanels:RefreshTooltip(module)
 end
 
 function TrackerPanels:RefreshRate(module)
+    RefreshDisplayLayout(module)
     local perMinute = module.Settings:Get("rate") == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
     module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
+    if module.View.SpeedometerEnabled then
+        module.View.Speedometer:SetRate(value,
+            PerHour.Stores.Settings:GetSpeedometerMaximum(perMinute and "minute" or "hour"))
+    end
+end
+
+function TrackerPanels:RefreshDisplays()
+    for _, module in ipairs(modules) do self:RefreshRate(module) end
 end
 
 function TrackerPanels:RestorePositions()
