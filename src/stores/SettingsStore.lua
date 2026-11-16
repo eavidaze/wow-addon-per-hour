@@ -1,5 +1,6 @@
 local SettingsStore = {}
 PerHour.Stores.Settings = SettingsStore
+local Scales = PerHour.SpeedometerScales
 
 local DEFAULT_MINIMAP_ANGLE = math.rad(225)
 local ANCHORS = {
@@ -31,17 +32,6 @@ local function MigrateRate(account)
     return agreed or "hour"
 end
 
-local SPEEDOMETER_LIMITS = {
-    hour = { minimum = 10000, maximum = 100000, default = 50000 },
-    minute = { minimum = 160, maximum = 1600, default = 800 },
-}
-
-local function IsMaximum(value, rate)
-    local limits = SPEEDOMETER_LIMITS[rate]
-    return limits and IsFinite(value) and value == math.floor(value)
-        and value >= limits.minimum and value <= limits.maximum
-end
-
 local function CopyPosition(value)
     if value then
         return { point = value.point, relativePoint = value.relativePoint, x = value.x, y = value.y }
@@ -58,9 +48,7 @@ function SettingsStore:Init()
     if not IsFinite(saved.minimap.angle) then saved.minimap.angle = DEFAULT_MINIMAP_ANGLE end
     if type(saved.speedometer) ~= "table" then saved.speedometer = {} end
     if type(saved.speedometer.enabled) ~= "boolean" then saved.speedometer.enabled = false end
-    for rate, limits in pairs(SPEEDOMETER_LIMITS) do
-        if not IsMaximum(saved.speedometer[rate], rate) then saved.speedometer[rate] = limits.default end
-    end
+    if not Scales:IsLevel(saved.speedometer.level) then saved.speedometer.level = Scales.DefaultLevel end
 
     for name in pairs(PerHour.Modules) do
         if type(saved[name]) ~= "table" then saved[name] = {} end
@@ -97,13 +85,16 @@ function SettingsStore:SetSpeedometerEnabled(enabled)
 end
 
 function SettingsStore:GetSpeedometerMaximum(rate)
-    assert(IsRate(rate), "Speedometer rate must be hour or minute")
-    return PerHourCharacter_Settings.speedometer[rate]
+    return Scales:GetMaximum(self:GetSpeedometerLevel(), rate)
 end
 
-function SettingsStore:SetSpeedometerMaximum(rate, value)
-    assert(IsMaximum(value, rate), "Invalid speedometer maximum")
-    PerHourCharacter_Settings.speedometer[rate] = value
+function SettingsStore:GetSpeedometerLevel()
+    return PerHourCharacter_Settings.speedometer.level
+end
+
+function SettingsStore:SetSpeedometerLevel(level)
+    assert(Scales:IsLevel(level), "Invalid speedometer level")
+    PerHourCharacter_Settings.speedometer.level = level
 end
 
 function SettingsStore:ForModule(name)

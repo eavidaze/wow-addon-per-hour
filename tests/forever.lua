@@ -738,12 +738,12 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 406, "disabled speedometer leaves only general and panel settings")
+    equal(panel:GetHeight(), 406, "settings fits the nested speedometer and faction rows")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 2, "settings contains general and panel groups")
     equal(panel.Fields[1].TitleText:GetText(), "General", "shared display preferences belong to General")
     equal(panel.Fields[2].TitleText:GetText(), "Show trackers", "visibility group describes the tracker toggles")
-    equal(#panel.Fields[1].Fields, 2, "general contains rate and speedometer fields")
+    equal(#panel.Fields[1].Fields, 1, "general contains only the shared rate field")
     equal(#panel.Fields[2].Fields, 3, "panels contains three visibility rows")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
@@ -816,10 +816,10 @@ do
     equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
     equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
     equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
-    equal(row.SubfieldStack.points.TOPLEFT[4], 16, "subfield label is indented sixteen pixels")
+    equal(row.SubfieldStack.points.TOPLEFT[4], 24, "subfield label is indented twenty-four pixels")
     equal(row:GetHeight(), 72, "parent height includes the subfield and its spacing")
     equal(row.ControlArea.point[1], "TOPRIGHT", "parent controls stay on their original row")
-    near(field.Selector.DecrementButton:GetLeft(), row.Control:GetLeft() + 16,
+    near(field.Selector.DecrementButton:GetLeft(), row.Control:GetLeft() + 24,
         "faction controls are indented with their label")
     equal(field.Selector.IncrementButton:GetLeft() + field.Selector.IncrementButton:GetWidth() <= row:GetLeft() + row:GetWidth(),
         true, "indented faction selector fits within the form")
@@ -951,19 +951,26 @@ do
     settings.Frame:Hide()
 end
 
--- One character preference adds a gauge above the existing numeric display in all trackers.
+-- One saved level controls the XP gauge in both units; other trackers remain numeric.
 do
     local settings, store = PerHour.SettingsPanel, PerHour.Stores.Settings
     settings:Show()
+    local maximum = settings.SpeedometerMaximumField
     equal(settings.SpeedometerField:GetValue(), false, "speedometer is disabled by default")
-    equal(settings.SpeedometerHourField:IsShown(), false, "disabled speedometer hides hourly maximum")
-    equal(settings.SpeedometerMinuteField:IsShown(), false, "disabled speedometer hides minute maximum")
+    equal(maximum:IsShown(), false, "disabled speedometer hides maximum")
+    equal(settings.ModuleFields.Experience.Subfields[1], settings.SpeedometerRow,
+        "speedometer row belongs to Experience")
+    equal(settings.SpeedometerRow.Label:GetText(), "Show speedometer", "nested row describes its checkbox")
+    equal(settings.SpeedometerRow.Fields[1], settings.SpeedometerField, "checkbox starts the nested control row")
+    equal(settings.SpeedometerRow.Fields[2], maximum, "maximum follows the checkbox in the same row")
+    equal(rawget(maximum, "Label"), nil, "inline maximum has no separate label")
+    equal(settings.SpeedometerRow:GetHeight(), 32, "checkbox and maximum share one row")
     local compactHeight = settings.Frame:GetHeight()
     local saved, rates, visibility = {}, {}, {}
     for _, module in ipairs({ experience, honor, reputation }) do
         equal(module.View.Speedometer, nil, "disabled preference does not create a gauge")
         saved[module.Name] = module.View.RateFrame
-        rates[module.Name] = { module.State.ElementPerHour, module.State.ElementPerMinute, PerHour.Stores.Settings:GetRate() }
+        rates[module.Name] = { module.State.ElementPerHour, module.State.ElementPerMinute, store:GetRate() }
         visibility[module.Name] = module.Settings:Get("isShown")
         settings.ModuleFields[module.Name]:SetValue(true)
         module.State.ElementPerHour, module.State.ElementPerMinute = 25000, 400
@@ -973,82 +980,92 @@ do
     local total, duration, sessions = experience.State.Element, experience.State.Time, PerHourCharacter_Values
     settings.SpeedometerField:SetValue(true)
     equal(store:GetSpeedometerEnabled(), true, "checkbox persists the character preference")
-    equal(settings.SpeedometerField.Subfields[1], settings.SpeedometerHourField, "maximum is nested under the speedometer toggle")
-    equal(settings.SpeedometerHourField:IsShown(), true, "hourly rate shows hourly maximum")
-    equal(settings.SpeedometerMinuteField:IsShown(), false, "hourly rate hides minute maximum")
-    equal(settings.Frame:GetHeight(), compactHeight + 40, "enabling adds exactly one maximum row")
-    local maximum = settings.SpeedometerHourField
-    equal(maximum.ValueText:GetText(), "50k", "hourly maximum uses the dial's compact format independently of native abbreviation")
+    equal(maximum:IsShown(), true, "enabled gauge shows maximum")
+    equal(settings.Frame:GetHeight(), compactHeight, "enabling the inline maximum preserves panel height")
+    near(maximum:GetLeft(), settings.SpeedometerField:GetLeft() + settings.SpeedometerField:GetWidth() + 8,
+        "maximum starts after the checkbox with the shared inline gap")
+    equal(maximum.point[2], settings.SpeedometerField.point[2], "maximum and checkbox share the control column")
+    near(maximum.point[5], settings.SpeedometerField.point[5], "maximum and checkbox share the same vertical offset")
+    near(maximum:GetLeft() + maximum:GetWidth(),
+        settings.SpeedometerRow:GetLeft() + settings.SpeedometerRow:GetWidth(),
+        "inline maximum fills the control column without exceeding the row")
+    equal(maximum.ValueText:GetText(), "50k/h", "hourly maximum includes its unit")
     near(maximum.ValueText:GetLeft() + maximum.ValueText:GetWidth(),
         maximum:GetLeft() + maximum:GetWidth(), "maximum readout ends at the field boundary")
-    maximum:SetValue(100000)
-    equal(maximum.ValueText:GetText(), "100k", "hourly upper bound stays abbreviated")
+    maximum:SetValue(10)
+    equal(maximum.ValueText:GetText(), "100k/h", "hourly upper bound stays abbreviated with its unit")
     equal(maximum.ValueText:GetStringWidth() <= maximum.ValueText:GetWidth(), true,
         "abbreviated maximum fits its reserved readout space")
     near(maximum.ValueText:GetLeft() - maximum.Control:GetLeft() - maximum.Control:GetWidth(),
         4, "maximum readout sits four pixels after the slider")
-    maximum:SetValue(50000)
-    equal(store:GetSpeedometerMaximum("hour"), 50000, "abbreviation preserves the full stored maximum")
-    for _, module in ipairs({ experience, honor, reputation }) do
-        local view = module.View
-        equal(view.Speedometer:IsShown(), true, "one checkbox enables the gauge for " .. module.Name)
-        equal(view.RateFrame, saved[module.Name], "enabling preserves the existing numeric component")
-        equal(view.RateFrame:IsShown(), true, "numeric display stays visible with the gauge")
-        equal(view.RateFrame.point[2], view.Speedometer, "numeric display is placed below the gauge")
-        equal(view.Frame:GetWidth(), 240, "panel grows to fit the dial width")
-        equal(view.Frame:GetHeight(), 204, "panel grows to fit both displays")
-        equal(view.Speedometer.Target, 0.5, "needle uses the existing hourly session rate")
-        equal(view.Speedometer.Labels[5]:GetText(), maximum.ValueText:GetText(),
-            "dial maximum and settings use the same compact text")
-        equal(rawget(view.Speedometer, "Readout"), nil, "gauge does not duplicate the numeric readout")
-        equal(view.Speedometer.Dial.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerDial.tga",
-            "dial uses the bundled transparent artwork")
-        equal(view.Speedometer.Needle.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerNeedle.tga",
-            "needle uses its own rotatable texture")
-        equal(view.Speedometer.Dial.filterMode, "LINEAR", "dial uses linear texture filtering")
-        equal(view.Speedometer.Needle.filterMode, "LINEAR", "needle uses linear texture filtering")
-        view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
-        equal(view.Speedometer.Fraction, 0.5, "needle reaches its target smoothly")
-        near(view.Speedometer.Needle.rotation, math.pi / 2, "half-scale rotates the needle upward")
-        near(view.Speedometer.NeedleShadow.rotation, view.Speedometer.Needle.rotation,
-            "needle shadow follows the animated needle rotation")
-        equal(view.Speedometer.NeedleShadow.point[4], 1, "needle shadow is offset to the right")
-        equal(view.Speedometer.NeedleShadow.point[5], view.Speedometer.Needle.point[5] - 1,
-            "needle shadow stays below the pointer pivot")
-        near(view.Speedometer.NeedleShadow.vertexColor[4], 0.45, "needle shadow stays subtle")
-        equal(view.Speedometer:GetScript("OnUpdate"), nil, "settled needle stops polling")
+    maximum:SetValue(5)
+    equal(store:GetSpeedometerLevel(), 5, "slider saves a level instead of a maximum")
+    local view = experience.View
+    equal(view.Speedometer:IsShown(), true, "checkbox enables the XP gauge")
+    equal(view.RateFrame, saved.Experience, "enabling preserves the existing numeric component")
+    equal(view.RateFrame:IsShown(), true, "numeric display stays visible with the gauge")
+    equal(view.RateFrame.point[2], view.Speedometer, "numeric display is placed below the gauge")
+    equal(view.Frame:GetWidth(), 240, "XP panel grows to fit the dial width")
+    equal(view.Frame:GetHeight(), 204, "XP panel grows to fit both displays")
+    equal(view.Speedometer.Target, 0.5, "needle uses the existing hourly session rate")
+    equal(maximum.ValueText:GetText(), view.Speedometer.Labels[5]:GetText() .. "/h",
+        "maximum adds the unit to the dial's compact text")
+    equal(rawget(view.Speedometer, "Readout"), nil, "gauge does not duplicate the numeric readout")
+    equal(view.Speedometer.Dial.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerDial.tga",
+        "dial uses the bundled transparent artwork")
+    equal(view.Speedometer.Needle.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerNeedle.tga",
+        "needle uses its own rotatable texture")
+    equal(view.Speedometer.Dial.filterMode, "LINEAR", "dial uses linear texture filtering")
+    equal(view.Speedometer.Needle.filterMode, "LINEAR", "needle uses linear texture filtering")
+    view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
+    equal(view.Speedometer.Fraction, 0.5, "needle reaches its target smoothly")
+    near(view.Speedometer.Needle.rotation, math.pi / 2, "half-scale rotates the needle upward")
+    near(view.Speedometer.NeedleShadow.rotation, view.Speedometer.Needle.rotation,
+        "needle shadow follows the animated needle rotation")
+    equal(view.Speedometer.NeedleShadow.point[4], 1, "needle shadow is offset to the right")
+    equal(view.Speedometer.NeedleShadow.point[5], view.Speedometer.Needle.point[5] - 1,
+        "needle shadow stays below the pointer pivot")
+    near(view.Speedometer.NeedleShadow.vertexColor[4], 0.45, "needle shadow stays subtle")
+    equal(view.Speedometer:GetScript("OnUpdate"), nil, "settled needle stops polling")
+    for _, module in ipairs({ honor, reputation }) do
+        equal(module.View.Speedometer, nil, "XP preference never creates a gauge for " .. module.Name)
+        equal(module.View.SpeedometerEnabled, false, "non-XP gauge remains disabled")
+        equal(module.View.Frame:GetWidth(), 180, "non-XP panel keeps compact width")
+        equal(module.View.Frame:GetHeight(), 94, "non-XP panel keeps compact height")
     end
     settings.RateField:SetValue("minute")
-    equal(settings.SpeedometerHourField:IsShown(), false, "minute rate hides hourly maximum")
-    equal(settings.SpeedometerMinuteField:IsShown(), true, "minute rate shows minute maximum")
-    equal(settings.Frame:GetHeight(), compactHeight + 40, "switching units preserves single maximum row height")
-    equal(honor.View.Speedometer.Maximum, 800, "minute panels use the minute scale")
-    equal(honor.View.RateUnit:GetText(), "hon/min", "numeric unit still follows the panel preference")
-    settings.SpeedometerHourField:SetValue(0)
-    equal(store:GetSpeedometerMaximum("hour"), 10000, "hourly maximum clamps to 10000")
-    settings.SpeedometerHourField:SetValue(200000)
-    equal(store:GetSpeedometerMaximum("hour"), 100000, "hourly maximum clamps to 100000")
-    equal(experience.View.Speedometer.Target, 0.5, "hourly maximum does not affect the shared minute view")
+    equal(maximum.ValueText:GetText(), "800/min", "same slider reformats its value and unit")
+    equal(maximum:GetValue(), 5, "switching units keeps the selected level")
+    equal(settings.Frame:GetHeight(), compactHeight, "switching units preserves the inline row height")
+    equal(view.Speedometer.Maximum, 800, "XP gauge uses the matching minute scale")
+    equal(view.Speedometer.Target, 0.5, "XP gauge uses the minute session rate")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "honor numeric unit still follows the rate preference")
+    maximum:SetValue(0)
+    equal(store:GetSpeedometerLevel(), 1, "maximum clamps to the first level")
+    equal(view.Speedometer.Maximum, 160, "first level resolves to 160 per minute")
+    maximum:SetValue(99)
+    equal(store:GetSpeedometerLevel(), 10, "maximum clamps to the last level")
+    equal(view.Speedometer.Maximum, 1600, "last level resolves to 1600 per minute")
+    equal(view.Speedometer.Target, 0.25, "changing the level updates the current needle")
     settings.RateField:SetValue("hour")
-    for _, module in ipairs({ experience, honor, reputation }) do
-        equal(module.View.Speedometer.Target, 0.25, "shared hourly view updates every needle")
-        equal(module.View.Speedometer.Maximum, 100000, "shared hourly view updates every dial scale")
-    end
+    equal(maximum:GetValue(), 10, "switching to hours retains the last level")
+    equal(maximum.ValueText:GetText(), "100k/h", "switching to hours refreshes the value and unit")
+    equal(view.Speedometer.Maximum, 100000, "hourly scale follows the selected level")
+    equal(view.Speedometer.Target, 0.25, "hourly needle uses the selected level")
     settings.RateField:SetValue("minute")
-    equal(honor.View.Speedometer.Target, 0.5, "shared minute view restores its independent maximum")
-    settings.SpeedometerMinuteField:SetValue(0)
-    equal(store:GetSpeedometerMaximum("minute"), 160, "minute maximum clamps to 160")
-    settings.SpeedometerMinuteField:SetValue(9999)
-    equal(store:GetSpeedometerMaximum("minute"), 1600, "minute maximum clamps to 1600")
-    settings.SpeedometerMinuteField.Control.Back:Click()
-    equal(store:GetSpeedometerMaximum("minute"), 1590, "minute maximum uses integer steps")
-    honor.State.ElementPerMinute = 2000
-    PerHour.TrackerPanels:RefreshRate(honor)
-    equal(honor.View.Speedometer.Target, 1, "needle stops at the end of the dial on overflow")
-    honor.View.Speedometer:GetScript("OnUpdate")(honor.View.Speedometer, 0.2)
-    equal(honor.View.Speedometer.Needle.rotation >= 0 and honor.View.Speedometer.Needle.rotation <= math.rad(3),
+    maximum.Control.Back:Click()
+    equal(store:GetSpeedometerLevel(), 9, "stepper moves exactly one level")
+    equal(view.Speedometer.Maximum, 1400, "ninth level uses the rounded minute maximum")
+    equal(maximum.ValueText:GetText(), "1.4k/min", "minute maximum keeps one decimal and its unit")
+    equal(maximum.ValueText:GetStringWidth() <= maximum.ValueText:GetWidth(), true,
+        "intermediate minute maximum fits the readout")
+    experience.State.ElementPerMinute = 2000
+    PerHour.TrackerPanels:RefreshRate(experience)
+    equal(view.Speedometer.Target, 1, "needle stops at the end of the dial on overflow")
+    view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
+    equal(view.Speedometer.Needle.rotation >= 0 and view.Speedometer.Needle.rotation <= math.rad(3),
         true, "overflow tremor stays close to the right-hand stop")
-    equal(honor.View.RateValue:GetText(), "2,000", "overflow keeps the actual numeric rate visible")
+    equal(view.RateValue:GetText(), "2,000", "overflow keeps the actual numeric rate visible")
     equal(experience.State.Element, total, "display preferences preserve session totals")
     equal(experience.State.Time, duration, "display preferences preserve session duration")
     equal(experience.State.HasStarted, true, "display preferences keep active tracking running")
@@ -1056,13 +1073,12 @@ do
     equal(PerHourCharacter_Values, sessions, "display preferences preserve session storage")
     click(experience)
     settings.SpeedometerField:SetValue(false)
-    equal(settings.SpeedometerHourField:IsShown(), false, "disabling hides hourly configuration")
-    equal(settings.SpeedometerMinuteField:IsShown(), false, "disabling hides minute configuration")
-    equal(settings.Frame:GetHeight(), compactHeight, "disabling removes the maximum row and its gap")
+    equal(maximum:IsShown(), false, "disabling hides maximum")
+    equal(settings.Frame:GetHeight(), compactHeight, "disabling hides maximum while preserving the checkbox row")
     equal(experience.State.HasPaused, true, "disabling the gauge preserves an intentional pause")
+    equal(view.Speedometer:IsShown(), false, "disabling hides the XP gauge")
+    equal(view.Speedometer:GetScript("OnUpdate"), nil, "disabled gauge stops animating")
     for _, module in ipairs({ experience, honor, reputation }) do
-        equal(module.View.Speedometer:IsShown(), false, "disabling hides only the gauge")
-        equal(module.View.Speedometer:GetScript("OnUpdate"), nil, "disabled gauge stops animating")
         equal(module.View.RateFrame:IsShown(), true, "numeric readout stays visible without the gauge")
         equal(module.View.Frame:GetWidth(), 180, "disabling restores compact panel width")
         equal(module.View.Frame:GetHeight(), 94, "disabling restores compact panel height")
@@ -1071,8 +1087,7 @@ do
         PerHour.TrackerPanels:RefreshRate(module)
         settings.ModuleFields[module.Name]:SetValue(visibility[module.Name])
     end
-    settings.SpeedometerHourField:SetValue(50000)
-    settings.SpeedometerMinuteField:SetValue(800)
+    maximum:SetValue(5)
     BaseModule:ResetModule(experience)
     settings.Frame:Hide()
 end
@@ -1881,7 +1896,7 @@ PerHourCharacter_Settings.Experience.position.x, PerHourCharacter_Settings.Exper
 PerHour.TrackerPanels:RestorePositions()
 assertPanelLayout("restoring off-screen positions")
 PerHour.SettingsPanel.SpeedometerField:SetValue(true)
-assertPanelLayout("enabling gauges on all three visible panels")
+assertPanelLayout("enabling the XP gauge beside the other visible panels")
 PerHour.SettingsPanel.SpeedometerField:SetValue(false)
 assertPanelLayout("returning all three panels to compact displays")
 
@@ -2301,8 +2316,7 @@ do
     PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
     PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
     PerHour.SettingsPanel.RateField:SetValue("minute")
-    PerHour.SettingsPanel.SpeedometerHourField:SetValue(70000)
-    PerHour.SettingsPanel.SpeedometerMinuteField:SetValue(1100)
+    PerHour.SettingsPanel.SpeedometerMaximumField:SetValue(7)
     PerHour.SettingsPanel.SpeedometerField:SetValue(true)
     PerHour.MinimapButton:SetAngle(math.rad(315))
     local account = copy(PerHourAccount_Settings)
@@ -2322,16 +2336,16 @@ do
     equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
     equal(PerHour.SettingsPanel.RateField:GetValue(), "minute", "reloaded form reads the shared character rate")
     equal(PerHour.SettingsPanel.SpeedometerField:GetValue(), true, "reload restores the character gauge preference")
-    equal(PerHour.SettingsPanel.SpeedometerHourField:GetValue(), 70000, "reload restores the hourly maximum")
-    equal(PerHour.SettingsPanel.SpeedometerMinuteField:GetValue(), 1100, "reload restores the minute maximum")
-    equal(PerHour.SettingsPanel.SpeedometerHourField:IsShown(), false, "reload hides the inactive hourly configuration")
-    equal(PerHour.SettingsPanel.SpeedometerMinuteField:IsShown(), true, "reload displays the active minute configuration")
+    equal(PerHour.SettingsPanel.SpeedometerMaximumField:GetValue(), 7, "reload restores the single maximum level")
+    equal(PerHour.SettingsPanel.SpeedometerMaximumField:IsShown(), true, "reload displays the single maximum field")
+    equal(PerHour.SettingsPanel.SpeedometerMaximumField.ValueText:GetText(), "1.1k/min", "reload formats the selected minute scale and unit")
+    equal(experience.View.Speedometer:IsShown(), true, "reload enables the XP gauge")
+    equal(experience.View.Speedometer.Maximum, 1100, "reload resolves the selected level in minutes")
     for _, module in ipairs({ experience, honor, reputation }) do
-        equal(module.View.Speedometer:IsShown(), true, "reload enables the gauge in " .. module.Name)
         equal(module.View.RateFrame:IsShown(), true, "reload keeps the numeric display enabled")
-        equal(module.View.Speedometer.Maximum, PerHour.Stores.Settings:GetRate() == "minute" and 1100 or 70000,
-            "reload selects the scale matching the panel unit")
     end
+    equal(honor.View.Speedometer, nil, "reload does not create an honor gauge")
+    equal(reputation.View.Speedometer, nil, "reload does not create a reputation gauge")
     equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
     equal(honor.View.RateUnit:GetText(), "hon/min", "reload applies the shared rate to honor")
     equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
@@ -2340,8 +2354,7 @@ do
     near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
     near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
     PerHour.SettingsPanel.SpeedometerField:SetValue(false)
-    PerHour.SettingsPanel.SpeedometerHourField:SetValue(50000)
-    PerHour.SettingsPanel.SpeedometerMinuteField:SetValue(800)
+    PerHour.SettingsPanel.SpeedometerMaximumField:SetValue(5)
     PerHour.SettingsPanel.Frame:Hide()
 end
 -- Reset one runtime without replacing containers held by callbacks or neighboring modules.

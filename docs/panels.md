@@ -91,7 +91,7 @@ them or apply them to the addon.
 
 Fields accept a `subfields` array, or `field:AddSubfield(settings)` after
 creation. Subfields use the same field settings and appear below their parent,
-with 16 px of additional indentation for labels and controls and an 8 px gap.
+with 24 px of additional indentation for labels and controls and an 8 px gap.
 The control column narrows to keep the right boundary inside the form. Select
 fields align their outer left stepper with checkboxes at the same nesting level.
 Sliders shorten to fit the indented control column and reserve space for their
@@ -111,6 +111,8 @@ Checkboxes reserve 32 pixels by default in these rows; other controls reserve
 300. Set a child's `controlWidth` to reserve a different width without resizing
 its native control. The shared control column fits the sum of the child widths
 and spacing. The shared label does not toggle any child.
+The last child may use `fill = true` to occupy the remaining control column;
+this keeps a checkbox and slider inside an indented row without fixed child widths.
 Dropdowns are centered inside their reserved column so both native stepper
 buttons fit without overlapping adjacent controls. Their frame and stepper
 anchors come from Forever's [shared panel templates](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua).
@@ -206,23 +208,39 @@ The shared unit is saved per character. Changes persist through the
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
 
-**General** also has one **Show speedometer** checkbox. It defaults
-to disabled and applies to Experience, Honor and Reputation together, for the
-current character. The numeric rate stays visible in either mode. Enabling the
-gauge expands each monitor from 180 x 94 to 240 x 204; disabling it restores the
+**Experience** has an indented **Show speedometer** row with a checkbox and
+the maximum slider immediately to its right, without a separate maximum label.
+The checkbox defaults to disabled and applies only to Experience, for the current character.
+Honor and Reputation keep their numeric displays. The XP numeric rate stays
+visible in either mode. Enabling the gauge expands the Experience monitor
+from 180 x 94 to 240 x 204; disabling it restores the
 compact layout. The existing placement rules keep visible panels on screen and
 avoid overlaps. Tracking and pause state are preserved.
 
-**Maximum per hour** uses a numeric slider from 10,000 to 100,000 in steps of
-1,000 (default 50,000), using the same compact formatter as the dial, such as `50k`.
-The saved maximum remains the full numeric value.
-**Maximum per minute** uses 160 to 1,600 in steps of 10
-(default 800). Only the maximum matching **Rate** appears, indented below
-**Show speedometer**, while the gauge is enabled. Disabling it hides the maximum
-row and collapses its space. Switching units preserves each saved maximum.
-These two independent integer maxima are saved per character and
-shared by all three gauges. All panels use the maximum matching the shared
-rate unit. Above the maximum, the needle stays near the end stop while the numeric
+The inline maximum slider has 10 levels (default 5) and appears while
+**Show speedometer** is enabled. Its compact readout and the XP dial use
+the current **Rate** unit. The maximum readout includes `/h` or `/min`, such as
+`20k/h` or `320/min`. Only the level is saved per character; switching
+units keeps that level and resolves the corresponding maximum from
+`src/model/SpeedometerScales.lua`. Disabling the gauge hides the slider;
+the checkbox row stays visible and the panel height remains unchanged.
+
+| Level | XP/min | XP/h (rounded) |
+| --- | --- | --- |
+| 1 | 160 | 10k |
+| 2 | 320 | 20k |
+| 3 | 480 | 30k |
+| 4 | 640 | 40k |
+| 5 | 800 | 50k |
+| 6 | 960 | 60k |
+| 7 | 1.1k | 70k |
+| 8 | 1.3k | 80k |
+| 9 | 1.4k | 90k |
+| 10 | 1.6k | 100k |
+
+The hourly maxima are approximate counterparts rather than exact conversions;
+minute levels 7–9 are also rounded to the nearest hundred.
+Above the maximum, the needle stays near the end stop while the numeric
 display keeps the actual rate. The gauge uses two transparent, antialiased TGA
 textures with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
 ticks and center cap, and `SpeedometerNeedle.tga` for the rotating pointer.
@@ -285,11 +303,11 @@ Validate appearance, checkbox interaction, the shared rate dropdown, dragging an
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected unit and minimap position match saved preferences.
 Switch between two characters and confirm their layouts and display units remain independent.
-Changing the unit must update all three panels' numeric readouts and gauge scales together.
-Verify that the speedometer checkbox applies to all three monitors, keeps the
-numeric rate below the dial and restores after reload. Check that only the active
-unit's scale slider appears while enabled, including after reopening and reload;
-check both saved maxima,
+Changing the unit must update all three panels' numeric readouts and the XP gauge scale.
+Verify that the speedometer checkbox applies only to XP, keeps the
+numeric rate below the dial and restores after reload. Check that the single
+maximum slider appears while enabled, including after reopening and reload;
+check all ten levels, switching units without changing the level,
 pause/resume, overflow and switching characters with different gauge preferences.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.

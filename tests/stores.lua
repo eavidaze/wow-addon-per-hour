@@ -11,6 +11,7 @@ return function(equal)
     equal(xp.Settings:Get("isShown"), false, "malformed settings root recovers defaults")
     equal(settings:GetRate(), "hour", "missing shared rate defaults to hourly display")
     equal(settings:GetSpeedometerEnabled(), false, "missing speedometer preference defaults to disabled")
+    equal(settings:GetSpeedometerLevel(), 5, "missing speedometer level defaults to five")
     equal(settings:GetSpeedometerMaximum("hour"), 50000, "missing hourly maximum defaults to 50000")
     equal(settings:GetSpeedometerMaximum("minute"), 800, "missing minute maximum defaults to 800")
     equal(settings:GetMinimapAngle(), math.rad(225), "missing minimap recovers default angle")
@@ -97,26 +98,46 @@ return function(equal)
     equal(xp.Settings:Get("position").x, 25, "rejected writes preserve the previous setting")
     equal(pcall(function() settings:SetMinimapAngle(math.huge) end), false, "nonfinite angle writes are rejected")
     settings:SetSpeedometerEnabled(true)
-    settings:SetSpeedometerMaximum("hour", 10000)
-    settings:SetSpeedometerMaximum("minute", 1600)
+    settings:SetSpeedometerLevel(10)
     settings:Init()
     equal(settings:GetSpeedometerEnabled(), true, "saved speedometer preference survives initialization")
-    equal(settings:GetSpeedometerMaximum("hour"), 10000, "hourly maximum accepts its lower bound")
+    equal(settings:GetSpeedometerMaximum("hour"), 100000, "one level selects the hourly upper bound")
     equal(settings:GetSpeedometerMaximum("minute"), 1600, "minute maximum accepts its upper bound")
     equal(loaded.speedometer, nil, "speedometer preferences are not written to the account")
     equal(pcall(function() settings:SetSpeedometerEnabled(1) end), false, "speedometer toggle rejects nonboolean values")
-    for _, invalid in ipairs({ 9999, 100001, math.huge, 0 / 0, "50000", 50000.5 }) do
-        equal(pcall(function() settings:SetSpeedometerMaximum("hour", invalid) end), false, "invalid hourly maximum is rejected")
-    end
-    for _, invalid in ipairs({ 159, 1601, math.huge, 0 / 0, "800", 800.5 }) do
-        equal(pcall(function() settings:SetSpeedometerMaximum("minute", invalid) end), false, "invalid minute maximum is rejected")
+    for _, invalid in ipairs({ 0, 11, math.huge, -math.huge, 0 / 0, "5", 5.5, false }) do
+        equal(pcall(function() settings:SetSpeedometerLevel(invalid) end), false, "invalid speedometer level is rejected")
+        equal(settings:GetSpeedometerLevel(), 10, "rejected level preserves the selection")
     end
     equal(pcall(function() settings:GetSpeedometerMaximum("day") end), false, "unknown maximum rate is rejected")
-    PerHourCharacter_Settings.speedometer = { enabled = "bad", hour = math.huge, minute = 159 }
+    PerHourCharacter_Settings.speedometer = { enabled = "bad", level = "bad" }
     settings:Init()
     equal(settings:GetSpeedometerEnabled(), false, "malformed speedometer toggle recovers its default")
-    equal(settings:GetSpeedometerMaximum("hour"), 50000, "invalid saved hourly maximum recovers its default")
-    equal(settings:GetSpeedometerMaximum("minute"), 800, "invalid saved minute maximum recovers its default")
+    equal(settings:GetSpeedometerMaximum("hour"), 50000, "invalid saved level resolves the default hourly maximum")
+    equal(settings:GetSpeedometerMaximum("minute"), 800, "invalid saved level resolves the default minute maximum")
+
+    local speedometer = PerHourCharacter_Settings.speedometer
+    PerHourCharacter_Settings.speedometer = { enabled = true, hour = 100000, minute = 1600 }
+    settings:Init()
+    equal(settings:GetSpeedometerLevel(), 5, "previous independent maxima do not migrate into the level")
+    equal(settings:GetSpeedometerEnabled(), true, "defaulting the level preserves the current toggle")
+    PerHourCharacter_Settings.speedometer = speedometer
+    for _, invalid in ipairs({ false, 0, 11, 5.5, math.huge, 0 / 0 }) do
+        PerHourCharacter_Settings.speedometer.level = invalid
+        settings:Init()
+        equal(settings:GetSpeedometerLevel(), 5, "malformed saved level recovers the default")
+    end
+    local expectedMinutes = { 160, 320, 480, 640, 800, 960, 1100, 1300, 1400, 1600 }
+    for level, minute in ipairs(expectedMinutes) do
+        settings:SetSpeedometerLevel(level)
+        settings:SetRate("minute")
+        equal(settings:GetSpeedometerMaximum("minute"), minute, "level resolves its agreed minute maximum")
+        settings:SetRate("hour")
+        equal(settings:GetSpeedometerLevel(), level, "switching units preserves the single level")
+        equal(settings:GetSpeedometerMaximum("hour"), level * 10000, "level resolves its rounded hourly maximum")
+        equal(PerHourCharacter_Settings.speedometer.hour, nil, "hourly maximum is derived instead of saved")
+        equal(PerHourCharacter_Settings.speedometer.minute, nil, "minute maximum is derived instead of saved")
+    end
 
     for _, invalid in ipairs({ false, "bad", math.huge, 0 / 0 }) do
         PerHourCharacter_Settings.minimap.angle = invalid
@@ -140,7 +161,7 @@ return function(equal)
     local firstCharacter = PerHourCharacter_Settings
     settings:SetRate("minute")
     settings:SetSpeedometerEnabled(true)
-    settings:SetSpeedometerMaximum("minute", 1200)
+    settings:SetSpeedometerLevel(8)
     PerHourCharacter_Settings = {
         minimap = { angle = 0 },
         Honor = { isShown = false, position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
@@ -151,7 +172,7 @@ return function(equal)
     equal(settings:GetRate(), "hour", "another character has its own migrated rate")
     equal(settings:GetSpeedometerEnabled(), false, "another character starts with the gauge disabled")
     equal(settings:GetSpeedometerMaximum("minute"), 800, "another character has its own dial maximum")
-    settings:SetSpeedometerMaximum("minute", 600)
+    settings:SetSpeedometerLevel(4)
     equal(honor.Settings:Get("isShown"), false, "initialization preserves a character's existing false preference")
     equal(honor.Settings:Get("position").x, 0, "initialization preserves an existing character position")
     equal(settings:GetMinimapAngle(), 0, "initialization preserves an existing zero character angle")
@@ -170,8 +191,9 @@ return function(equal)
     settings:Init()
     equal(honor.Settings:Get("isShown"), true, "switching characters restores its own visibility")
     equal(settings:GetSpeedometerEnabled(), true, "switching characters restores its own gauge preference")
-    equal(settings:GetSpeedometerMaximum("minute"), 1200, "switching characters restores its own dial maximum")
-    equal(secondCharacter.speedometer.minute, 600, "another character's dial maximum is preserved")
+    equal(settings:GetSpeedometerLevel(), 8, "switching characters restores its own dial level")
+    equal(settings:GetSpeedometerMaximum("minute"), 1300, "switching characters derives its own dial maximum")
+    equal(secondCharacter.speedometer.level, 4, "another character's dial level is preserved")
     equal(xp.Settings:Get("position"), nil, "another character's panel movement leaves the first character unchanged")
     equal(settings:GetMinimapAngle(), math.rad(225), "switching characters restores its own minimap angle")
     equal(settings:GetRate(), "minute", "returning restores the first character rate")

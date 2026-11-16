@@ -50,13 +50,17 @@ plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
 Experience, Honor and Reputation: `hour` (default) or `minute`. It is saved in
 `PerHourCharacter_Settings.rate`. Invalid saved rates recover the default.
 
-`GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control one
-character-wide preference for all three monitors, disabled by default.
-`GetSpeedometerMaximum(rate)` and `SetSpeedometerMaximum(rate, value)` use `hour`
-or `minute`. Hourly bounds are 10,000–100,000 (default 50,000); minute bounds are
-160–1,600 (default 800). The store requires finite integers within these bounds.
-These values live in `PerHourCharacter_Settings.speedometer` as `enabled`, `hour`
-and `minute`. Changing characters restores their own unit, toggle and maxima.
+`GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control the XP
+speedometer for the current character, disabled by default. Honor and Reputation
+keep their numeric displays. `GetSpeedometerLevel()` and `SetSpeedometerLevel(level)`
+control one integer level from 1 to 10 (default 5).
+`GetSpeedometerMaximum(rate)` derives the maximum for `hour` or `minute` from
+`PerHour.SpeedometerScales` in `src/model/SpeedometerScales.lua`; the two maxima
+are never saved independently. Level 5 represents 800/min or approximately 50k/h.
+The hourly values are rounded, and minute levels 7–9 use 1.1k, 1.3k and 1.4k.
+Only `enabled` and `level` are written to `PerHourCharacter_Settings.speedometer`.
+A missing or invalid level defaults to 5. Previous independent maxima are ignored;
+there is no migration. Changing characters restores their own unit, toggle and level.
 
 Visibility, position and minimap angle are also per character. Session saving
 and resetting never modify character preferences.
@@ -76,7 +80,7 @@ copy tables, so callers cannot mutate stored positions indirectly.
 Forms keep their generic `value` and `onChanged` interface. The settings panel
 connects module visibility and the shared display unit to the stores and applies each
 change immediately. It refreshes silently when opened and when visibility changes
-elsewhere. Rate selection changes all panels' numeric values, units and gauge scales without
+elsewhere. Rate selection changes all panels' numeric values and units, and the XP gauge scale, without
 altering session totals, duration, running state or the calculated rates. The
 minimap remains draggable and its position is saved, with no angle form control.
 

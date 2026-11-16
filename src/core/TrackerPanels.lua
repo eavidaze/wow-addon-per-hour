@@ -238,7 +238,7 @@ local function CreateValues(module)
 end
 
 local function RefreshDisplayLayout(module)
-    local enabled = PerHour.Stores.Settings:GetSpeedometerEnabled()
+    local enabled = module.Name == "Experience" and PerHour.Stores.Settings:GetSpeedometerEnabled()
     if module.View.SpeedometerEnabled == enabled then return end
     local frame, content, rate = module.View.Frame, module.View.DisplayContent, module.View.RateFrame
     local left, top = frame:GetLeft(), frame:GetTop()

@@ -25,17 +25,14 @@ end
 
 function SettingsPanel:RefreshSpeedometerFields()
     local enabled = PerHour.Stores.Settings:GetSpeedometerEnabled()
-    local rate = PerHour.Stores.Settings:GetRate()
-    self.SpeedometerHourField:SetShown(enabled and rate == "hour")
-    self.SpeedometerMinuteField:SetShown(enabled and rate == "minute")
+    self.SpeedometerMaximumField:SetValue(PerHour.Stores.Settings:GetSpeedometerLevel(), true)
+    self.SpeedometerMaximumField:SetShown(enabled)
 end
 
 function SettingsPanel:Refresh()
     if not self.Frame then return end
     self.RateField:SetValue(PerHour.Stores.Settings:GetRate(), true)
     self.SpeedometerField:SetValue(PerHour.Stores.Settings:GetSpeedometerEnabled(), true)
-    self.SpeedometerHourField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("hour"), true)
-    self.SpeedometerMinuteField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("minute"), true)
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
     end
@@ -74,33 +71,6 @@ function SettingsPanel:Show()
                 PerHour.TrackerPanels:RefreshDisplays()
             end,
         })
-        self.SpeedometerField = general:AddField({
-            type = "checkbox", label = "Show speedometer",
-            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
-            onChanged = function(enabled)
-                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
-                self:RefreshSpeedometerFields()
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        self.SpeedometerHourField = self.SpeedometerField:AddSubfield({
-            type = "slider", label = "Maximum per hour", min = 10000, max = 100000, step = 1000,
-            format = function(value) return Utils:DisplayCompactNumber(value) end,
-            value = PerHour.Stores.Settings:GetSpeedometerMaximum("hour"),
-            onChanged = function(value)
-                PerHour.Stores.Settings:SetSpeedometerMaximum("hour", value)
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        self.SpeedometerMinuteField = self.SpeedometerField:AddSubfield({
-            type = "slider", label = "Maximum per minute", min = 160, max = 1600, step = 10, format = "%.0f",
-            value = PerHour.Stores.Settings:GetSpeedometerMaximum("minute"),
-            onChanged = function(value)
-                PerHour.Stores.Settings:SetSpeedometerMaximum("minute", value)
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        self:RefreshSpeedometerFields()
         frame:AddField(general)
         local panels = Components:CreateFormGroup(frame.Content, { title = "Show trackers" })
         local modules = {}
@@ -119,7 +89,38 @@ function SettingsPanel:Show()
                 end,
             })
             self.ModuleFields[module.Name] = row
-            if module.Name == "Reputation" then
+            if module.Name == "Experience" then
+                self.SpeedometerRow = row:AddSubfield({
+                    type = "group", label = "Show speedometer",
+                    fields = {
+                        {
+                            type = "checkbox", label = "Show speedometer",
+                            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
+                            onChanged = function(enabled)
+                                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
+                                self:RefreshSpeedometerFields()
+                                PerHour.TrackerPanels:RefreshDisplays()
+                            end,
+                        },
+                        {
+                            type = "slider", fill = true,
+                            min = 1, max = #PerHour.SpeedometerScales.Levels, step = 1,
+                            format = function(level)
+                                local rate = PerHour.Stores.Settings:GetRate()
+                                return Utils:DisplayCompactNumber(PerHour.SpeedometerScales:GetMaximum(level, rate))
+                                    .. (rate == "minute" and "/min" or "/h")
+                            end,
+                            value = PerHour.Stores.Settings:GetSpeedometerLevel(),
+                            onChanged = function(level)
+                                PerHour.Stores.Settings:SetSpeedometerLevel(level)
+                                PerHour.TrackerPanels:RefreshDisplays()
+                            end,
+                        },
+                    },
+                })
+                self.SpeedometerField = self.SpeedometerRow.Fields[1]
+                self.SpeedometerMaximumField = self.SpeedometerRow.Fields[2]
+            elseif module.Name == "Reputation" then
                 self.ReputationOptions = { { value = 0, label = "None" } }
                 self.ReputationField = row:AddSubfield({
                     type = "select", label = "Tracked faction", value = 0,
@@ -135,6 +136,7 @@ function SettingsPanel:Show()
             module.View.Frame:HookScript("OnShow", function() self:Refresh() end)
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
+        self:RefreshSpeedometerFields()
         frame:AddField(panels)
         self.Frame = frame
         frame:RegisterEvent("UPDATE_FACTION")
