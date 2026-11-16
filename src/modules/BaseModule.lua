@@ -30,7 +30,8 @@ function BaseModule:SendTo(contextModule, chatType)
 end
 
 function BaseModule:RefreshDisplayedValues(contextModule)
-    PerHour.TrackerPanels:RefreshRate(contextModule)
+    PerHour.TrackerPanels:RefreshScheduler()
+    PerHour.TrackerPanels:RefreshRate(contextModule, true)
     PerHour.TrackerPanels:RefreshTrackingState(contextModule)
     PerHour.TrackerPanels:RefreshRestoreStatus(contextModule)
     PerHour.TrackerPanels:RefreshTooltip(contextModule)
@@ -62,7 +63,7 @@ function BaseModule:ResetModule(contextModule, preserveSavedSession)
 
     contextModule.State.UpdatedAt = GetTime()
 
-    contextModule.State.TimeSinceLastUpdate = 0
+    contextModule.State.PolledAt = GetTime()
 
     -- displayable values
     contextModule.State.Time = 0

@@ -19,6 +19,8 @@ local function SetRestoreStatus(module, status, issue)
 end
 
 function Session:Save()
+    PerHour.TrackerPanels:SaveDraggingPositions()
+    PerHour.MinimapButton:SaveDragPosition()
     local sessions = {}
     local onlyPending = true
     for name, module in pairs(PerHour.Modules) do
@@ -125,10 +127,12 @@ frame:RegisterEvent("TIME_PLAYED_MSG")
 frame:SetScript("OnEvent", function(self, event, totalPlayed)
     if event == "PLAYER_ENTERING_WORLD" then
         Session.InWorld = true
+        for _, module in pairs(PerHour.Modules) do module.State.PolledAt = GetTime() end
         if not Session.Restored then
             Session.Restored = true
             Session:Restore()
         end
+        PerHour.TrackerPanels:RefreshScheduler()
     elseif event == "PLAYER_LEAVING_WORLD" then
         -- Capture progress before logout tears down player APIs.
         if Session.InWorld then Session:Save() end

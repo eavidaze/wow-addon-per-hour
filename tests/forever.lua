@@ -17,14 +17,19 @@ local function near(actual, expected, label)
 end
 
 local methods = {}
-function methods:SetScript(event, callback) self.scripts[event] = callback end
+function methods:SetScript(event, callback)
+    self.scripts[event] = callback
+    if callback and (event == "OnEnter" or event == "OnLeave" or event == "OnMouseDown" or event == "OnMouseUp") then
+        self:EnableMouse(true)
+    end
+end
 function methods:GetScript(event) return self.scripts[event] end
 function methods:HookScript(event, callback)
     local previous = self.scripts[event]
-    self.scripts[event] = function(...)
+    self:SetScript(event, function(...)
         if previous then previous(...) end
         callback(...)
-    end
+    end)
 end
 function hooksecurefunc(target, method, callback)
     local previous = target[method]
@@ -35,15 +40,22 @@ function hooksecurefunc(target, method, callback)
 end
 function methods:RegisterEvent(event) self.events[event] = true end
 function methods:UnregisterEvent(event) self.events[event] = nil end
+local function VisibilityScripts(frame, event)
+    if frame.scripts[event] then frame.scripts[event](frame) end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if child:IsShown() then VisibilityScripts(child, event) end
+    end
+end
 function methods:Show()
     if self.shown then return end
     self.shown = true
-    if self.scripts.OnShow then self.scripts.OnShow(self) end
+    if self:IsVisible() then VisibilityScripts(self, "OnShow") end
 end
 function methods:Hide()
     if not self.shown then return end
+    local visible = self:IsVisible()
     self.shown = false
-    if self.scripts.OnHide then self.scripts.OnHide(self) end
+    if visible then VisibilityScripts(self, "OnHide") end
 end
 function methods:IsShown() return self.shown end
 function methods:IsVisible()
@@ -94,7 +106,11 @@ function methods:SetAtlas(atlas)
     self.atlas = atlas
 end
 function methods:SetEnabled(enabled) self.enabled = enabled end
-function methods:EnableMouse(enabled) self.mouseEnabled = enabled end
+function methods:EnableMouse(enabled) self.mouseEnabled, self.mouseMotionEnabled = enabled, enabled end
+function methods:IsMouseClickEnabled() return self.mouseEnabled == true end
+function methods:IsMouseMotionEnabled() return self.mouseMotionEnabled == true end
+function methods:SetMouseClickEnabled(enabled) self.mouseEnabled = enabled end
+function methods:SetMouseMotionEnabled(enabled) self.mouseMotionEnabled = enabled end
 function methods:RegisterForMouse(...) self.mouseButtons = { ... } end
 function methods:RegisterForClicks(...) self.clickButtons = { ... } end
 function methods:RegisterForDrag(...) self.dragButtons = { ... } end
@@ -117,6 +133,13 @@ function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetParent(parent) self.parent = parent end
 function methods:GetParent() return self.parent end
+function methods:GetChildren()
+    local children = {}
+    for _, frame in ipairs(frames) do
+        if rawget(frame, "parent") == self then children[#children + 1] = frame end
+    end
+    return unpack(children)
+end
 function methods:SetWidth(value) self.width = value end
 function methods:SetHeight(value)
     local previous = rawget(self, "height")
@@ -259,6 +282,8 @@ function methods:CreateAnimationGroup()
         function animation:SetToAlpha(alpha) self.toAlpha = alpha end
         function animation:SetDuration(duration) self.duration = duration end
         function animation:SetStartDelay(delay) self.startDelay = delay end
+        function animation:SetDegrees(degrees) self.degrees = degrees end
+        function animation:SetOrigin(...) self.origin = { ... } end
         table.insert(self.animations, animation)
         return animation
     end
@@ -295,6 +320,18 @@ function GameTooltip:SetText(text)
 end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
+-- Forever exposes the region method, not the old MouseIsOver global.
+MouseIsOver = nil
+function methods:IsMouseOver()
+    local frame = self
+    if not frame:IsVisible() then return false end
+    local left, top = frame:GetLeft(), frame:GetTop()
+    if not left or not top then return false end
+    local scale = frame:GetEffectiveScale()
+    local x, y = cursorX / scale, cursorY / scale
+    return x >= left and x <= left + frame:GetWidth()
+        and y <= top and y >= top - frame:GetHeight()
+end
 MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
 SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
 function CreateFrame(kind, name, parent, template)
@@ -312,6 +349,9 @@ function CreateFrame(kind, name, parent, template)
     end
     local frame = object(name)
     frame.parent, frame.template, frame.kind = parent, template, kind
+    if kind == "Button" or kind == "DropdownButton" or kind == "CheckButton" or kind == "Slider" then
+        frame:EnableMouse(true)
+    end
     if template == "DialogBorderTranslucentTemplate" then
         frame.Bg = object()
     end
@@ -571,6 +611,35 @@ local function mouseClick(frame, mouseButton)
     end
     if receivesDown and accepts(clickButtons, "Up") then frame:Click(mouseButton) end
 end
+-- A passive child lets input reach its parent; an enabled child captures it even
+-- when it has no handler for that gesture. Direct script calls miss this boundary.
+local function mouseTarget(region, motion)
+    while region do
+        local enabled = motion and region:IsMouseMotionEnabled() or (not motion and region:IsMouseClickEnabled())
+        if region:IsVisible() and enabled then return region end
+        region = rawget(region, "parent")
+    end
+end
+local function mouseHover(region, event)
+    local target = mouseTarget(region, true)
+    if target and target:GetScript(event) then target:GetScript(event)(target) end
+    return target
+end
+local function mouseDrag(region, dx, dy)
+    local target = mouseTarget(region, false)
+    if not target then return false end
+    local registered = false
+    for _, button in ipairs(rawget(target, "dragButtons") or {}) do
+        if button == "LeftButton" then registered = true end
+    end
+    if not registered or not target:GetScript("OnDragStart") then return false end
+    if target:GetScript("OnMouseDown") then target:GetScript("OnMouseDown")(target, "LeftButton") end
+    target:GetScript("OnDragStart")(target, "LeftButton")
+    cursorX, cursorY = cursorX + dx, cursorY + dy
+    tick(0)
+    target:GetScript("OnDragStop")(target)
+    return true
+end
 local experience, reputation, honor = PerHour.Modules.Experience, PerHour.Modules.Reputation, PerHour.Modules.Honor
 local function indicatorColor(module)
     return table.concat(module.View.ActiveIndicator.vertexColor, ",")
@@ -620,49 +689,81 @@ equal(experience.View.DetailsButton, nil, "details toggle removed")
 equal(experience.View.DetailsFrame, nil, "expandable details removed")
 equal(experience.View.ToggleStartButton.point[2], experience.View.OptionsButton, "start button leaves room for the footer gear")
 
--- Close visibility follows panel geometry, including child controls and its protruding corner.
+-- Hover events keep close buttons visible across child controls without polling or fading.
+for _, module in ipairs({experience, honor, reputation}) do
+    local panel, close = module.View.Frame, module.View.Frame.CloseButton
+    local shown = panel:IsShown()
+    local savedX, savedY = cursorX, cursorY
+    cursorX, cursorY = -100, -100
+    panel:Hide()
+    panel:Show()
+    equal(close:IsShown(), false, "tracker close stays hidden outside the panel")
+    cursorX, cursorY = (panel:GetLeft() + 20) * panel:GetEffectiveScale(),
+        (panel:GetTop() - 20) * panel:GetEffectiveScale()
+    panel.scripts.OnEnter(panel)
+    equal(close:IsShown(), true, "entering the panel shows close immediately")
+    equal(close:GetAlpha(), 1, "hover close has no partial fade")
+    equal(close.mouseEnabled, true, "tracker close accepts clicks")
+    equal(close:GetScript("OnUpdate"), nil, "tracker close never polls the cursor")
+    panel.scripts.OnLeave(panel)
+    module.View.ToggleStartButton.scripts.OnEnter(module.View.ToggleStartButton)
+    equal(close:IsShown(), true, "entering a child control keeps close visible")
+    cursorX, cursorY = (panel:GetLeft() + panel:GetWidth() + 1) * panel:GetEffectiveScale(),
+        (panel:GetTop() + 1) * panel:GetEffectiveScale()
+    module.View.ToggleStartButton.scripts.OnLeave(module.View.ToggleStartButton)
+    close.scripts.OnEnter(close)
+    equal(close:IsShown(), true, "the protruding close remains reachable")
+    cursorX, cursorY = -100, -100
+    close.scripts.OnLeave(close)
+    equal(close:IsShown(), false, "leaving the entire panel hides close immediately")
+    module.View.OptionsButton.scripts.OnEnter(module.View.OptionsButton)
+    panel:Hide()
+    equal(close:IsShown(), false, "hiding the panel clears hover state")
+    panel:Show()
+    equal(close:IsShown(), false, "reopening outside the panel leaves close hidden")
+    cursorX, cursorY = (panel:GetLeft() + 20) * panel:GetEffectiveScale(),
+        (panel:GetTop() - 20) * panel:GetEffectiveScale()
+    panel:Hide()
+    panel:Show()
+    equal(close:IsShown(), true, "reopening under the cursor synchronizes hover")
+    cursorX, cursorY = savedX, savedY
+    panel:SetShown(shown)
+end
+-- Real mouse routing must reach the panel through decorative layers, not just
+-- work when the test invokes the panel's scripts directly.
 do
     local panel, close = experience.View.Frame, experience.View.Frame.CloseButton
-    local savedCursorX, savedCursorY = cursorX, cursorY
-    local function hoverAt(x, y, seconds)
-        cursorX, cursorY = x * panel:GetEffectiveScale(), y * panel:GetEffectiveScale()
-        close.scripts.OnUpdate(close, seconds)
+    local savedX, savedY = cursorX, cursorY
+    local savedLeft, savedTop = panel:GetLeft(), panel:GetTop()
+    equal(MouseIsOver, nil, "simulation does not provide the removed MouseIsOver global")
+    PerHour.TrackerPanels:SavePosition(experience, 200, 700)
+    for _, region in ipairs({panel.Border, panel.TitleBox, panel.Content, panel.ActionBar,
+        experience.View.DisplayContent, experience.View.RateFrame}) do
+        equal(region:IsMouseClickEnabled(), false, "decorative layers cannot capture panel clicks")
+        equal(region:IsMouseMotionEnabled(), false, "decorative layers cannot capture panel hover")
+        cursorX, cursorY = (panel:GetLeft() + 20) * panel:GetEffectiveScale(),
+            (panel:GetTop() - 20) * panel:GetEffectiveScale()
+        equal(mouseHover(region, "OnEnter"), panel, "hover reaches the panel through decoration")
+        equal(close:IsShown(), true, "background hover reveals the X")
+        equal(GameTooltip:IsOwned(panel), true, "background hover reaches the session tooltip")
+        local left, top = panel:GetLeft(), panel:GetTop()
+        equal(mouseDrag(region, 40, -20), true, "background gesture starts a panel drag")
+        near(panel:GetLeft(), left + 20, "routed drag moves panel X")
+        near(panel:GetTop(), top - 10, "routed drag moves panel Y")
+        equal(experience.Settings:Get("position").x, panel:GetLeft(), "routed release saves the final position")
+        equal(panel:GetScript("OnUpdate"), nil, "routed release stops drag updates")
+        cursorX, cursorY = -100, -100
+        mouseHover(region, "OnLeave")
+        equal(close:IsShown(), false, "routed leave hides the X")
+        equal(GameTooltip:IsShown(), false, "routed leave hides the tooltip")
     end
-    local insideX, insideY = panel:GetLeft() + 20, panel:GetTop() - 20
-    local outsideX, outsideY = panel:GetLeft() - 50, panel:GetTop() + 50
-    equal(close:GetAlpha(), 0, "close starts transparent")
-    equal(close.mouseEnabled, false, "transparent close cannot intercept clicks")
-    panel.GetLeft = function() return nil end
-    hoverAt(insideX, insideY, 0.04)
-    equal(close:GetAlpha(), 0, "close tolerates panel bounds before layout")
-    panel.GetLeft = nil
-    hoverAt(insideX, insideY, 0.04)
-    equal(close:GetAlpha(), 0.5, "close fades halfway in after 0.04 seconds")
-    equal(close.mouseEnabled, true, "visible close accepts clicks")
-    hoverAt(insideX, insideY, 0.04)
-    equal(close:GetAlpha(), 1, "close finishes fade in after 0.08 seconds")
-    hoverAt(insideX, panel:GetTop() - panel:GetHeight() + 2, 0.2)
-    equal(close:GetAlpha(), 1, "hovering the footer keeps close visible")
-    hoverAt(panel:GetLeft() + panel:GetWidth() + 1, panel:GetTop() + 1, 0.2)
-    equal(close:GetAlpha(), 1, "protruding close stays visible while hovered")
-    hoverAt(outsideX, outsideY, 0.04)
-    equal(close:GetAlpha(), 0.5, "close fades halfway out after 0.04 seconds")
-    hoverAt(outsideX, outsideY, 0.04)
-    equal(close:GetAlpha(), 0, "close finishes fade out after 0.08 seconds")
-    equal(close.mouseEnabled, false, "transparent close stops intercepting clicks")
-    hoverAt(insideX, insideY, 0.04)
-    hoverAt(outsideX, outsideY, 0.02)
-    equal(close:GetAlpha(), 0.25, "leaving during fade reverses from current alpha")
-    hoverAt(insideX, insideY, 0.02)
-    equal(close:GetAlpha(), 0.5, "reentering restarts the short fade in")
-    panel:Hide()
-    equal(close:GetAlpha(), 0, "hiding panel clears partial close fade")
-    equal(close.mouseEnabled, false, "hiding panel disables close interaction")
-    panel:Show()
-    equal(close:GetAlpha(), 0, "reopened panel starts with transparent close")
-    hoverAt(outsideX, outsideY, 1)
-    equal(close:GetAlpha(), 0, "close remains transparent outside panel")
-    cursorX, cursorY = savedCursorX, savedCursorY
+    equal(mouseTarget(experience.View.ToggleStartButton, false), experience.View.ToggleStartButton,
+        "start button keeps its own click input")
+    equal(mouseTarget(experience.View.OptionsButton, false), experience.View.OptionsButton,
+        "options button keeps its own click input")
+    equal(mouseDrag(experience.View.ToggleStartButton, 40, 0), false, "button clicks never drag the panel")
+    PerHour.TrackerPanels:SavePosition(experience, savedLeft, savedTop)
+    cursorX, cursorY = savedX, savedY
 end
 local panelTop, panelLeft = experience.View.Frame:GetTop(), experience.View.Frame:GetLeft()
 experience.View.Frame.scripts.OnEnter(experience.View.Frame)
@@ -677,7 +778,7 @@ equal(experience.View.Frame:GetTop(), panelTop, "hover preserves panel top")
 equal(experience.View.Frame:GetLeft(), panelLeft, "hover preserves panel left")
 experience.View.Frame.scripts.OnLeave()
 equal(GameTooltip:IsShown(), false, "leaving panel hides session tooltip")
-equal(experience.View.OptionsButton.scripts.OnEnter, nil, "gear has no tooltip hint")
+equal(GameTooltip:IsShown(), false, "close hover hooks do not add a gear tooltip")
 equal(table.concat(experience.View.OptionsButton.Icon.texCoords, ","), "0,1,0,1", "gear displays its entire texture")
 for name, module in pairs(PerHour.Modules) do
     equal(table.concat(module.View.RestoreIndicator.Border.vertexColor, ","),
@@ -1017,15 +1118,8 @@ do
         "needle uses its own rotatable texture")
     equal(view.Speedometer.Dial.filterMode, "LINEAR", "dial uses linear texture filtering")
     equal(view.Speedometer.Needle.filterMode, "LINEAR", "needle uses linear texture filtering")
-    view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
-    equal(view.Speedometer.Fraction, 0.5, "needle reaches its target smoothly")
+    equal(view.Speedometer.Fraction, 0.5, "needle reaches its target immediately")
     near(view.Speedometer.Needle.rotation, math.pi / 2, "half-scale rotates the needle upward")
-    near(view.Speedometer.NeedleShadow.rotation, view.Speedometer.Needle.rotation,
-        "needle shadow follows the animated needle rotation")
-    equal(view.Speedometer.NeedleShadow.point[4], 1, "needle shadow is offset to the right")
-    equal(view.Speedometer.NeedleShadow.point[5], view.Speedometer.Needle.point[5] - 1,
-        "needle shadow stays below the pointer pivot")
-    near(view.Speedometer.NeedleShadow.vertexColor[4], 0.45, "needle shadow stays subtle")
     equal(view.Speedometer:GetScript("OnUpdate"), nil, "settled needle stops polling")
     for _, module in ipairs({ honor, reputation }) do
         equal(module.View.Speedometer, nil, "XP preference never creates a gauge for " .. module.Name)
@@ -1062,9 +1156,7 @@ do
     experience.State.ElementPerMinute = 2000
     PerHour.TrackerPanels:RefreshRate(experience)
     equal(view.Speedometer.Target, 1, "needle stops at the end of the dial on overflow")
-    view.Speedometer:GetScript("OnUpdate")(view.Speedometer, 0.2)
-    equal(view.Speedometer.Needle.rotation >= 0 and view.Speedometer.Needle.rotation <= math.rad(3),
-        true, "overflow tremor stays close to the right-hand stop")
+    equal(view.Speedometer.Needle.rotation, 0, "overflow stays at the right-hand stop")
     equal(view.RateValue:GetText(), "2,000", "overflow keeps the actual numeric rate visible")
     equal(experience.State.Element, total, "display preferences preserve session totals")
     equal(experience.State.Time, duration, "display preferences preserve session duration")
@@ -1092,91 +1184,76 @@ do
     settings.Frame:Hide()
 end
 
--- Overload transitions must work even when the clamped needle target stays at one.
+-- Overload is a native burst/rest animation; Lua only handles state transitions.
 do
     local gauge = PerHour.Components:CreateSpeedometerDisplay(UIParent)
+    gauge:SetRate(25000, 50000)
+    near(gauge.Needle.rotation, math.pi / 2, "needle immediately reaches half scale")
+    equal(gauge:GetScript("OnUpdate"), nil, "normal gauge never polls")
+    near(gauge.NeedleShadow.rotation, gauge.Needle.rotation, "needle shadow shares the current rotation")
+    equal(gauge.NeedleShadow.point[4], 1, "needle shadow is offset one pixel to the right")
+    equal(gauge.NeedleShadow.point[5], gauge.Needle.point[5] - 1, "needle shadow is offset one pixel down")
+    near(gauge.NeedleShadow.vertexColor[4], 0.45, "needle shadow preserves its subtle opacity")
+    equal(gauge.DialShadow.texture, gauge.Dial.texture, "dial shadow reuses the dial artwork")
+    equal(gauge.DialShadow.point[4], 1, "dial shadow is offset one pixel to the right")
+    near(gauge.DialShadow.vertexColor[4], 0.45, "dial shadow preserves its subtle opacity")
+    equal(rawget(gauge, "NeedleGlow"), nil, "gauge omits the animated glow layer")
+    equal(gauge.OverloadAnimation, false, "normal gauges allocate no overload animations")
+    equal(gauge.OverloadShadowAnimation, false, "normal shadows allocate no overload animations")
     gauge:SetRate(50000, 50000)
-    gauge:GetScript("OnUpdate")(gauge, 0.2)
-    equal(gauge.Overloaded, false, "exactly reaching the maximum does not overload")
-    equal(gauge.NeedleGlow:IsShown(), false, "normal gauge has no overload glow")
-    equal(gauge:GetScript("OnUpdate"), nil, "settled normal gauge stops updating")
+    equal(gauge.Overloaded, false, "exactly reaching the maximum is normal")
     gauge:SetRate(50001, 50000)
-    equal(gauge.EffectActive, true, "crossing the maximum activates overload without moving the target")
-    equal(gauge.NeedleGlow.blendMode, "ADD", "overload glow uses native additive blending")
-    equal(gauge.OverloadAnimation:IsPlaying(), true, "native glow animation starts")
-    equal(gauge.OverloadAnimation.looping, "REPEAT", "native flashes repeat while overloaded")
-    local flashes, cycle = 0, 0
-    for _, animation in ipairs(gauge.OverloadAnimation.animations) do
-        if animation.toAlpha > animation.fromAlpha then flashes = flashes + 1 end
-        cycle = cycle + animation.duration + animation.startDelay
+    equal(gauge.Overloaded, true, "exceeding the maximum changes overload state")
+    equal(gauge.Needle.rotation, 0, "overload keeps its base rotation at the end stop")
+    equal(table.concat(gauge.Needle.vertexColor, ","), table.concat(PerHour.Theme.speedometer.overload, ","),
+        "overload uses a static warning color")
+    equal(gauge:GetScript("OnUpdate"), nil, "overload never installs a callback")
+    local animation = gauge.OverloadAnimation
+    local shadowAnimation = gauge.OverloadShadowAnimation
+    equal(animation:IsPlaying(), true, "overload starts native rotation")
+    equal(shadowAnimation:IsPlaying(), true, "overload starts the shadow alongside the pointer")
+    equal(animation.looping, "REPEAT", "native overload repeats its burst and pause")
+    local cycle, degrees, strong = 0, 0, 0
+    equal(#animation.animations, 25, "twelve balanced beats precede one resting phase")
+    for index, step in ipairs(animation.animations) do
+        equal(step.kind, "Rotation", "overload uses native rotation steps")
+        equal(step.order, index, "rotation steps run in sequence")
+        equal(table.concat(step.origin, ","), "CENTER,0,0", "rotation pivots at the pointer's center")
+        cycle, degrees = cycle + step.duration, degrees + step.degrees
+        equal(degrees >= 0 and degrees <= 3, true, "native tremor stays inward within three degrees")
+        equal(shadowAnimation.animations[index].degrees, step.degrees, "shadow tremor shares each pointer angle")
+        equal(shadowAnimation.animations[index].duration, step.duration, "shadow tremor shares each pointer duration")
+        if step.degrees == 3 then strong = strong + 1 end
     end
-    equal(flashes, 2, "overload pattern contains two light pulses")
-    near(cycle, 1.8, "overload pulses include a pause in the cycle")
-    gauge:GetScript("OnUpdate")(gauge, 0.04)
-    equal(gauge.Needle.rotation > 0 and gauge.Needle.rotation <= math.rad(3), true,
-        "overloaded needle trembles inward from the end stop")
-    near(gauge.NeedleGlow.rotation, gauge.Needle.rotation, "glow follows the needle tremor")
-    near(gauge.NeedleShadow.rotation, gauge.Needle.rotation, "shadow follows the needle tremor")
-    local playCount, elapsed = gauge.OverloadAnimation.playCount, gauge.OverloadElapsed
-    gauge:SetRate(60000, 50000)
-    equal(gauge.OverloadAnimation.playCount, playCount, "rate refreshes do not restart the flashing pattern")
-    equal(gauge.OverloadElapsed, elapsed, "rate refreshes preserve the overload cycle")
-    gauge:GetScript("OnUpdate")(gauge, 0.5)
-    near(gauge.Needle.rotation, 0, "needle rests during the gap between bursts")
-    gauge:SetRate(60000, 60000)
-    equal(gauge.EffectActive, false, "raising the maximum to the value stops overload")
-    equal(gauge.OverloadAnimation:IsPlaying(), false, "native flashing stops at the maximum")
-    equal(gauge.NeedleGlow:IsShown(), false, "normal needle has no lingering glow")
-    equal(gauge:GetScript("OnUpdate"), nil, "stopping overload releases the update callback")
-    near(gauge.Needle.rotation, 0, "stopping overload removes the shake immediately")
-    gauge:SetRate(70000, 60000)
+    near(cycle, 1.8, "native overload preserves the full cycle duration")
+    near(animation.animations[25].duration, 1.44, "needle rests between short bursts")
+    equal(degrees, 0, "balanced native rotations return to the end stop")
+    equal(strong, 3, "three beats per burst have stronger amplitude")
+    local plays = animation.playCount
+    gauge:SetRate(80000, 50000)
+    equal(animation.playCount, plays, "repeated overload rates do not restart the native cycle")
+    equal(shadowAnimation.playCount, plays, "repeated rates preserve the shadow cycle")
     gauge:Hide()
-    equal(gauge.EffectActive, false, "hiding the gauge stops its overload effect")
-    equal(gauge.OverloadAnimation:IsPlaying(), false, "hidden gauge has no running alpha animation")
-    equal(gauge:GetScript("OnUpdate"), nil, "hidden gauge does not keep a tremor callback")
+    equal(animation:IsPlaying(), false, "hiding the gauge stops native overload")
+    equal(shadowAnimation:IsPlaying(), false, "hiding the gauge also stops the shadow")
     gauge:Show()
-    equal(gauge.EffectActive, true, "showing an overloaded gauge resumes the effect")
-    gauge:Hide()
-    playCount = gauge.OverloadAnimation.playCount
-    gauge:SetRate(80000, 60000)
-    equal(gauge.OverloadAnimation.playCount, playCount, "hidden rate updates do not start flashing")
-    gauge:SetRate(30000, 60000)
-    gauge:Show()
-    equal(gauge.EffectActive, false, "showing a recovered gauge does not resume stale overload")
-    near(gauge.Fraction, 0.5, "hidden gauge still receives the latest session rate")
-    gauge:SetRate(70000, 60000)
-    gauge:GetScript("OnUpdate")(gauge, 0.2)
-    gauge:SetRate(30000, 60000)
-    equal(gauge.EffectActive, false, "falling below the maximum stops flashing immediately")
-    gauge:GetScript("OnUpdate")(gauge, 0.2)
-    near(gauge.Fraction, 0.5, "recovery retains smooth movement toward the real value")
-    equal(gauge:GetScript("OnUpdate"), nil, "recovered needle stops updating after settling")
-    gauge:Hide()
-end
-
--- Stronger overload beats vary the distance without changing the cadence or pause.
-do
-    local gauge = PerHour.Components:CreateSpeedometerDisplay(UIParent)
+    equal(animation:IsPlaying(), true, "showing an overloaded gauge restarts native overload")
+    equal(shadowAnimation.playCount, animation.playCount, "showing restarts pointer and shadow together")
     gauge:SetRate(50000, 50000)
-    gauge:GetScript("OnUpdate")(gauge, 0.2)
-    gauge:SetRate(60000, 50000)
-    local elapsed, strong, normal = 0, 0, 0
-    for beat = 0, 11 do
-        local peak = (beat + 0.5) / 32
-        gauge:GetScript("OnUpdate")(gauge, peak - elapsed)
-        elapsed = peak
-        if gauge.Needle.rotation > math.rad(1.5) + 0.000001 then
-            near(gauge.Needle.rotation, math.rad(3), "strong overload beat reaches three degrees inward")
-            strong = strong + 1
-        else
-            near(gauge.Needle.rotation, math.rad(1.5), "normal overload beat retains its original distance")
-            normal = normal + 1
-        end
-    end
-    equal(strong, 3, "each overload burst contains three stronger beats")
-    equal(normal, 9, "the remaining overload beats stay subtle")
-    gauge:GetScript("OnUpdate")(gauge, 0.5 - elapsed)
-    near(gauge.Needle.rotation, 0, "stronger beats preserve the resting gap")
+    equal(animation:IsPlaying(), false, "reaching the maximum stops overload immediately")
+    equal(shadowAnimation:IsPlaying(), false, "reaching the maximum stops shadow motion")
+    gauge:SetRate(70000, 50000)
+    gauge:Hide()
+    gauge:SetRate(30000, 60000)
+    gauge:Show()
+    equal(animation:IsPlaying(), false, "hidden recovery cannot restart stale overload")
+    equal(gauge.Overloaded, false, "hidden updates recover from overload")
+    near(gauge.Fraction, 0.5, "showing the gauge retains the latest value")
+    near(gauge.NeedleShadow.rotation, gauge.Needle.rotation, "recovered shadow follows the new pointer fraction")
+    equal(table.concat(gauge.Needle.vertexColor, ","), table.concat(PerHour.Theme.speedometer.needle, ","),
+        "recovery restores the normal needle color")
+    gauge:SetRate(-1, 60000)
+    equal(gauge.Fraction, 0, "negative values clamp to zero")
     gauge:Hide()
 end
 
@@ -1509,7 +1586,7 @@ end
 do
     local enabled, directClicks, observedValue = false, 0, nil
     local panel = PerHour.Components:CreatePanel(UIParent, {
-        title = "Configurable panel", width = 360, titleSize = "small", closeAlwaysVisible = true,
+        title = "Configurable panel", width = 360, titleSize = "small",
         contentSpacing = 20,
         actions = {
             { key = "direct", type = "icon", texture = "Interface\\Icons\\Trade_Engineering",
@@ -1552,8 +1629,10 @@ end
 SlashCmdList.PERHOUR()
 minimapButton.scripts.OnDragStart(minimapButton)
 equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
+local angleBeforeDrag = PerHourCharacter_Settings.minimap.angle
 minimapButton.scripts.OnUpdate(minimapButton)
-equal(PerHourCharacter_Settings.minimap.angle, 0, "scaled cursor determines drag angle")
+equal(PerHourCharacter_Settings.minimap.angle, angleBeforeDrag, "minimap dragging defers persistence until release")
+equal(minimapButton.DragAngle, 0, "scaled cursor determines drag angle")
 equal(minimapButton.point[4], 75, "drag stays on minimap edge")
 equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
 cursorX, cursorY = 200, 600
@@ -1728,7 +1807,7 @@ do
     tick(2)
     changeHonor(8)
     equal(honor.State.Element, 8, "an eight-point honor currency gain is captured")
-    equal(honor.View.RateValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
+    equal(honor.State.ElementPerHour, 14400, "hidden honor gains refresh the calculated rate immediately")
     PerHour.SettingsPanel.RateField:SetValue("minute")
     equal(honor.View.RateValue:GetText(), "240", "active honor session displays its minute rate")
     equal(honor.View.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
@@ -1736,7 +1815,11 @@ do
     equal(honor.State.Element, 8, "spending does not subtract from earned honor")
     changeHonor(8)
     equal(honor.State.Element, 16, "gains count even when the balance is below the starting balance")
-    equal(honor.View.RateValue:GetText(), "480", "currency events refresh the selected minute rate")
+    equal(honor.State.ElementPerMinute, 480, "currency events refresh the selected minute rate")
+    equal(honor.View.RateValue:GetText(), "240", "hidden tracking leaves presentation unchanged")
+    honor.View.Frame:Show()
+    equal(honor.View.RateValue:GetText(), "480", "showing honor synchronizes its latest rate")
+    honor.View.Frame:Hide()
     event("CHAT_MSG_COMBAT_HONOR_GAIN", "Enemy slain: 8 honor.")
     equal(honor.State.Element, 16, "chat announcements do not double-count currency gains")
     for _, payload in ipairs({
@@ -2086,33 +2169,32 @@ equal(GameTooltip.singleLines[1], "This session contains unverified progress.", 
 click(experience)
 equal(experience.State.RestoreStatus, nil, "Resume acknowledges error")
 equal(GameTooltip:IsShown(), false, "Resume dismisses error tooltip")
-tick(0.5)
-equal(experience.View.RestoreIndicator:GetAlpha(), 1, "error waits half a second after decision")
-tick(0.04)
-near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "error fades halfway after 0.04 seconds")
-tick(0.05)
-equal(experience.View.RestoreIndicator:IsShown(), false, "error hides at end of fade")
+equal(experience.View.RestoreIndicator:GetScript("OnUpdate"), nil, "acknowledged error has no frame callback")
+tick(0.49)
+equal(experience.View.RestoreIndicator:IsShown(), true, "error waits half a second after decision")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "error remains opaque during dismissal delay")
+tick(0.02)
+equal(experience.View.RestoreIndicator:IsShown(), false, "error hides immediately after dismissal delay")
 equal(honor.State.RestoreStatus, "error", "acknowledging one module leaves others for review")
 event("PLAYER_LOGOUT")
 equal(PerHourCharacter_Values.sessions.Experience.needsReview, false, "acknowledged error is no longer persisted")
 honor.View.Frame:Show()
 BaseModule:ResetModule(honor)
-tick(0.5)
-equal(honor.View.RestoreIndicator:GetAlpha(), 1, "Reset also waits before fading error")
-tick(0.04)
-near(honor.View.RestoreIndicator:GetAlpha(), 0.5, "Reset uses the standard fade out")
-tick(0.05)
-equal(honor.View.RestoreIndicator:IsShown(), false, "Reset completes error fade")
+tick(0.49)
+equal(honor.View.RestoreIndicator:IsShown(), true, "Reset also waits before dismissing error")
+equal(honor.View.RestoreIndicator:GetAlpha(), 1, "Reset does not fade the error")
+tick(0.02)
+equal(honor.View.RestoreIndicator:IsShown(), false, "Reset completes delayed dismissal")
 equal(PerHourCharacter_Values.sessions.Honor, nil, "Reset clears saved session")
 
 -- Normalize delayed replies: 28 extra seconds plus 8 seconds in this login still pass.
 login(saved, 0, { total = saved.playedAtSave + 28, autoReply = false })
-equal(experience.View.RestoreIndicator:GetAlpha(), 0, "pending indicator starts transparent")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "pending indicator appears opaque immediately")
 tick(0.04)
-near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "pending indicator uses the standard fade in")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "pending indicator has no fade in")
 tick(0.05)
-equal(experience.View.RestoreIndicator:GetAlpha(), 1, "pending indicator completes fade in")
-equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "persistent indicator stops updating after fade in")
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "pending indicator stays opaque")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "pending indicator never updates per frame")
 for name, module in pairs(PerHour.Modules) do
     equal(module.State.RestoreStatus, "pending", name .. " waits for played reply")
     equal(module.View.ToggleStartButton.enabled, false, name .. " cannot resume before check")
@@ -2232,46 +2314,49 @@ for name, module in pairs(PerHour.Modules) do
     equal(module.State.RestoreStatus, "error", name .. " explains malformed save")
 end
 
--- Preserve success lifetime, error fades, circular appearance and parent-alpha isolation.
+-- Restore status appears instantly and uses one dismissal timer instead of frame updates.
 local verifiedSave = { version = 2, playedAtSave = 100000, sessions = {
     Experience = { total = 50, duration = 2, paused = false },
 } }
 login(verifiedSave, 0)
-equal(experience.View.RestoreIndicator:GetAlpha(), 0, "success indicator starts transparent")
-tick(0.04)
-near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "success indicator fades halfway in after 0.04 seconds")
-tick(0.05)
-equal(experience.View.RestoreIndicator:GetAlpha(), 1, "success indicator completes the standard fade in")
-tick(4)
+equal(experience.View.RestoreIndicator:GetAlpha(), 1, "success indicator appears opaque immediately")
+equal(experience.View.RestoreIndicator:GetScript("OnUpdate"), nil, "success waits without a frame callback")
+local timersBeforeRefresh = #timers
+for _ = 1, 10 do BaseModule:RefreshDisplayedValues(experience) end
+equal(#timers, timersBeforeRefresh, "repeated success refreshes do not duplicate dismissal timers")
+tick(4.99)
+equal(experience.View.RestoreIndicator:IsShown(), true, "success remains visible before five seconds")
 equal(experience.View.RestoreIndicator:GetAlpha(), 1, "success remains opaque before five seconds")
-tick(0.91)
-near(experience.View.RestoreIndicator:GetAlpha(), 1, "success starts fade at five seconds")
-tick(0.04)
-near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "success uses the standard fade out")
 showRestoreTooltip(experience)
-tick(0.05)
-equal(experience.View.RestoreIndicator:IsShown(), false, "success hides after fade")
-equal(GameTooltip:IsShown(), false, "success fade closes tooltip")
-equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "success fade removes callback")
+tick(0.02)
+equal(experience.View.RestoreIndicator:IsShown(), false, "success hides immediately after five seconds")
+equal(GameTooltip:IsShown(), false, "success dismissal closes tooltip")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "success never installs a frame callback")
 tick(2)
 equal(experience.View.RestoreIndicator:IsShown(), false, "tracker cannot restart dismissed success")
 verifiedSave.sessions.Experience.paused = true
 login(verifiedSave, 0)
-tick(5.04)
-near(experience.View.RestoreIndicator:GetAlpha(), 0.5, "paused session success also fades")
-tick(0.05)
-equal(experience.State.HasPaused, true, "fade preserves manual pause")
+tick(5.01)
+equal(experience.View.RestoreIndicator:IsShown(), false, "paused session success also expires")
+equal(experience.State.HasPaused, true, "dismissal preserves manual pause")
 login(verifiedSave, 0)
 experience.View.Frame:Hide()
 tick(20)
+equal(experience.View.RestoreIndicator:IsShown(), false, "success expires even while its panel is hidden")
 experience.View.Frame:Show()
 tick(0.1)
 equal(experience.View.RestoreIndicator:IsShown(), false, "reopening panel does not restart expired success")
 login(verifiedSave, 0)
-tick(5.04)
+tick(1)
 BaseModule:ResetModule(experience)
-equal(experience.View.RestoreIndicator:GetAlpha(), 1, "Reset clears partial fade")
-equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "Reset cancels active fade")
+equal(experience.View.RestoreIndicator:IsShown(), false, "Reset clears a pending success")
+equal(experience.View.RestoreIndicator.scripts.OnUpdate, nil, "Reset has no animation to cancel")
+experience.State.RestoreStatus = "error"
+experience.State.RestoreIssue = "New verification issue."
+BaseModule:RefreshDisplayedValues(experience)
+tick(5)
+equal(experience.State.RestoreStatus, "error", "old success timer cannot clear a newer warning")
+equal(experience.View.RestoreIndicator:IsShown(), true, "old success timer cannot hide a newer warning")
 experience.View.Frame:SetAlpha(0.5)
 equal(experience.View.RestoreIndicator:GetEffectiveAlpha(), 1, "panel transparency does not dim indicator")
 experience.View.Frame:SetAlpha(1)
@@ -2279,6 +2364,25 @@ local background = experience.View.RestoreIndicator.Background
 equal(background.color[4], 1, "background fill is fully opaque")
 equal(background.mask.texture, "Interface\\CharacterFrame\\TempPortraitAlphaMask", "background uses native circular mask")
 equal(experience.View.OptionsButton.Icon.texture, "Interface\\Icons\\Trade_Engineering", "restore status preserves options artwork")
+
+for _, fps in ipairs({60, 144}) do
+    login(verifiedSave, 0)
+    experience.View.Frame:Show()
+    local indicator = experience.View.RestoreIndicator
+    local originalAlpha, alphaWrites, frameCallbacks = indicator.SetAlpha, 0, 0
+    indicator.SetAlpha = function(self, alpha)
+        alphaWrites = alphaWrites + 1
+        originalAlpha(self, alpha)
+    end
+    for _ = 1, fps * 6 do
+        if indicator:GetScript("OnUpdate") then frameCallbacks = frameCallbacks + 1 end
+        tick(1 / fps)
+    end
+    equal(frameCallbacks, 0, "restore indicator has no frame callbacks at " .. fps .. " FPS")
+    equal(alphaWrites <= 1, true, "restore indicator never rewrites opacity per frame at " .. fps .. " FPS")
+    equal(indicator:IsShown(), false, "timer dismisses restore success at " .. fps .. " FPS")
+    indicator.SetAlpha = originalAlpha
+end
 
 -- Normal character selection saves before teardown and queries again only on a new login.
 login(saved, 0)
@@ -2349,8 +2453,10 @@ do
     equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
     equal(honor.View.RateUnit:GetText(), "hon/min", "reload applies the shared rate to honor")
     equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
+    experience.View.Frame:Show()
     equal(experience.View.RateValue:GetText(), Utils:DisplayRoundedNumber(experience.State.ElementPerMinute, 0),
-        "reload displays the selected rate from restored session values")
+        "showing a restored panel displays the selected rate from current session values")
+    experience.View.Frame:Hide()
     near(PerHour.MinimapButton.point[4], 75 / math.sqrt(2), "reload applies the saved minimap X")
     near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
     PerHour.SettingsPanel.SpeedometerField:SetValue(false)
@@ -2472,5 +2578,30 @@ do
     equal(PerHour.Stores.Settings:GetRate(), "minute", "returning restores the second character minute rate")
     equal(honor.View.RateUnit:GetText(), "hon/min", "the second rate preference applies across trackers")
 end
+assert(loadfile("tests/performance.lua"))()({
+    equal = equal, near = near, tick = tick, event = event, click = click,
+    fresh = function()
+        PerHourCharacter_Settings = nil
+        xp, xpMax, level, honorBalance = 100, 1000, 10, 100
+        watched = { name = "Stormwind", factionID = 72, currentStanding = 0 }
+        login(nil, 0)
+        tick(11) -- Drain the one-time played-time timeout before counting runtime timers.
+    end,
+    progress = function(values)
+        if values.xp ~= nil then xp = values.xp end
+        if values.maximum ~= nil then xpMax = values.maximum end
+        if values.level ~= nil then level = values.level end
+        if values.reputation ~= nil then watched.currentStanding = values.reputation end
+    end,
+    timers = function() return #timers end,
+    updates = function()
+        local count = 0
+        for _, frame in ipairs(frames) do
+            if frame:IsVisible() and frame:GetScript("OnUpdate") then count = count + 1 end
+        end
+        return count
+    end,
+    cursor = function(x, y) cursorX, cursorY = x, y end,
+})
 assert(loadfile("tests/stores.lua"))()(equal)
-print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
+print("PASS: "..checks.." Forever simulation checks (".._VERSION..")")

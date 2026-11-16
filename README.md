@@ -20,7 +20,8 @@ code changes only need `/reload`.
   a shared hourly/per-minute display unit and the watched reputation.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
-- Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
+- Drag a window's background to move it; its close button appears on hover and hides it without stopping tracking.
+- Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
 - Windows automatically stay apart when moved or reopened.
 - The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.

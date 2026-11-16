@@ -3,16 +3,20 @@
 `PerHour.Components:CreatePanel(parent, settings)` shares the tracking panels'
 border, background, typography and gold controls. Settings include `name`,
 `title`, `width`, optional `height`, `footerSize` (default 28),
-`closeAlwaysVisible` (optional override), `onClose` and `draggable` (default false).
+`onClose` and `draggable` (default false).
 The X calls `onClose(panel)` when supplied, then hides the panel.
 `titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
 `"default"` (`GameFontNormalLarge`, the default). Titles are centered. Small
 headers span the row using the footer's side insets. Text is gold inside boxes
 and white when unboxed.
-The X follows `titleSize`: always visible for `"default"`, fading in on hover
-and out when leaving for `"small"`. Set `closeAlwaysVisible = true` or `false`
-to override that behavior for an individual panel. The settings panel inherits
-the always-visible X from its default size; trackers inherit the small-size fade.
+Tracking panels show the X on hover, keep it visible over child controls and the
+protruding close button, and hide it immediately when the mouse leaves both. Settings
+panels keep the X visible. Neither behavior uses cursor polling or a fade callback.
+`Components:SetupCloseButtonHover(panel)` installs these hooks after tracker
+controls and tooltip scripts have been created. It hooks only regions that already
+accept mouse motion, preserving their click state. Decorative header, border and
+content frames remain passive so background hover and drag gestures reach the
+tracker panel. Hit checks use Forever's `region:IsMouseOver()` method.
 Set `titleBox = true` to surround either size with Forever's native
 [`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
 as used by the Game Menu. The box sits over the top border. Small boxes fill
@@ -58,8 +62,8 @@ controls, positioning and refreshes. Each monitor mounts a composite through
 `SetRate(value, unit)` method formats the number, unit and overflow abbreviation
 using its parent's width. When enabled, a `CreateSpeedometerDisplay` component
 sits above that numeric display. Its `SetRate(value, maximum)` method updates only
-the dial labels and animated needle. The coordinator supplies the existing
-session rate to both displays, without changing the tracking calculation.
+the dial labels, needle position and native overload state. The coordinator supplies
+the existing session rate to both displays, without changing the tracking calculation.
 
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
@@ -240,26 +244,26 @@ the checkbox row stays visible and the panel height remains unchanged.
 
 The hourly maxima are approximate counterparts rather than exact conversions;
 minute levels 7–9 are also rounded to the nearest hundred.
-Above the maximum, the needle stays near the end stop while the numeric
+Above the maximum, the needle trembles inward from the end stop while the numeric
 display keeps the actual rate. The gauge uses two transparent, antialiased TGA
-textures with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
-ticks and center cap, and `SpeedometerNeedle.tga` for the rotating pointer.
+assets with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
+ticks and center cap, and `SpeedometerNeedle.tga` for the pointer.
 Both are white artwork tinted in Lua; the five scale labels remain dynamic text.
-The pointer uses the darker red in `Theme.speedometer.needle`. Both artworks have
-black shadow copies at 45% opacity, offset one UI pixel right and down. The needle's
-shadow shares its rotation while keeping that screen-relative offset.
-It animates the needle over 0.2 seconds and does not include another numeric readout.
-When the rate is strictly greater than the maximum, an overload effect adds two
-short yellow-white flashes and an inward tremor, followed by a pause. Most beats
-reach 1.5 degrees; three beats per burst reach 3 degrees. The cadence remains
-32 beats per second during a 0.36-second burst, with a 1.44-second pause.
-The 1.8-second cycle uses native Alpha animations on an additive copy of
-the existing needle texture; its color comes from `Theme.speedometer.overload`.
-The needle, glow and shadow share the same rotation. Repeated rate updates do
-not restart the cycle. Returning to or below the maximum stops the effect
-immediately; hiding the gauge stops both the glow and tremor, and showing it again
-resumes overload only if its latest rate still exceeds the maximum. Session
-calculations and the numeric readout are unaffected.
+The pointer uses `Theme.speedometer.needle` normally and
+`Theme.speedometer.overload` when the rate strictly exceeds the maximum.
+It moves directly to the current fraction and changes color only when overload
+state changes. Both artworks have black shadow copies at 45% opacity, offset one
+UI pixel right and down. The four layers reuse the same two texture assets.
+The pointer shadow shares its base rotation and keeps its screen-relative offset.
+Overload uses matching native rotation groups for the pointer and its shadow,
+created on first use: twelve balanced inward beats over 0.36 seconds, including
+three stronger beats at three
+degrees instead of 1.5, followed by a 1.44-second pause. The cycle starts and stops
+only when overload or visibility changes; rate refreshes do not restart it.
+There are no glow layers, Lua animation timers or per-frame callbacks. Shadow
+layers add rendering work, but their tremor does not add Lua rotation calls per
+frame. Session calculations and the numeric readout are unaffected. Native
+animation geometry and mouse routing still require visual validation in Forever.
 Regenerate the textures with `python scripts/generate-speedometer-assets.py`
 (development dependencies: Pillow and Lupa with Lua 5.1). The generator executes
 `Theme.lua` to read the dial, needle, shadow and text colors for its preview;
@@ -309,6 +313,32 @@ numeric rate below the dial and restores after reload. Check that the single
 maximum slider appears while enabled, including after reopening and reload;
 check all ten levels, switching units without changing the level,
 pause/resume, overflow and switching characters with different gauge preferences.
+Check that the X appears instantly, remains reachable over the footer controls
+and its protruding corner, and disappears when leaving the panel. During overload,
+check that the pointer and shadow tremble together and return to the end stop
+during each pause. Hiding, reopening and leaving overload must stop or resume both
+animations together without restarting them on each rate refresh.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.
 Lua simulation checks do not validate rendering or native mouse routing.
+
+## Runtime updates
+
+One shared one-second timer samples started sessions and updates their rates,
+including sessions whose panels are hidden. It stops rescheduling when no
+module needs periodic work and while outside the world. Paused XP and reputation
+retain baseline checks; paused Honor needs only its existing event handler.
+XP and reputation events capture new progress without immediately repainting
+panels. The periodic sample remains a fallback for missing events and temporarily
+unreadable player data. Start, Pause, Resume and logout still sample their boundaries.
+
+Runtime rate rendering is deferred for hidden panels and synchronized on Show.
+Explicit display preferences update all panels. Numeric text and width are cached
+by rounded value, unit and available width. Status controls change only when their
+state changes, avoiding repeated footer layout.
+
+Dragging recomputes panel geometry only when the cursor moves. Already-free panel
+positions bypass the candidate search; settings are saved on release or when the
+panel is hidden during dragging. The minimap button also persists at the end
+of dragging. Logout saves any drag still in progress. See [Performance validation](performance.md) for regression coverage
+and the in-game comparison procedure.

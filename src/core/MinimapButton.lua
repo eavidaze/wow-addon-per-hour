@@ -33,8 +33,8 @@ border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 border:SetSize(54, 54)
 border:SetPoint("TOPLEFT")
 
-local function UpdatePosition()
-    local angle = PerHour.Stores.Settings:GetMinimapAngle()
+local function UpdatePosition(angle)
+    angle = angle or PerHour.Stores.Settings:GetMinimapAngle()
     button:SetPoint("CENTER", Minimap, "CENTER",
         math.cos(angle) * (Minimap:GetWidth() / 2 + 5),
         math.sin(angle) * (Minimap:GetHeight() / 2 + 5))
@@ -47,23 +47,37 @@ end
 
 local function UpdateDragPosition()
     local x, y = GetCursorPosition()
+    if x == button.DragCursorX and y == button.DragCursorY then return end
+    button.DragCursorX, button.DragCursorY = x, y
     local centerX, centerY = Minimap:GetCenter()
     local scale = Minimap:GetEffectiveScale()
-    button:SetAngle(math.atan2(y / scale - centerY, x / scale - centerX))
+    button.DragAngle = math.atan2(y / scale - centerY, x / scale - centerX)
+    UpdatePosition(button.DragAngle)
 end
+
+function button:SaveDragPosition()
+    if button.DragAngle and button.DragAngle ~= PerHour.Stores.Settings:GetMinimapAngle() then
+        PerHour.Stores.Settings:SetMinimapAngle(button.DragAngle)
+    end
+    button.DragAngle = false
+end
+button.DragAngle = false
 
 button:SetScript("OnDragStart", function(self)
     self:CloseMenu()
     GameTooltip:Hide()
     tooltip:Hide()
+    self.DragCursorX, self.DragCursorY = nil, nil
     self:SetScript("OnUpdate", UpdateDragPosition)
 end)
 button:SetScript("OnDragStop", function(self)
     self:SetScript("OnUpdate", nil)
     UpdateDragPosition()
+    self:SaveDragPosition()
 end)
 button:HookScript("OnHide", function(self)
     self:SetScript("OnUpdate", nil)
+    self:SaveDragPosition()
     tooltip:Hide()
 end)
 

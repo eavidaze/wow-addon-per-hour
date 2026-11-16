@@ -14,8 +14,8 @@ local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130, closeAlwaysVisible = false },
-    default = { font = "GameFontNormalLarge", headerHeight = 56, closeAlwaysVisible = true },
+    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130 },
+    default = { font = "GameFontNormalLarge", headerHeight = 56 },
 }
 
 local function CreatePanelTitle(frame, settings, style)
@@ -74,38 +74,31 @@ local function CreatePanelTitle(frame, settings, style)
     frame.TitleText:SetTextColor(unpack(settings.titleBox and Theme.gold.text or Theme.text))
 end
 
-local function IsCursorOver(frame)
-    if not frame:IsVisible() then return false end
-    local left, top = frame:GetLeft(), frame:GetTop()
-    if not left or not top then return false end
-    local x, y = GetCursorPosition()
-    local scale = frame:GetEffectiveScale()
-    x, y = x / scale, y / scale
-    return x >= left and x <= left + frame:GetWidth()
-        and y <= top and y >= top - frame:GetHeight()
-end
-
-local function SetupCloseButtonFade(frame)
+-- Install after the panel's controls and tooltip scripts have been created.
+function Components:SetupCloseButtonHover(frame)
     local close = frame.CloseButton
-    local function Reset()
-        close:SetAlpha(0)
-        close:EnableMouse(false)
+    local function Refresh()
+        close:SetShown(frame:IsVisible() and (frame:IsMouseOver() or (close:IsShown() and close:IsMouseOver())))
     end
-    Reset()
-    -- Poll geometry so hovering child controls also counts as hovering the panel.
-    -- Keep this on the close button; the panel's OnUpdate is used for dragging.
-    close:SetScript("OnUpdate", function(self, elapsed)
-        local alpha = self:GetAlpha()
-        local hovered = IsCursorOver(frame) or (alpha > 0 and IsCursorOver(self))
-        if hovered then
-            alpha = math.min(1, alpha + elapsed / Theme.motion.fadeIn)
-        else
-            alpha = math.max(0, alpha - elapsed / Theme.motion.fadeOut)
+    local function Enter()
+        if frame:IsVisible() then close:Show() end
+    end
+    local function HookRegion(region)
+        -- Binding mouse scripts can enable input. Leave decorative children passive
+        -- so the panel still receives hover, clicks and drag gestures through them.
+        if region:IsMouseMotionEnabled() then
+            local clicks = region:IsMouseClickEnabled()
+            region:HookScript("OnEnter", Enter)
+            region:HookScript("OnLeave", Refresh)
+            region:SetMouseClickEnabled(clicks)
         end
-        self:SetAlpha(alpha)
-        self:EnableMouse(alpha > 0)
-    end)
-    frame:HookScript("OnHide", Reset)
+        for _, child in ipairs({ region:GetChildren() }) do HookRegion(child) end
+    end
+    -- Child buttons consume mouse motion; their events must also keep the X visible.
+    HookRegion(frame)
+    frame:HookScript("OnHide", function() close:Hide() end)
+    frame:HookScript("OnShow", Refresh)
+    Refresh()
 end
 
 -- Both panels and form groups grow when fields are added or resized.
@@ -170,9 +163,7 @@ function Components:CreatePanel(parent, settings)
         if settings.onClose then settings.onClose(frame) end
         frame:Hide()
     end)
-    local closeAlwaysVisible = settings.closeAlwaysVisible
-    if closeAlwaysVisible == nil then closeAlwaysVisible = titleStyle.closeAlwaysVisible end
-    if not closeAlwaysVisible then SetupCloseButtonFade(frame) end
+    frame.CloseButton:EnableMouse(true)
 
     frame.Content = CreateFrame("Frame", nil, frame)
     frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
@@ -402,11 +393,14 @@ function Components:CreateRateDisplay(parent, unitText)
     frame.Unit:SetPoint("BOTTOMLEFT", frame.Value, "BOTTOMRIGHT", 4, 0)
     frame.Unit:SetText(unitText)
     function frame:SetRate(value, unit)
-        self.Unit:SetText(unit)
-        self.Value:SetText(Utils:DisplayRoundedNumber(value, 0))
+        local rounded = Utils:RoundValue(value, 0)
         local width = self:GetParent():GetWidth()
+        if self.DisplayValue == rounded and self.DisplayUnit == unit and self.AvailableWidth == width then return end
+        self.DisplayValue, self.DisplayUnit, self.AvailableWidth = rounded, unit, width
+        if self.Unit:GetText() ~= unit then self.Unit:SetText(unit) end
+        self.Value:SetText(Utils:DisplayNumber(rounded))
         if self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4 > width then
-            self.Value:SetText(AbbreviateLargeNumbers(Utils:RoundValue(value, 0)))
+            self.Value:SetText(AbbreviateLargeNumbers(rounded))
         end
         self:SetWidth(self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4)
     end

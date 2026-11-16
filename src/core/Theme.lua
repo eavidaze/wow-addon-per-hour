@@ -11,7 +11,6 @@ local Theme = {
         needle = { 0.72, 0.12, 0.10 }, shadow = { 0, 0, 0, 0.45 },
         overload = { 1, 0.9, 0.55 },
     },
-    motion = { fadeIn = 0.08, fadeOut = 0.08 },
 }
 
 function Theme:GoldText(text)

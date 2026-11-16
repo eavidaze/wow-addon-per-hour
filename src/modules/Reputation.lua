@@ -2,7 +2,7 @@ local Module = {
     Name = "Reputation",
     TagName = "reputation",
     ShortName = "Rep",
-    RegisteredEvents = {},
+    RegisteredEvents = { "UPDATE_FACTION" },
 }
 PerHour.Modules.Reputation = Module
 
@@ -105,6 +105,11 @@ Module.CustomOnUpdate = function(self, elapsed)
     end
     Snapshot(data)
     return true
+end
+
+Module.CustomOnEvent = function(self, event)
+    if event ~= "UPDATE_FACTION" then return end
+    Module.CustomOnUpdate(self, 0)
 end
 
 Module.CustomStartedMessage = function()

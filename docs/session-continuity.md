@@ -24,9 +24,12 @@ server timing and time before the addon starts loading can affect it.
 
 The top-left indicator is yellow while verification is pending, green after a
 successful check, and red when the session needs review. Hover for details.
-It fades in over 0.08 seconds. The success indicator waits 5 seconds and fades
-out over 0.08 seconds. After Resume or Reset resolves an error, its indicator
-waits 0.5 seconds and fades out over 0.08 seconds.
+It appears immediately at full opacity, without fading. The success indicator
+hides after 5 seconds. Unresolved errors stay visible until Resume or Reset;
+after that decision, the error indicator hides after 0.5 seconds without fading.
+Each dismissal uses one delayed callback, with no per-frame work during the wait.
+Timers also expire while the panel is hidden, and an older timer cannot dismiss
+a newer status. Pending and unresolved-error indicators have no dismissal timer.
 
 ## Limits
 
@@ -52,4 +55,7 @@ validation remains pending:
 4. After a saved checkpoint, play for more than 30 seconds without earning any
    progress, then force-close the client. On return, the old session should need
    review if the server retained that additional played time.
-5. Use Resume or Reset and check the indicator's delay and fade.
+5. Check that indicators appear immediately, success disappears after 5 seconds,
+   and unresolved errors remain visible. After Resume or Reset, the error icon
+   should disappear after 0.5 seconds without fading. Hiding and reopening a panel
+   must not restart an expired confirmation or let an older timer hide a new warning.
