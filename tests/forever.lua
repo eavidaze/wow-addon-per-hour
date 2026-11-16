@@ -87,6 +87,7 @@ function methods:SetTexture(texture, wrapHorizontal, wrapVertical, filterMode)
     self.filterMode = filterMode
 end
 function methods:SetRotation(radians) self.rotation = radians end
+function methods:SetBlendMode(mode) self.blendMode = mode end
 function methods:SetColorTexture(...) self.color = { ... } end
 function methods:SetAtlas(atlas)
     assert(type(atlas) == "string", "atlas must be available")
@@ -246,6 +247,26 @@ function methods:CreateFontString(name, layer, template)
     return fontString
 end
 function methods:CreateTexture() return object() end
+function methods:CreateAnimationGroup()
+    local group = object()
+    group.animations, group.playing, group.playCount = {}, false, 0
+    function group:SetLooping(looping) self.looping = looping end
+    function group:CreateAnimation(kind)
+        local animation = object()
+        animation.kind = kind
+        function animation:SetOrder(order) self.order = order end
+        function animation:SetFromAlpha(alpha) self.fromAlpha = alpha end
+        function animation:SetToAlpha(alpha) self.toAlpha = alpha end
+        function animation:SetDuration(duration) self.duration = duration end
+        function animation:SetStartDelay(delay) self.startDelay = delay end
+        table.insert(self.animations, animation)
+        return animation
+    end
+    function group:Play() self.playing, self.playCount = true, self.playCount + 1 end
+    function group:Stop() self.playing = false end
+    function group:IsPlaying() return self.playing end
+    return group
+end
 function methods:CreateLine() return object() end
 function methods:SetStartPoint(...) self.startPoint = { ... } end
 function methods:SetEndPoint(...) self.endPoint = { ... } end
@@ -987,7 +1008,8 @@ do
     PerHour.TrackerPanels:RefreshRate(honor)
     equal(honor.View.Speedometer.Target, 1, "needle stops at the end of the dial on overflow")
     honor.View.Speedometer:GetScript("OnUpdate")(honor.View.Speedometer, 0.2)
-    near(honor.View.Speedometer.Needle.rotation, 0, "full-scale rotates the needle to the right")
+    equal(honor.View.Speedometer.Needle.rotation >= 0 and honor.View.Speedometer.Needle.rotation <= math.rad(3),
+        true, "overflow tremor stays close to the right-hand stop")
     equal(honor.View.RateValue:GetText(), "2,000", "overflow keeps the actual numeric rate visible")
     equal(experience.State.Element, total, "display preferences preserve session totals")
     equal(experience.State.Time, duration, "display preferences preserve session duration")
@@ -1012,6 +1034,94 @@ do
     settings.SpeedometerMinuteField:SetValue(800)
     BaseModule:ResetModule(experience)
     settings.Frame:Hide()
+end
+
+-- Overload transitions must work even when the clamped needle target stays at one.
+do
+    local gauge = PerHour.Components:CreateSpeedometerDisplay(UIParent)
+    gauge:SetRate(50000, 50000)
+    gauge:GetScript("OnUpdate")(gauge, 0.2)
+    equal(gauge.Overloaded, false, "exactly reaching the maximum does not overload")
+    equal(gauge.NeedleGlow:IsShown(), false, "normal gauge has no overload glow")
+    equal(gauge:GetScript("OnUpdate"), nil, "settled normal gauge stops updating")
+    gauge:SetRate(50001, 50000)
+    equal(gauge.EffectActive, true, "crossing the maximum activates overload without moving the target")
+    equal(gauge.NeedleGlow.blendMode, "ADD", "overload glow uses native additive blending")
+    equal(gauge.OverloadAnimation:IsPlaying(), true, "native glow animation starts")
+    equal(gauge.OverloadAnimation.looping, "REPEAT", "native flashes repeat while overloaded")
+    local flashes, cycle = 0, 0
+    for _, animation in ipairs(gauge.OverloadAnimation.animations) do
+        if animation.toAlpha > animation.fromAlpha then flashes = flashes + 1 end
+        cycle = cycle + animation.duration + animation.startDelay
+    end
+    equal(flashes, 2, "overload pattern contains two light pulses")
+    near(cycle, 1.8, "overload pulses include a pause in the cycle")
+    gauge:GetScript("OnUpdate")(gauge, 0.04)
+    equal(gauge.Needle.rotation > 0 and gauge.Needle.rotation <= math.rad(3), true,
+        "overloaded needle trembles inward from the end stop")
+    near(gauge.NeedleGlow.rotation, gauge.Needle.rotation, "glow follows the needle tremor")
+    near(gauge.NeedleShadow.rotation, gauge.Needle.rotation, "shadow follows the needle tremor")
+    local playCount, elapsed = gauge.OverloadAnimation.playCount, gauge.OverloadElapsed
+    gauge:SetRate(60000, 50000)
+    equal(gauge.OverloadAnimation.playCount, playCount, "rate refreshes do not restart the flashing pattern")
+    equal(gauge.OverloadElapsed, elapsed, "rate refreshes preserve the overload cycle")
+    gauge:GetScript("OnUpdate")(gauge, 0.5)
+    near(gauge.Needle.rotation, 0, "needle rests during the gap between bursts")
+    gauge:SetRate(60000, 60000)
+    equal(gauge.EffectActive, false, "raising the maximum to the value stops overload")
+    equal(gauge.OverloadAnimation:IsPlaying(), false, "native flashing stops at the maximum")
+    equal(gauge.NeedleGlow:IsShown(), false, "normal needle has no lingering glow")
+    equal(gauge:GetScript("OnUpdate"), nil, "stopping overload releases the update callback")
+    near(gauge.Needle.rotation, 0, "stopping overload removes the shake immediately")
+    gauge:SetRate(70000, 60000)
+    gauge:Hide()
+    equal(gauge.EffectActive, false, "hiding the gauge stops its overload effect")
+    equal(gauge.OverloadAnimation:IsPlaying(), false, "hidden gauge has no running alpha animation")
+    equal(gauge:GetScript("OnUpdate"), nil, "hidden gauge does not keep a tremor callback")
+    gauge:Show()
+    equal(gauge.EffectActive, true, "showing an overloaded gauge resumes the effect")
+    gauge:Hide()
+    playCount = gauge.OverloadAnimation.playCount
+    gauge:SetRate(80000, 60000)
+    equal(gauge.OverloadAnimation.playCount, playCount, "hidden rate updates do not start flashing")
+    gauge:SetRate(30000, 60000)
+    gauge:Show()
+    equal(gauge.EffectActive, false, "showing a recovered gauge does not resume stale overload")
+    near(gauge.Fraction, 0.5, "hidden gauge still receives the latest session rate")
+    gauge:SetRate(70000, 60000)
+    gauge:GetScript("OnUpdate")(gauge, 0.2)
+    gauge:SetRate(30000, 60000)
+    equal(gauge.EffectActive, false, "falling below the maximum stops flashing immediately")
+    gauge:GetScript("OnUpdate")(gauge, 0.2)
+    near(gauge.Fraction, 0.5, "recovery retains smooth movement toward the real value")
+    equal(gauge:GetScript("OnUpdate"), nil, "recovered needle stops updating after settling")
+    gauge:Hide()
+end
+
+-- Stronger overload beats vary the distance without changing the cadence or pause.
+do
+    local gauge = PerHour.Components:CreateSpeedometerDisplay(UIParent)
+    gauge:SetRate(50000, 50000)
+    gauge:GetScript("OnUpdate")(gauge, 0.2)
+    gauge:SetRate(60000, 50000)
+    local elapsed, strong, normal = 0, 0, 0
+    for beat = 0, 11 do
+        local peak = (beat + 0.5) / 32
+        gauge:GetScript("OnUpdate")(gauge, peak - elapsed)
+        elapsed = peak
+        if gauge.Needle.rotation > math.rad(1.5) + 0.000001 then
+            near(gauge.Needle.rotation, math.rad(3), "strong overload beat reaches three degrees inward")
+            strong = strong + 1
+        else
+            near(gauge.Needle.rotation, math.rad(1.5), "normal overload beat retains its original distance")
+            normal = normal + 1
+        end
+    end
+    equal(strong, 3, "each overload burst contains three stronger beats")
+    equal(normal, 9, "the remaining overload beats stay subtle")
+    gauge:GetScript("OnUpdate")(gauge, 0.5 - elapsed)
+    near(gauge.Needle.rotation, 0, "stronger beats preserve the resting gap")
+    gauge:Hide()
 end
 
 -- Generic form controls remain usable without persistence or tracking side effects.

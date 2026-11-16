@@ -211,7 +211,7 @@ avoid overlaps. Tracking and pause state are preserved.
 1,000 (default 50,000). **Maximum per minute** uses 160 to 1,600 in steps of 10
 (default 800). These two independent integer maxima are saved per character and
 shared by all three gauges. Each panel uses the maximum matching its selected
-rate unit. Above the maximum, the needle stops at the end while the numeric
+rate unit. Above the maximum, the needle stays near the end stop while the numeric
 display keeps the actual rate. The gauge uses two transparent, antialiased TGA
 textures with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
 ticks and center cap, and `SpeedometerNeedle.tga` for the rotating pointer.
@@ -220,6 +220,17 @@ The pointer uses the darker red in `Theme.speedometer.needle`. Both artworks hav
 black shadow copies at 45% opacity, offset one UI pixel right and down. The needle's
 shadow shares its rotation while keeping that screen-relative offset.
 It animates the needle over 0.2 seconds and does not include another numeric readout.
+When the rate is strictly greater than the maximum, an overload effect adds two
+short yellow-white flashes and an inward tremor, followed by a pause. Most beats
+reach 1.5 degrees; three beats per burst reach 3 degrees. The cadence remains
+32 beats per second during a 0.36-second burst, with a 1.44-second pause.
+The 1.8-second cycle uses native Alpha animations on an additive copy of
+the existing needle texture; its color comes from `Theme.speedometer.overload`.
+The needle, glow and shadow share the same rotation. Repeated rate updates do
+not restart the cycle. Returning to or below the maximum stops the effect
+immediately; hiding the gauge stops both the glow and tremor, and showing it again
+resumes overload only if its latest rate still exceeds the maximum. Session
+calculations and the numeric readout are unaffected.
 Regenerate the textures with `python scripts/generate-speedometer-assets.py`
 (development dependencies: Pillow and Lupa with Lua 5.1). The generator executes
 `Theme.lua` to read the dial, needle, shadow and text colors for its preview;
