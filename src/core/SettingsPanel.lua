@@ -23,12 +23,20 @@ function SettingsPanel:RefreshReputation(rebuild)
     self.RefreshingReputation = false
 end
 
+function SettingsPanel:RefreshSpeedometerFields()
+    local enabled = PerHour.Stores.Settings:GetSpeedometerEnabled()
+    self.SpeedometerMaximumField:SetValue(PerHour.Stores.Settings:GetSpeedometerLevel(), true)
+    self.SpeedometerMaximumField:SetShown(enabled)
+end
+
 function SettingsPanel:Refresh()
     if not self.Frame then return end
+    self.RateField:SetValue(PerHour.Stores.Settings:GetRate(), true)
+    self.SpeedometerField:SetValue(PerHour.Stores.Settings:GetSpeedometerEnabled(), true)
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
-        self.RateFields[name]:SetValue(PerHour.Modules[name].Settings:Get("rate"), true)
     end
+    self:RefreshSpeedometerFields()
     self:RefreshReputation()
 end
 
@@ -50,42 +58,69 @@ function SettingsPanel:Show()
         })
         frame:SetFrameStrata("DIALOG")
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        local panels = Components:CreateFormGroup(frame.Content, { title = "Panels" })
+        local general = Components:CreateFormGroup(frame.Content, { title = "General" })
+        self.RateField = general:AddField({
+            type = "select", label = "Rate", value = PerHour.Stores.Settings:GetRate(),
+            options = {
+                { value = "hour", label = "Per hour" },
+                { value = "minute", label = "Per minute" },
+            },
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetRate(value)
+                self:RefreshSpeedometerFields()
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        frame:AddField(general)
+        local panels = Components:CreateFormGroup(frame.Content, { title = "Show trackers" })
         local modules = {}
         for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
         table.sort(modules, function(a, b) return a.Name < b.Name end)
         self.ModuleFields = {}
-        self.RateFields = {}
         for _, context in ipairs(modules) do
             local module = context
             local row = panels:AddField({
-                type = "group", label = module.Name,
-                fields = {
-                    {
-                        type = "checkbox", label = "Show " .. module.Name,
-                        value = module.Settings:Get("isShown"),
-                        onChanged = function(shown)
-                            module.Settings:Set("isShown", shown)
-                            module.View.Frame:SetShown(shown)
-                            self:Refresh()
-                        end,
-                    },
-                    {
-                        type = "select", value = module.Settings:Get("rate"),
-                        options = {
-                            { value = "hour", label = "Per hour" },
-                            { value = "minute", label = "Per minute" },
-                        },
-                        onChanged = function(value)
-                            module.Settings:Set("rate", value)
-                            PerHour.Displayer:RefreshRate(module)
-                        end,
-                    },
-                },
+                type = "checkbox", label = module.Name,
+                value = module.Settings:Get("isShown"),
+                onChanged = function(shown)
+                    module.Settings:Set("isShown", shown)
+                    module.View.Frame:SetShown(shown)
+                    self:Refresh()
+                end,
             })
-            self.ModuleFields[module.Name] = row.Fields[1]
-            self.RateFields[module.Name] = row.Fields[2]
-            if module.Name == "Reputation" then
+            self.ModuleFields[module.Name] = row
+            if module.Name == "Experience" then
+                self.SpeedometerRow = row:AddSubfield({
+                    type = "group", label = "Show speedometer",
+                    fields = {
+                        {
+                            type = "checkbox", label = "Show speedometer",
+                            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
+                            onChanged = function(enabled)
+                                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
+                                self:RefreshSpeedometerFields()
+                                PerHour.TrackerPanels:RefreshDisplays()
+                            end,
+                        },
+                        {
+                            type = "slider", fill = true,
+                            min = 1, max = #PerHour.SpeedometerScales.Levels, step = 1,
+                            format = function(level)
+                                local rate = PerHour.Stores.Settings:GetRate()
+                                return Utils:DisplayCompactNumber(PerHour.SpeedometerScales:GetMaximum(level, rate))
+                                    .. (rate == "minute" and "/min" or "/h")
+                            end,
+                            value = PerHour.Stores.Settings:GetSpeedometerLevel(),
+                            onChanged = function(level)
+                                PerHour.Stores.Settings:SetSpeedometerLevel(level)
+                                PerHour.TrackerPanels:RefreshDisplays()
+                            end,
+                        },
+                    },
+                })
+                self.SpeedometerField = self.SpeedometerRow.Fields[1]
+                self.SpeedometerMaximumField = self.SpeedometerRow.Fields[2]
+            elseif module.Name == "Reputation" then
                 self.ReputationOptions = { { value = 0, label = "None" } }
                 self.ReputationField = row:AddSubfield({
                     type = "select", label = "Tracked faction", value = 0,
@@ -101,6 +136,7 @@ function SettingsPanel:Show()
             module.View.Frame:HookScript("OnShow", function() self:Refresh() end)
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
+        self:RefreshSpeedometerFields()
         frame:AddField(panels)
         self.Frame = frame
         frame:RegisterEvent("UPDATE_FACTION")

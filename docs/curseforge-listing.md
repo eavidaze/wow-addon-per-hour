@@ -6,75 +6,38 @@ Per Hour - XP, Honor & Reputation Farming Tracker
 
 ## Summary
 
-Track XP for leveling, honor for PvP and reputation gains per hour in WoW Forever, with sessions preserved between logins.
+Track XP, honor and reputation per hour or minute in WoW Forever. Pause your sessions, keep your progress and share your results.
 
 ## Description
 
 ### Per Hour - WoW Forever
 
-Track your progress in WoW Forever with experience, honor and reputation earned
-per hour and per minute.
+See what your farming sessions earn. Track **XP, Honor Points and reputation**
+per hour or minute while leveling, playing PvP or working toward your next reward.
 
-#### Features
+#### Your progress at a glance
 
-- Compact tracker windows with native WoW controls.
-- Independent **Start**, **Pause** and **Resume** controls for each tracker.
-- Live session tooltips showing duration, totals, hourly and per-minute rates, and the watched faction.
-- Tracker windows stay apart when moved or reopened, preventing overlapping panels.
-- A draggable minimap clock with a menu to show or hide each tracker.
-- A shared settings panel for visibility, independent hourly/per-minute rates and the watched reputation.
-- Per-character window visibility, window positions and minimap button position.
-- Saved hourly/per-minute display preferences shared by the account.
-- Per-character sessions preserved between logins, including totals, active duration and manual pause state.
-- A shared continuity check flags restored sessions that may have missed progress.
-- An **Announce** option to share your results in chat.
+- **Take a break:** pause each tracker independently to exclude paused time and gains.
+- **See the whole session:** hover for totals, active time and both rates.
+- **Watch your XP pace:** enable an optional speedometer with ten scale levels.
+- **Make room for your UI:** move or hide windows; layouts and the shared display unit are saved per character.
+- **Pick up where you left off:** sessions are saved between reloads and logins.
+- **Share your results:** send a session summary to chat with **Announce**.
 
-#### Getting started
+#### Start tracking
 
-Click the minimap clock or type `/perhour`, select a tracker, and click **Start**.
-Right-click the clock to open **Settings**, where each tracker has a visibility
-checkbox and its own **Per hour** or **Per minute** display choice. These choices
-are saved between logins and do not change session totals or tracking state.
-Window visibility and positions, including the minimap button, are independent
-for each character. Hourly/per-minute display choices are shared by the account.
+1. Click the minimap clock or type `/perhour`, choose a tracker and press **Start**.
+2. Right-click the clock for **Settings**: choose hourly or per-minute rates,
+   select your watched reputation, or enable **Show speedometer** under Experience.
+3. Use the tracker's **Options** gear to reset a session or announce your results.
 
-Hover over a tracker: **Session** shows duration and total gained, while **Rates**
-shows gains per hour and per minute. Open the **Options** gear menu for **Reset**,
-**Settings** and **Announce**.
-**Announce** shares one chat message with your hourly average first, followed
-by active session time and total gains in parentheses; reputation also names
-the tracked faction.
-The close button appears while hovering over the panel.
+Closing a window keeps its session running. **Pause** stops counting temporarily;
+**Reset** clears and stops the session. For reputation, select a watched faction
+before starting; changing factions resets that tracker.
 
-Paused time and gains are excluded. Closing a tracker window keeps an active
-session running; **Reset** clears and stops it. Sessions are saved per character
-when you log out normally. Offline time and gains are excluded; running sessions
-resume after verification, and manually paused sessions stay paused.
+Sessions save on normal logout or `/reload`; offline time and gains are excluded.
+If a restored session needs review, its warning explains why. Choose **Resume**
+to keep its totals or **Reset** to start fresh.
 
-The restore icon at the top-left of each panel is **yellow** while checking,
-**green** after a successful check, or **red** when the session needs review.
-Hover for details. The green confirmation disappears automatically. If a session
-needs review, it stays paused until **Resume** accepts its saved totals or
-**Reset** clears and stops it.
-
-The check compares total played time with the saved session, allowing a
-30-second tolerance for timing differences. It can flag unsaved playing time
-even without XP, honor or reputation gains. Short interruptions may go unnoticed,
-and lost progress cannot be recovered. Exit the game normally to save your sessions.
-
-Using a hearthstone or changing zones keeps the current XP session running.
-
-#### Reputation tracking
-
-Choose **Tracked faction** under Reputation in **Settings**, or select a faction
-in the game's reputation panel, before starting the tracker. Both interfaces
-stay synchronized. The settings list includes known factions in collapsed and
-inactive groups; **None** clears the watched faction.
-Changing the watched faction resets the reputation tracker. Gains and losses
-contribute to the session total.
-
-#### Feedback
-
-Feedback and bug reports are welcome!
-
-[Source code and issue tracker](https://github.com/eavidaze/wow-addon-per-hour)
+[Usage guide](https://github.com/eavidaze/wow-addon-per-hour#readme)
+· [Feedback and bug reports](https://github.com/eavidaze/wow-addon-per-hour/issues)

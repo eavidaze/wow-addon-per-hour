@@ -3,7 +3,7 @@ frame:RegisterEvent("ADDON_LOADED")
 frame:SetScript("OnEvent", function(self, event, name)
     if event == "PLAYER_ENTERING_WORLD" then
         self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-        PerHour.Displayer:RestorePositions()
+        PerHour.TrackerPanels:RestorePositions()
         return
     end
     if name ~= PerHour.AddonName then return end
@@ -18,7 +18,7 @@ frame:SetScript("OnEvent", function(self, event, name)
         module.Store = PerHour.Stores.Sessions:ForModule(name)
     end
 
-    PerHour.Displayer:Init()
+    PerHour.TrackerPanels:Init()
     PerHour.ToggleMenu:Init(PerHour.MinimapButton)
     PerHour.MinimapButton:Init()
     -- Loading can expose temporary screen dimensions; do not clamp saved positions yet.

@@ -1,5 +1,14 @@
 # Publishing a release
 
+## Codex workflows
+
+Use `$per-hour-release` to prepare and publish a release end to end, including
+validation, commit, push, PR creation, merge and upload workflow verification.
+It runs both stages automatically without a separate publication request.
+Use `$per-hour-prepare-release` to stop at the PR, or
+`$per-hour-publish-release` to publish an already prepared PR.
+Creating or editing these skills does not execute a release.
+
 ## One-time setup
 
 1. Generate a token in [CurseForge API Tokens](https://www.curseforge.com/account/api-tokens)
@@ -24,19 +33,19 @@
 ## Publish
 
 1. Confirm that `main` contains the prepared version and reviewed release notes.
-   The prepared version is `1.3.1-forever`; its notes are in
-   [releases/1.3.1-forever.md](releases/1.3.1-forever.md).
+   The prepared version is `1.4.0-forever`; its notes are in
+   [releases/1.4.0-forever.md](releases/1.4.0-forever.md).
 2. On [New release](https://github.com/eavidaze/wow-addon-per-hour/releases/new),
    create a tag using `v` plus the base version, without `-forever`
-   (`v1.3.1` for this version),
+   (`v1.4.0` for this version),
    select `main` as the target, copy the user-facing release notes, and click **Publish release**.
 3. Follow **Release Addon** in [Actions](https://github.com/eavidaze/wow-addon-per-hour/actions).
    It runs the Lua checks, packages the addon, uploads it to CurseForge,
    and attaches the ZIP to the GitHub release.
 
 The workflow's `-g forever` option adds `-forever` to the package filename and
-upload label when absent. The GitHub release title and tag stay `v1.3.1`;
-the source TOC and release-notes filename retain `1.3.1-forever`.
+upload label when absent. The GitHub release title and tag stay `v1.4.0`;
+the source TOC and release-notes filename retain `1.4.0-forever`.
 
 Only a published GitHub Release triggers this workflow; a normal commit, branch
 push, draft release or tag push alone does not publish the addon. CurseForge may

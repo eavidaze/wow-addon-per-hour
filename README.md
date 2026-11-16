@@ -17,10 +17,11 @@ code changes only need `/reload`.
 
 - Left-click the minimap clock or use `/perhour` to toggle the module menu.
 - Right-click the minimap clock to open **Settings** for panel visibility,
-  hourly/per-minute rates and the watched reputation.
+  a shared hourly/per-minute display unit and the watched reputation.
 - Check a module to show its window. Drag the minimap button to reposition it.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
-- Drag anywhere on a window's background to move it; its close button hides it without stopping tracking.
+- Drag a window's background to move it; its close button appears on hover and hides it without stopping tracking.
+- Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
 - Windows automatically stay apart when moved or reopened.
 - The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
 - Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
@@ -28,7 +29,7 @@ code changes only need `/reload`.
   switching factions resets the reputation tracker.
 
 Window visibility, window positions and minimap button position are saved per character.
-Hourly/per-minute display preferences are shared by the account.
+One hourly/per-minute display preference applies to all three windows and is saved per character.
 Sessions survive reloads and logins per character. Offline time and gains are excluded;
 running sessions resume automatically, and manually paused sessions stay paused.
 The top-left restore icon reports the continuity check. Hover for details; sessions

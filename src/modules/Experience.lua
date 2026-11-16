@@ -11,7 +11,7 @@ Module.Name = "Experience"
 Module.TagName = "experience"
 Module.ShortName = "XP"
 Module.AnnouncementUnit = "XP"
-Module.RegisteredEvents = {}
+Module.RegisteredEvents = { "PLAYER_XP_UPDATE" }
 
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
@@ -53,6 +53,11 @@ Module.CustomOnUpdate = function(self, elapsed)
         Module.State.Element = Module.State.Element + xpReceived
     end
     return true
+end
+
+Module.CustomOnEvent = function(self, event, unit)
+    if event ~= "PLAYER_XP_UPDATE" or (issecretvalue and issecretvalue(unit)) or unit ~= "player" then return end
+    Module.CustomOnUpdate(self, 0)
 end
 
 Module.CustomReset = function()

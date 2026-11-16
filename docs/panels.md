@@ -3,16 +3,20 @@
 `PerHour.Components:CreatePanel(parent, settings)` shares the tracking panels'
 border, background, typography and gold controls. Settings include `name`,
 `title`, `width`, optional `height`, `footerSize` (default 28),
-`closeAlwaysVisible` (optional override), `onClose` and `draggable` (default false).
+`onClose` and `draggable` (default false).
 The X calls `onClose(panel)` when supplied, then hides the panel.
 `titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
 `"default"` (`GameFontNormalLarge`, the default). Titles are centered. Small
 headers span the row using the footer's side insets. Text is gold inside boxes
 and white when unboxed.
-The X follows `titleSize`: always visible for `"default"`, fading in on hover
-and out when leaving for `"small"`. Set `closeAlwaysVisible = true` or `false`
-to override that behavior for an individual panel. The settings panel inherits
-the always-visible X from its default size; trackers inherit the small-size fade.
+Tracking panels show the X on hover, keep it visible over child controls and the
+protruding close button, and hide it immediately when the mouse leaves both. Settings
+panels keep the X visible. Neither behavior uses cursor polling or a fade callback.
+`Components:SetupCloseButtonHover(panel)` installs these hooks after tracker
+controls and tooltip scripts have been created. It hooks only regions that already
+accept mouse motion, preserving their click state. Decorative header, border and
+content frames remain passive so background hover and drag gestures reach the
+tracker panel. Hit checks use Forever's `region:IsMouseOver()` method.
 Set `titleBox = true` to surround either size with Forever's native
 [`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
 as used by the Game Menu. The box sits over the top border. Small boxes fill
@@ -46,6 +50,21 @@ local panel = Components:CreatePanel(UIParent, {
 })
 ```
 
+For custom content, use `panel:SetContent(component)`. It reparents the component
+into `panel.Content` and centers it between the title and footer, preserving the
+panel's configured size. Replacing the component hides the previous one. A composite
+component can contain multiple displays. Adding footer actions later updates the
+content boundary. Use custom content or form fields for a given panel.
+
+`TrackerPanels.lua` creates and coordinates the three monitors, including session
+controls, positioning and refreshes. Each monitor mounts a composite through
+`SetContent`. It always contains a `CreateRateDisplay` component, whose
+`SetRate(value, unit)` method formats the number, unit and overflow abbreviation
+using its parent's width. When enabled, a `CreateSpeedometerDisplay` component
+sits above that numeric display. Its `SetRate(value, maximum)` method updates only
+the dial labels, needle position and native overload state. The coordinator supplies
+the existing session rate to both displays, without changing the tracking calculation.
+
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
 height automatically. `Components:CreateCheckbox(panel.Content, settings)`
@@ -57,14 +76,15 @@ and a `fields` array. Add the group with `panel:AddField(group)`. Each group has
 a white title using `GameFontNormalHuge`, the same font as the hourly rate, and
 indented rows with gold labels on the left and aligned controls on the right.
 Groups have no separator lines. `group:AddField(settings)` can add rows later;
-the group and enclosing panel resize and reposition subsequent groups.
+the group and enclosing panel resize and reposition subsequent groups. Hidden
+fields take no space; showing them restores their row and spacing automatically.
 
 | Field `type` | Settings and behavior |
 | --- | --- |
 | `checkbox` | Boolean `value`; `SettingsCheckboxTemplate`, including its native checkmark and hover state. Clicking the checkbox or label toggles it. |
 | `select` | `options = { { value = "hour", label = "Per hour" }, ... }`; `SettingsDropdownWithButtonsTemplate`, with its native dropdown, radio menu and previous/next buttons. |
 | `text` | String `value`, optional `maxLength` (default 64); Enter or losing focus commits the text, Escape restores the last committed value. |
-| `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (default `%g`) and `suffix`. |
+| `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (a string, default `%g`, or a function receiving the value) and `suffix`. |
 | `group` | One shared `label` and a `fields` array of controls placed side by side; optional `spacing` (default 8). Access children through `field.Fields[index]`. |
 
 Individual controls accept `label`, optional `controlWidth` (the space reserved for the control column, default 300) and
@@ -75,8 +95,13 @@ them or apply them to the addon.
 
 Fields accept a `subfields` array, or `field:AddSubfield(settings)` after
 creation. Subfields use the same field settings and appear below their parent,
-with 16 px of additional left indentation and an 8 px gap. Controls keep their
-right alignment. Access them through `field.Subfields[index]`; composite rows
+with 24 px of additional indentation for labels and controls and an 8 px gap.
+The control column narrows to keep the right boundary inside the form. Select
+fields align their outer left stepper with checkboxes at the same nesting level.
+Sliders shorten to fit the indented control column and reserve space for their
+formatted minimum and maximum values, with the readout inside the right boundary
+and a 4 px gap after the slider. Readouts align left so shorter values stay close.
+Access subfields through `field.Subfields[index]`; composite rows
 keep their inline controls in `field.Fields`. Nested subfields and later rows
 resize and reposition the enclosing group and panel automatically.
 
@@ -90,6 +115,8 @@ Checkboxes reserve 32 pixels by default in these rows; other controls reserve
 300. Set a child's `controlWidth` to reserve a different width without resizing
 its native control. The shared control column fits the sum of the child widths
 and spacing. The shared label does not toggle any child.
+The last child may use `fill = true` to occupy the remaining control column;
+this keeps a checkbox and slider inside an indented row without fixed child widths.
 Dropdowns are centered inside their reserved column so both native stepper
 buttons fit without overlapping adjacent controls. Their frame and stepper
 anchors come from Forever's [shared panel templates](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua).
@@ -165,7 +192,7 @@ panel opens; call `button:Refresh()` after changing state elsewhere while open.
 Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
-The minimap left-click menu is titled **Panels**.
+The minimap left-click menu is titled **Show trackers**.
 Each tracker's gear menu is titled **Options**, with **Reset**, **Settings**
 and **Announce**, in that order. **Settings** opens the same shared settings panel as minimap
 right-click, regardless of which tracker opens it.
@@ -176,14 +203,72 @@ session's faction when available. For example:
 `[Per Hour] 240,000 XP/h - 30m (120,000 XP total)`
 `SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
 the entire boxed title in DS gold. The
-**Panels** group has one row per module, sorted by name. Each row shares
-the module's label between a visibility checkbox and a native dropdown for
-**Per hour** or **Per minute**, defaulting to hourly display. Each selection immediately changes
-that panel's numeric rate and unit, for example `XP/h` or `XP/min`; Honor and
-Reputation use the same independent preference. Changes persist through the
+**General** group starts with one **Rate** dropdown for
+**Per hour** or **Per minute**, defaulting to hourly display. It immediately changes
+all three panels' numeric rates and units, for example `XP/h` or `XP/min`.
+The **Show trackers** group contains each module's visibility checkbox, sorted by name.
+The shared unit is saved per character. Changes persist through the
 [settings store](stores.md) across reloads and logins. Rate selection preserves
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
+
+**Experience** has an indented **Show speedometer** row with a checkbox and
+the maximum slider immediately to its right, without a separate maximum label.
+The checkbox defaults to disabled and applies only to Experience, for the current character.
+Honor and Reputation keep their numeric displays. The XP numeric rate stays
+visible in either mode. Enabling the gauge expands the Experience monitor
+from 180 x 94 to 240 x 204; disabling it restores the
+compact layout. The existing placement rules keep visible panels on screen and
+avoid overlaps. Tracking and pause state are preserved.
+
+The inline maximum slider has 10 levels (default 5) and appears while
+**Show speedometer** is enabled. Its compact readout and the XP dial use
+the current **Rate** unit. The maximum readout includes `/h` or `/min`, such as
+`20k/h` or `320/min`. Only the level is saved per character; switching
+units keeps that level and resolves the corresponding maximum from
+`src/model/SpeedometerScales.lua`. Disabling the gauge hides the slider;
+the checkbox row stays visible and the panel height remains unchanged.
+
+| Level | XP/min | XP/h (rounded) |
+| --- | --- | --- |
+| 1 | 160 | 10k |
+| 2 | 320 | 20k |
+| 3 | 480 | 30k |
+| 4 | 640 | 40k |
+| 5 | 800 | 50k |
+| 6 | 960 | 60k |
+| 7 | 1.1k | 70k |
+| 8 | 1.3k | 80k |
+| 9 | 1.4k | 90k |
+| 10 | 1.6k | 100k |
+
+The hourly maxima are approximate counterparts rather than exact conversions;
+minute levels 7–9 are also rounded to the nearest hundred.
+Above the maximum, the needle trembles inward from the end stop while the numeric
+display keeps the actual rate. The gauge uses two transparent, antialiased TGA
+assets with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
+ticks and center cap, and `SpeedometerNeedle.tga` for the pointer.
+Both are white artwork tinted in Lua; the five scale labels remain dynamic text.
+The pointer uses `Theme.speedometer.needle` normally and
+`Theme.speedometer.overload` when the rate strictly exceeds the maximum.
+It moves directly to the current fraction and changes color only when overload
+state changes. Both artworks have black shadow copies at 45% opacity, offset one
+UI pixel right and down. The four layers reuse the same two texture assets.
+The pointer shadow shares its base rotation and keeps its screen-relative offset.
+Overload uses matching native rotation groups for the pointer and its shadow,
+created on first use: twelve balanced inward beats over 0.36 seconds, including
+three stronger beats at three
+degrees instead of 1.5, followed by a 1.44-second pause. The cycle starts and stops
+only when overload or visibility changes; rate refreshes do not restart it.
+There are no glow layers, Lua animation timers or per-frame callbacks. Shadow
+layers add rendering work, but their tremor does not add Lua rotation calls per
+frame. Session calculations and the numeric readout are unaffected. Native
+animation geometry and mouse routing still require visual validation in Forever.
+Regenerate the textures with `python scripts/generate-speedometer-assets.py`
+(development dependencies: Pillow and Lupa with Lua 5.1). The generator executes
+`Theme.lua` to read the dial, needle, shadow and text colors for its preview;
+the TGA assets remain white with transparency. It also writes a magnified illustration to
+`dist/SpeedometerPreview.png`; that preview is not an in-game screenshot.
 
 The Reputation row has an indented **Tracked faction** dropdown. It displays
 the game's watched faction and changes it directly through
@@ -204,7 +289,9 @@ reopened. Reposition the minimap button by dragging it; settings have no angle
 control.
 
 Tracker visibility, tracker positions and the minimap button position are saved
-per character. Hourly/per-minute preferences remain shared by the account.
+per character, along with the hourly/per-minute preference shared by all three panels.
+Matching valid legacy account rates are imported once per character; mixed,
+missing or invalid legacy rates default to hourly.
 Previous account layouts are not imported; characters start with hidden trackers
 and the default layout until they save their own preferences.
 
@@ -216,11 +303,42 @@ The panel retains its position while the addon remains loaded.
 Its `contentSpacing = 12` keeps 12 px below the boxed header and 14 px between
 the form content and **Close**, independently of the compact tracker layout.
 
-Validate appearance, checkbox interaction, each rate dropdown, dragging and
+Validate appearance, checkbox interaction, the shared rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
-confirm that panel visibility, selected rates and minimap position match saved preferences.
-Switch between two characters and confirm their layouts remain independent while
-hourly/per-minute selections are shared.
+confirm that panel visibility, selected unit and minimap position match saved preferences.
+Switch between two characters and confirm their layouts and display units remain independent.
+Changing the unit must update all three panels' numeric readouts and the XP gauge scale.
+Verify that the speedometer checkbox applies only to XP, keeps the
+numeric rate below the dial and restores after reload. Check that the single
+maximum slider appears while enabled, including after reopening and reload;
+check all ten levels, switching units without changing the level,
+pause/resume, overflow and switching characters with different gauge preferences.
+Check that the X appears instantly, remains reachable over the footer controls
+and its protruding corner, and disappears when leaving the panel. During overload,
+check that the pointer and shadow tremble together and return to the end stop
+during each pause. Hiding, reopening and leaving overload must stop or resume both
+animations together without restarting them on each rate refresh.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.
 Lua simulation checks do not validate rendering or native mouse routing.
+
+## Runtime updates
+
+One shared one-second timer samples started sessions and updates their rates,
+including sessions whose panels are hidden. It stops rescheduling when no
+module needs periodic work and while outside the world. Paused XP and reputation
+retain baseline checks; paused Honor needs only its existing event handler.
+XP and reputation events capture new progress without immediately repainting
+panels. The periodic sample remains a fallback for missing events and temporarily
+unreadable player data. Start, Pause, Resume and logout still sample their boundaries.
+
+Runtime rate rendering is deferred for hidden panels and synchronized on Show.
+Explicit display preferences update all panels. Numeric text and width are cached
+by rounded value, unit and available width. Status controls change only when their
+state changes, avoiding repeated footer layout.
+
+Dragging recomputes panel geometry only when the cursor moves. Already-free panel
+positions bypass the candidate search; settings are saved on release or when the
+panel is hidden during dragging. The minimap button also persists at the end
+of dragging. Logout saves any drag still in progress. See [Performance validation](performance.md) for regression coverage
+and the in-game comparison procedure.

@@ -1,8 +1,8 @@
 # Persistent stores
 
 Only `src/stores/SettingsStore.lua` and `src/stores/SessionStore.lua` access
-SavedVariables directly. `per-hour.toc` declares account display-rate preferences
-in `PerHourAccount_Settings`, character layout preferences in
+SavedVariables directly. `per-hour.toc` retains legacy account preferences
+in `PerHourAccount_Settings`, character display and layout preferences in
 `PerHourCharacter_Settings` and character sessions in `PerHourCharacter_Values`.
 
 `core/Bootstrap.lua` handles the addon's `ADDON_LOADED` once. It initializes both
@@ -23,7 +23,7 @@ tables for each module before building panels:
 | --- | --- |
 | `module.State` | Runtime totals, duration, rates, running/paused flags, restore status and module-specific progression baselines or faction context. |
 | `module.View` | Panel, rate text, buttons, indicators and the independent hidden tracker frame. |
-| `module.Settings` | Scoped access to the module's character layout and account display-rate preferences. |
+| `module.Settings` | Scoped access to the module's character visibility and layout preferences. |
 | `module.Store` | Scoped access to the module's saved character session. |
 
 Tracking and session code read and update `State`; rendering reads it and updates
@@ -44,19 +44,33 @@ accessed through their respective containers; there are no root-level aliases.
 
 `PerHour.Stores.Settings` provides `GetMinimapAngle()` and
 `SetMinimapAngle(angle)`. Each module receives its own `module.Settings` handle
-with `Get(key)` and `Set(key, value)` for `isShown`, `position` and `rate`. Positions are
+with `Get(key)` and `Set(key, value)` for `isShown` and `position`. Positions are
 plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
-`nil` removes it. The display rate is `hour` (default) or `minute`, independently
-for Experience, Honor and Reputation. Invalid saved rates recover the default.
+`nil` removes it. `GetRate()` and `SetRate(rate)` control one display unit for
+Experience, Honor and Reputation: `hour` (default) or `minute`. It is saved in
+`PerHourCharacter_Settings.rate`. Invalid saved rates recover the default.
 
-The store routes `isShown` and `position` to `PerHourCharacter_Settings` and
-`rate` to `PerHourAccount_Settings`. The minimap angle is also per character.
-Callers use the same API regardless of persistence scope; session saving and
-resetting never modify character preferences.
+`GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control the XP
+speedometer for the current character, disabled by default. Honor and Reputation
+keep their numeric displays. `GetSpeedometerLevel()` and `SetSpeedometerLevel(level)`
+control one integer level from 1 to 10 (default 5).
+`GetSpeedometerMaximum(rate)` derives the maximum for `hour` or `minute` from
+`PerHour.SpeedometerScales` in `src/model/SpeedometerScales.lua`; the two maxima
+are never saved independently. Level 5 represents 800/min or approximately 50k/h.
+The hourly values are rounded, and minute levels 7–9 use 1.1k, 1.3k and 1.4k.
+Only `enabled` and `level` are written to `PerHourCharacter_Settings.speedometer`.
+A missing or invalid level defaults to 5. Previous independent maxima are ignored;
+there is no migration. Changing characters restores their own unit, toggle and level.
+
+Visibility, position and minimap angle are also per character. Session saving
+and resetting never modify character preferences.
 
 Previous account layout preferences are no longer read. Characters without saved
 preferences start with hidden trackers, the default panel layout and the default
-minimap angle. Existing account display rates and character sessions are preserved.
+minimap angle. When a character has no saved display unit, matching valid legacy
+account rates are imported; mixed, missing or invalid rates default to hourly.
+Legacy account preferences remain intact so other characters can migrate on
+their next login. Existing character sessions are preserved.
 
 Initialization preserves valid values, including `false` and zero, and repairs
 malformed data using defaults. Invalid positions are discarded so panels use
@@ -64,9 +78,9 @@ their default layout. Setters reject invalid values. Position reads and writes
 copy tables, so callers cannot mutate stored positions indirectly.
 
 Forms keep their generic `value` and `onChanged` interface. The settings panel
-connects module visibility and display rates to the stores and applies each
+connects module visibility and the shared display unit to the stores and applies each
 change immediately. It refreshes silently when opened and when visibility changes
-elsewhere. Rate selection changes the panel's numeric value and unit without
+elsewhere. Rate selection changes all panels' numeric values and units, and the XP gauge scale, without
 altering session totals, duration, running state or the calculated rates. The
 minimap remains draggable and its position is saved, with no angle form control.
 

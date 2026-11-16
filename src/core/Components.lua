@@ -14,8 +14,8 @@ local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, closeAlwaysVisible = false },
-    default = { font = "GameFontNormalLarge", headerHeight = 56, closeAlwaysVisible = true },
+    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130 },
+    default = { font = "GameFontNormalLarge", headerHeight = 56 },
 }
 
 local function CreatePanelTitle(frame, settings, style)
@@ -39,7 +39,7 @@ local function CreatePanelTitle(frame, settings, style)
         box:Setup(settings.title)
         if small then
             box:ClearAllPoints()
-            box:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, DIALOG_BORDER_INSET + 11)
+            box:SetPoint("TOP", frame.Border.Bg, "TOP", 0, DIALOG_BORDER_INSET + 11)
         end
         frame.TitleText:ClearAllPoints()
         frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
@@ -47,7 +47,8 @@ local function CreatePanelTitle(frame, settings, style)
             local padding = box.headerTextPadding
             local width
             if small then
-                width = math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING))
+                width = math.min(math.max(style.boxMinWidth, frame.TitleText:GetStringWidth() + padding),
+                    math.max(style.boxMinWidth, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING)))
             else
                 width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
                     math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
@@ -73,38 +74,31 @@ local function CreatePanelTitle(frame, settings, style)
     frame.TitleText:SetTextColor(unpack(settings.titleBox and Theme.gold.text or Theme.text))
 end
 
-local function IsCursorOver(frame)
-    if not frame:IsVisible() then return false end
-    local left, top = frame:GetLeft(), frame:GetTop()
-    if not left or not top then return false end
-    local x, y = GetCursorPosition()
-    local scale = frame:GetEffectiveScale()
-    x, y = x / scale, y / scale
-    return x >= left and x <= left + frame:GetWidth()
-        and y <= top and y >= top - frame:GetHeight()
-end
-
-local function SetupCloseButtonFade(frame)
+-- Install after the panel's controls and tooltip scripts have been created.
+function Components:SetupCloseButtonHover(frame)
     local close = frame.CloseButton
-    local function Reset()
-        close:SetAlpha(0)
-        close:EnableMouse(false)
+    local function Refresh()
+        close:SetShown(frame:IsVisible() and (frame:IsMouseOver() or (close:IsShown() and close:IsMouseOver())))
     end
-    Reset()
-    -- Poll geometry so hovering child controls also counts as hovering the panel.
-    -- Keep this on the close button; the panel's OnUpdate is used for dragging.
-    close:SetScript("OnUpdate", function(self, elapsed)
-        local alpha = self:GetAlpha()
-        local hovered = IsCursorOver(frame) or (alpha > 0 and IsCursorOver(self))
-        if hovered then
-            alpha = math.min(1, alpha + elapsed / Theme.motion.fadeIn)
-        else
-            alpha = math.max(0, alpha - elapsed / Theme.motion.fadeOut)
+    local function Enter()
+        if frame:IsVisible() then close:Show() end
+    end
+    local function HookRegion(region)
+        -- Binding mouse scripts can enable input. Leave decorative children passive
+        -- so the panel still receives hover, clicks and drag gestures through them.
+        if region:IsMouseMotionEnabled() then
+            local clicks = region:IsMouseClickEnabled()
+            region:HookScript("OnEnter", Enter)
+            region:HookScript("OnLeave", Refresh)
+            region:SetMouseClickEnabled(clicks)
         end
-        self:SetAlpha(alpha)
-        self:EnableMouse(alpha > 0)
-    end)
-    frame:HookScript("OnHide", Reset)
+        for _, child in ipairs({ region:GetChildren() }) do HookRegion(child) end
+    end
+    -- Child buttons consume mouse motion; their events must also keep the X visible.
+    HookRegion(frame)
+    frame:HookScript("OnHide", function() close:Hide() end)
+    frame:HookScript("OnShow", Refresh)
+    Refresh()
 end
 
 -- Both panels and form groups grow when fields are added or resized.
@@ -114,11 +108,13 @@ function Components:SetupFieldStack(frame, content, baseHeight, gap)
         if self.LayingOutFields then return end
         self.LayingOutFields = true
         local height = 0
-        for index, field in ipairs(self.Fields) do
-            if index > 1 then height = height + gap end
-            field:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
-            field:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -height)
-            height = height + field:GetHeight()
+        for _, field in ipairs(self.Fields) do
+            if field:IsShown() then
+                if height > 0 then height = height + gap end
+                field:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
+                field:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -height)
+                height = height + field:GetHeight()
+            end
         end
         self.ContentHeight = height
         self:SetHeight(baseHeight + height)
@@ -127,6 +123,8 @@ function Components:SetupFieldStack(frame, content, baseHeight, gap)
     function frame:AddField(field)
         table.insert(self.Fields, field)
         field:HookScript("OnSizeChanged", function() self:LayoutFields() end)
+        field:HookScript("OnShow", function() self:LayoutFields() end)
+        field:HookScript("OnHide", function() self:LayoutFields() end)
         self:LayoutFields()
         return field
     end
@@ -149,6 +147,7 @@ function Components:CreatePanel(parent, settings)
     local baseHeight = headerHeight + footerSpacing + footerSize
     frame:SetSize(settings.width, settings.height or baseHeight)
     frame.FooterSize = footerSize
+    frame.FooterMinWidth = settings.titleSize == "small" and 130 or false
     -- Use the same border and translucent background as Blizzard's Edit Mode.
     frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
     frame.Border:SetPoint("TOPLEFT", frame, "TOPLEFT")
@@ -164,15 +163,37 @@ function Components:CreatePanel(parent, settings)
         if settings.onClose then settings.onClose(frame) end
         frame:Hide()
     end)
-    local closeAlwaysVisible = settings.closeAlwaysVisible
-    if closeAlwaysVisible == nil then closeAlwaysVisible = titleStyle.closeAlwaysVisible end
-    if not closeAlwaysVisible then SetupCloseButtonFade(frame) end
+    frame.CloseButton:EnableMouse(true)
 
     frame.Content = CreateFrame("Frame", nil, frame)
     frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
     frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + footerSpacing)
+    frame.ContentComponent = false
     self:SetupFieldStack(frame, frame.Content, baseHeight,
         settings.form and 20 or FIELD_GAP)
+
+    -- A custom component uses the panel's content region; forms keep AddField's layout.
+    function frame:SetContent(component)
+        if self.ContentComponent and self.ContentComponent ~= component then self.ContentComponent:Hide() end
+        self.ContentComponent = component
+        self.Content:ClearAllPoints()
+        if self.TitleBox then
+            self.Content:SetPoint("TOP", self.TitleBox, "BOTTOM", 0, 0)
+        else
+            self.Content:SetPoint("TOP", self, "TOP", 0, -headerHeight)
+        end
+        if self.ActionBar then
+            self.Content:SetPoint("BOTTOM", self.ActionBar, "TOP", 0, 0)
+        else
+            self.Content:SetPoint("BOTTOM", self, "BOTTOM", 0, footerSize + footerSpacing)
+        end
+        self.Content:SetPoint("LEFT", self, "LEFT", 15, 0)
+        self.Content:SetPoint("RIGHT", self, "RIGHT", -15, 0)
+        component:SetParent(self.Content)
+        component:ClearAllPoints()
+        component:SetPoint("CENTER", self.Content, "CENTER", 0, self.TitleBox and 1 or 0)
+        component:Show()
+    end
 
     if settings.draggable then
         frame:SetMovable(true)
@@ -268,15 +289,20 @@ function Components:CreatePanelActions(frame, actions)
         else
             flexibleCount = flexibleCount + 1
         end
-        buttons[index] = { button = button, width = width, widthFraction = widthFraction, align = action.align }
+        buttons[index] = { button = button, width = width, widthFraction = widthFraction, align = action.align,
+            textPadding = action.type == "status" and 52 or 32 }
         frame.Actions[action.key or index] = button
     end
     -- Anchor to the visible background, whose insets are owned by the template.
     local footer = CreateFrame("Frame", nil, frame)
     frame.ActionBar = footer
     footer:SetSize(frame:GetWidth() - FOOTER_PADDING * 2, frame.FooterSize)
-    footer:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
-    footer:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
+    if frame.FooterMinWidth then
+        footer:SetPoint("CENTER", frame.Border.Bg, "BOTTOM", 0, 0)
+    else
+        footer:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
+        footer:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
+    end
     local function Layout(_, width)
         local available = width * (1 - relativeWidth) - ACTION_GAP * (#buttons - 1) - fixedWidth
         local offset = 0
@@ -303,7 +329,33 @@ function Components:CreatePanelActions(frame, actions)
         end
     end
     footer:SetScript("OnSizeChanged", Layout)
-    Layout(footer, footer:GetWidth())
+    if frame.FooterMinWidth then
+        local function FitActions()
+            local required = fixedWidth + ACTION_GAP * math.max(0, #buttons - 1)
+            local minimum = frame.FooterMinWidth
+            for _, item in ipairs(buttons) do
+                if not item.width then
+                    local label = item.button:GetFontString()
+                    local width = math.max(80, (label and label:GetStringWidth() or 0) + item.textPadding)
+                    if item.widthFraction then
+                        minimum = math.max(minimum, width / item.widthFraction)
+                    else
+                        required = required + width
+                    end
+                end
+            end
+            if relativeWidth < 1 then minimum = math.max(minimum, required / (1 - relativeWidth)) end
+            footer:SetWidth(minimum)
+            Layout(footer, minimum)
+        end
+        for _, item in ipairs(buttons) do
+            if not item.width then hooksecurefunc(item.button, "SetText", FitActions) end
+        end
+        FitActions()
+    else
+        Layout(footer, footer:GetWidth())
+    end
+    if frame.ContentComponent then frame:SetContent(frame.ContentComponent) end
 end
 
 function Components:CreateCheckbox(parent, settings)
@@ -340,6 +392,18 @@ function Components:CreateRateDisplay(parent, unitText)
     frame.Unit:SetTextColor(unpack(Theme.gold.text))
     frame.Unit:SetPoint("BOTTOMLEFT", frame.Value, "BOTTOMRIGHT", 4, 0)
     frame.Unit:SetText(unitText)
+    function frame:SetRate(value, unit)
+        local rounded = Utils:RoundValue(value, 0)
+        local width = self:GetParent():GetWidth()
+        if self.DisplayValue == rounded and self.DisplayUnit == unit and self.AvailableWidth == width then return end
+        self.DisplayValue, self.DisplayUnit, self.AvailableWidth = rounded, unit, width
+        if self.Unit:GetText() ~= unit then self.Unit:SetText(unit) end
+        self.Value:SetText(Utils:DisplayNumber(rounded))
+        if self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4 > width then
+            self.Value:SetText(AbbreviateLargeNumbers(rounded))
+        end
+        self:SetWidth(self.Value:GetStringWidth() + self.Unit:GetStringWidth() + 4)
+    end
     return frame
 end
 

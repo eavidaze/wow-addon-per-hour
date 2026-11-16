@@ -4,8 +4,8 @@ local BaseModule = BaseModule
 local Components = PerHour.Components
 local Theme = PerHour.Theme
 local goldR, goldG, goldB = unpack(Theme.gold.text)
-local Displayer = {}
-PerHour.Displayer = Displayer
+local TrackerPanels = {}
+PerHour.TrackerPanels = TrackerPanels
 
 local WIDTH, HEIGHT = 180, 94
 local CONTROL_SIZE = 28
@@ -22,33 +22,14 @@ local RESTORE_STATUS = {
     error = { atlas = READY_CHECK_NOT_READY_TEXTURE_RAID, title = "Session integrity check failed.", r = 1, g = 0.2, b = 0.2 },
 }
 
-local function AnimateRestoreIndicator(module, delay)
+local function ScheduleRestoreDismissal(module, delay, token)
     local indicator = module.View.RestoreIndicator
-    local startedAt = GetTime()
-    local startAlpha = indicator:GetAlpha()
-    local fadeOutAt = delay and (startedAt + delay)
-    indicator.Fading = fadeOutAt ~= nil
-    indicator:SetScript("OnUpdate", function(self)
-        local now = GetTime()
-        local fadingOut = fadeOutAt and now >= fadeOutAt
-        local alpha
-        if fadingOut then
-            alpha = 1 - (now - fadeOutAt) / Theme.motion.fadeOut
-        else
-            alpha = startAlpha + (1 - startAlpha) * math.min(1, (now - startedAt) / Theme.motion.fadeIn)
-        end
-        alpha = math.max(0, math.min(1, alpha))
-        self:SetAlpha(alpha)
-        if fadingOut and alpha == 0 then
-            self.Fading = false
-            self:SetScript("OnUpdate", nil)
-            self:Hide()
-            self:SetAlpha(1)
-            module.State.RestoreStatus = nil
-            Displayer:RefreshRestoreStatus(module)
-        elseif not fadeOutAt and alpha == 1 then
-            self:SetScript("OnUpdate", nil)
-        end
+    C_Timer.After(delay, function()
+        -- An earlier success or acknowledgment must not dismiss a newer warning.
+        if indicator.DismissToken ~= token then return end
+        indicator.Dismissing = false
+        if module.State.RestoreStatus == "success" then module.State.RestoreStatus = nil end
+        TrackerPanels:RefreshRestoreStatus(module)
     end)
 end
 
@@ -72,6 +53,23 @@ local function FindFreePosition(module, x, y)
     local frame = module.View.Frame
     local width, height = frame:GetWidth(), frame:GetHeight()
     local maxX, maxY = UIParent:GetWidth() - width, UIParent:GetHeight()
+    x, y = math.max(0, math.min(maxX, x)), math.max(height, math.min(maxY, y))
+    local free = width <= UIParent:GetWidth() and height <= maxY
+    if frame:IsShown() then
+        for _, other in ipairs(modules) do
+            local obstacle = other.View.Frame
+            if other ~= module and obstacle:IsShown() and other.Settings:Get("isShown") then
+                local left, top = obstacle:GetLeft(), obstacle:GetTop()
+                if x < left + obstacle:GetWidth() + PANEL_GAP and x + width + PANEL_GAP > left
+                    and y > top - obstacle:GetHeight() - PANEL_GAP and y - height - PANEL_GAP < top then
+                    free = false
+                    break
+                end
+            end
+        end
+    end
+    -- Most moves are already valid; do not allocate a candidate grid for them.
+    if free then return x, y end
     local function ClampX(value) return math.max(0, math.min(maxX, value)) end
     local function ClampY(value) return math.max(height, math.min(maxY, value)) end
     x, y = ClampX(x), ClampY(y)
@@ -116,7 +114,7 @@ end
 
 local function PlaceShownPanel(module)
     if not positionsReady then return end
-    if not Displayer:SavePosition(module) then
+    if not TrackerPanels:SavePosition(module) then
         module.Settings:Set("isShown", false)
         module.View.Frame:Hide()
         Utils:AddonMessage("No room to show " .. module.Name .. ".")
@@ -149,6 +147,7 @@ local function ToggleTracking(module)
         module.State.RestoreIssue = nil
         module.State.HasStarted = true
         module.State.UpdatedAt = GetTime()
+        module.State.PolledAt = GetTime()
         local message = module.CustomStartedMessage and module.CustomStartedMessage() or " started."
         Utils:AddonMessage(module.Name .. message)
         BaseModule:RefreshDisplayedValues(module)
@@ -165,6 +164,7 @@ local function CreatePanel(module, index, count)
         onClose = function() module.Settings:Set("isShown", false) end,
     })
     module.View.Frame = frame
+    frame.Dragging = false
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
@@ -173,21 +173,31 @@ local function CreatePanel(module, index, count)
     frame:SetScript("OnDragStart", function(self)
         local cursorX, cursorY = GetCursorPosition()
         local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
+        local lastX, lastY = cursorX, cursorY
+        self.Dragging = true
         self:SetScript("OnUpdate", function()
             local x, y = GetCursorPosition()
-            Displayer:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale)
+            if x == lastX and y == lastY then return end
+            lastX, lastY = x, y
+            TrackerPanels:SavePosition(module, left + (x - cursorX) / scale, top + (y - cursorY) / scale, false)
         end)
     end)
     frame:SetScript("OnDragStop", function(self)
+        self.Dragging = false
         self:SetScript("OnUpdate", nil)
-        Displayer:SavePosition(module)
+        TrackerPanels:SavePosition(module)
     end)
     frame:HookScript("OnHide", function()
         frame:SetScript("OnUpdate", nil)
+        if frame.Dragging then
+            frame.Dragging = false
+            TrackerPanels:SavePosition(module)
+        end
         if GameTooltip:IsOwned(frame) or GameTooltip:IsOwned(module.View.RestoreIndicator) then GameTooltip:Hide() end
     end)
     frame:HookScript("OnShow", function()
         PlaceShownPanel(module)
+        if module.View.RateFrame then TrackerPanels:RefreshRate(module) end
     end)
 end
 
@@ -216,14 +226,13 @@ end
 
 local function CreateValues(module)
     local frame = module.View.Frame
-    local content = CreateFrame("Frame", nil, frame)
-    -- Center the rate in the space between the full header box and footer controls.
-    content:SetPoint("TOP", frame.TitleBox, "BOTTOM", 0, 0)
-    content:SetPoint("BOTTOM", frame.ActionBar, "TOP", 0, 0)
-    content:SetPoint("LEFT", frame, "LEFT", 15, 0)
-    content:SetPoint("RIGHT", frame, "RIGHT", -15, 0)
-    local rateFrame = Components:CreateRateDisplay(frame, module.ShortName .. "/h")
-    rateFrame:SetPoint("CENTER", content, "CENTER", 0, frame.TitleBox and 1 or 0)
+    local content = CreateFrame("Frame", nil, frame.Content)
+    content:SetWidth(WIDTH - 30)
+    local rateFrame = Components:CreateRateDisplay(content, module.ShortName .. "/h")
+    content:SetHeight(rateFrame:GetHeight())
+    frame:SetContent(content)
+    module.View.DisplayContent = content
+    rateFrame:SetPoint("CENTER", content, "CENTER", 0, 0)
     module.View.RateFrame = rateFrame
 
     module.View.RateValue = rateFrame.Value
@@ -236,6 +245,34 @@ local function CreateValues(module)
     frame:SetScript("OnLeave", function()
         if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
     end)
+end
+
+local function RefreshDisplayLayout(module)
+    local enabled = module.Name == "Experience" and PerHour.Stores.Settings:GetSpeedometerEnabled()
+    if module.View.SpeedometerEnabled == enabled then return end
+    local frame, content, rate = module.View.Frame, module.View.DisplayContent, module.View.RateFrame
+    local left, top = frame:GetLeft(), frame:GetTop()
+    if enabled and not module.View.Speedometer then
+        module.View.Speedometer = Components:CreateSpeedometerDisplay(content)
+        module.View.Speedometer:SetPoint("TOP", content, "TOP", 0, 0)
+    end
+    local gaugeHeight = enabled and module.View.Speedometer:GetHeight() or 0
+    local contentWidth = enabled and math.max(WIDTH - 30, module.View.Speedometer:GetWidth()) or WIDTH - 30
+    frame:SetWidth(contentWidth + 30)
+    frame:SetHeight(HEIGHT + gaugeHeight)
+    content:SetSize(contentWidth, rate:GetHeight() + gaugeHeight)
+    rate:ClearAllPoints()
+    if enabled then
+        module.View.Speedometer:Show()
+        rate:SetPoint("TOP", module.View.Speedometer, "BOTTOM", 0, 0)
+    else
+        if module.View.Speedometer then module.View.Speedometer:Hide() end
+        rate:SetPoint("CENTER", content, "CENTER", 0, 0)
+    end
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    module.View.SpeedometerEnabled = enabled
+    if frame:IsShown() and module.Settings:Get("isShown") then PlaceShownPanel(module) end
 end
 
 local function CreateRestoreIndicator(module)
@@ -288,90 +325,143 @@ local function CreateTracker(module)
     local tracker = CreateFrame("Frame", nil, UIParent)
     module.View.TrackerFrame = tracker
     tracker:SetScript("OnEvent", function(self, event, ...)
-        if module.State.HasStarted and module.CustomOnEvent then module.CustomOnEvent(self, event, ...) end
-    end)
-    tracker:SetScript("OnUpdate", function(self, elapsed)
-        if not module.State.HasStarted then return end
-        if not PerHour.Session.InWorld then return end
-        module.State.TimeSinceLastUpdate = module.State.TimeSinceLastUpdate + elapsed
-        if module.State.TimeSinceLastUpdate > UPDATE_INTERVAL then
-            local updateElapsed = module.State.TimeSinceLastUpdate
-            module.State.TimeSinceLastUpdate = 0
-            if module.State.PendingRestore then
-                PerHour.Session:ValidateRestore(module)
-                return
-            end
-            if module.CustomOnUpdate then module.CustomOnUpdate(self, updateElapsed) end
-            if module.State.HasStarted and not module.State.HasPaused then BaseModule:UpdateRates(module) end
-        end
+        if not module.State.HasStarted or module.State.PendingRestore or not PerHour.Session.InWorld then return end
+        if module.CustomOnEvent then module.CustomOnEvent(self, event, ...) end
     end)
     for _, event in ipairs(module.RegisteredEvents) do tracker:RegisterEvent(event) end
 end
 
-function Displayer:SavePosition(module, x, y)
+local function NeedsUpdate(module)
+    return module.State.HasStarted
+        and (not module.State.HasPaused or module.State.PendingRestore or module.CustomOnUpdate)
+end
+
+local function UpdateModule(module, now)
+    local elapsed = math.max(0, now - (module.State.PolledAt or now))
+    module.State.PolledAt = now
+    if module.State.PendingRestore then
+        PerHour.Session:ValidateRestore(module)
+    else
+        if module.CustomOnUpdate then module.CustomOnUpdate(module.View.TrackerFrame, elapsed) end
+        if module.State.HasStarted and not module.State.HasPaused then BaseModule:UpdateRates(module) end
+    end
+end
+
+local function UpdateTrackers()
+    TrackerPanels.UpdateScheduled = false
+    if not PerHour.Session.InWorld then return end
+    -- Schedule first and isolate module errors so one failing API cannot stop every tracker.
+    TrackerPanels:RefreshScheduler()
+    local now = GetTime()
+    for _, module in ipairs(modules) do
+        if NeedsUpdate(module) then
+            local ok, err = pcall(UpdateModule, module, now)
+            if not ok then geterrorhandler()(err) end
+        end
+    end
+end
+
+function TrackerPanels:RefreshScheduler()
+    if self.UpdateScheduled or not PerHour.Session.InWorld then return end
+    for _, module in ipairs(modules) do
+        if NeedsUpdate(module) then
+            self.UpdateScheduled = true
+            C_Timer.After(UPDATE_INTERVAL, UpdateTrackers)
+            return
+        end
+    end
+end
+
+function TrackerPanels:SavePosition(module, x, y, persist)
     local frame = module.View.Frame
     x, y = FindFreePosition(module, x or frame:GetLeft(), y or frame:GetTop())
     if not x then return false end
-    frame:ClearAllPoints()
-    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
-    module.Settings:Set("position", { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y })
+    local point, _, relativePoint = frame:GetPoint()
+    if point ~= "TOPLEFT" or relativePoint ~= "BOTTOMLEFT" or frame:GetLeft() ~= x or frame:GetTop() ~= y then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
+    end
+    if persist ~= false then
+        local position = module.Settings:Get("position")
+        if not position or position.point ~= "TOPLEFT" or position.relativePoint ~= "BOTTOMLEFT"
+            or position.x ~= x or position.y ~= y then
+            module.Settings:Set("position", { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = x, y = y })
+        end
+    end
     return true
 end
 
-function Displayer:RefreshTrackingState(module)
-    local text, _, r, g, b = GetTrackingState(module)
-    module.View.ToggleStartButton:SetText(text)
-    module.View.ToggleStartButton:SetEnabled(module.State.PendingRestore == nil)
-    module.View.ActiveIndicator:SetVertexColor(r, g, b)
+function TrackerPanels:SaveDraggingPositions()
+    for _, module in ipairs(modules) do
+        if module.View.Frame.Dragging then self:SavePosition(module) end
+    end
 end
 
-function Displayer:RefreshRestoreStatus(module)
+function TrackerPanels:RefreshTrackingState(module)
+    local text, _, r, g, b = GetTrackingState(module)
+    if module.View.TrackingText ~= text then
+        module.View.TrackingText = text
+        module.View.ToggleStartButton:SetText(text)
+        module.View.ActiveIndicator:SetVertexColor(r, g, b)
+    end
+    local enabled = module.State.PendingRestore == nil
+    if module.View.TrackingEnabled ~= enabled then
+        module.View.TrackingEnabled = enabled
+        module.View.ToggleStartButton:SetEnabled(enabled)
+    end
+end
+
+function TrackerPanels:RefreshRestoreStatus(module)
     local status = RESTORE_STATUS[module.State.RestoreStatus]
     local indicator = module.View.RestoreIndicator
     local currentStatus = module.State.RestoreStatus or "none"
     if indicator.Status ~= currentStatus then
         local dismissError = indicator.Status == "error" and currentStatus == "none"
         indicator.Status = currentStatus
-        indicator.Fading = false
-        indicator:SetScript("OnUpdate", nil)
-        indicator:EnableMouse(true)
+        indicator.DismissToken = {}
+        indicator.Dismissing = dismissError
+        indicator:SetAlpha(1)
+        indicator:EnableMouse(not dismissError)
         if dismissError then
-            indicator:EnableMouse(false)
             if GameTooltip:IsOwned(indicator) then GameTooltip:Hide() end
-            AnimateRestoreIndicator(module, RESTORE_ERROR_DELAY_SECONDS)
-        elseif status then
-            if not indicator:IsShown() then indicator:SetAlpha(0) end
-            AnimateRestoreIndicator(module, currentStatus == "success" and RESTORE_SUCCESS_SECONDS or nil)
-        else
-            indicator:SetAlpha(1)
+            ScheduleRestoreDismissal(module, RESTORE_ERROR_DELAY_SECONDS, indicator.DismissToken)
+        elseif currentStatus == "success" then
+            ScheduleRestoreDismissal(module, RESTORE_SUCCESS_SECONDS, indicator.DismissToken)
         end
     end
     if not status then
-        if not indicator.Fading then indicator:Hide() end
+        if not indicator.Dismissing and indicator:IsShown() then indicator:Hide() end
         return
     end
-    indicator.Icon:SetAtlas(status.atlas)
-    indicator:Show()
+    if indicator.Atlas ~= status.atlas then
+        indicator.Atlas = status.atlas
+        indicator.Icon:SetAtlas(status.atlas)
+    end
+    if not indicator:IsShown() then indicator:Show() end
     if GameTooltip:IsShown() and GameTooltip:IsOwned(indicator) then ShowRestoreTooltip(module) end
 end
 
-function Displayer:RefreshTooltip(module)
+function TrackerPanels:RefreshTooltip(module)
     if GameTooltip:IsShown() and GameTooltip:IsOwned(module.View.Frame) then ShowRunTooltip(module) end
 end
 
-function Displayer:RefreshRate(module)
-    local rate, unit = module.View.RateValue, module.View.RateUnit
-    local perMinute = module.Settings:Get("rate") == "minute"
+function TrackerPanels:RefreshRate(module, skipHidden)
+    RefreshDisplayLayout(module)
+    if skipHidden and not module.View.Frame:IsVisible() then return end
+    local perMinute = PerHour.Stores.Settings:GetRate() == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
-    unit:SetText(module.ShortName .. (perMinute and "/min" or "/h"))
-    rate:SetText(Utils:DisplayRoundedNumber(value, 0))
-    if rate:GetStringWidth() + unit:GetStringWidth() + 4 > module.View.Frame:GetWidth() - 30 then
-        rate:SetText(AbbreviateLargeNumbers(Utils:RoundValue(value, 0)))
+    module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
+    if module.View.SpeedometerEnabled then
+        module.View.Speedometer:SetRate(value,
+            PerHour.Stores.Settings:GetSpeedometerMaximum(perMinute and "minute" or "hour"))
     end
-    module.View.RateFrame:SetWidth(rate:GetStringWidth() + unit:GetStringWidth() + 4)
 end
 
-function Displayer:RestorePositions()
+function TrackerPanels:RefreshDisplays()
+    for _, module in ipairs(modules) do self:RefreshRate(module) end
+end
+
+function TrackerPanels:RestorePositions()
     positionsReady = false
     for _, module in ipairs(modules) do
         local position = module.Settings:Get("position")
@@ -386,7 +476,7 @@ function Displayer:RestorePositions()
     end
 end
 
-function Displayer:Init()
+function TrackerPanels:Init()
     for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
     table.sort(modules, function(a, b) return a.Name < b.Name end)
     for index, module in ipairs(modules) do
@@ -396,5 +486,6 @@ function Displayer:Init()
         CreateValues(module)
         CreateTracker(module)
         BaseModule:ResetModule(module, true)
+        Components:SetupCloseButtonHover(module.View.Frame)
     end
 end

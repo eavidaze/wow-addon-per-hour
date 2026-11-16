@@ -7,7 +7,10 @@ local Theme = {
     text = { 1, 1, 1 },
     circularBackground = { 0.08, 0.08, 0.08, 1 },
     toggle = { on = { 0.2, 1, 0.2 }, off = { 0.5, 0.5, 0.5 } },
-    motion = { fadeIn = 0.08, fadeOut = 0.08 },
+    speedometer = {
+        needle = { 0.72, 0.12, 0.10 }, shadow = { 0, 0, 0, 0.45 },
+        overload = { 1, 0.9, 0.55 },
+    },
 }
 
 function Theme:GoldText(text)
