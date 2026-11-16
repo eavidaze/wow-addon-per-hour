@@ -11,7 +11,9 @@ has authorized this workflow to run automatically, including the release commit,
 push and PR creation. A normal invocation executes these steps instead of asking
 the user to run commands or confirm routine decisions. Ask only when a material
 doubt or ambiguity cannot be resolved from the repository and session context.
-This stage ends at the PR; do not automatically start `$per-hour-publish-release`.
+This stage ends at the PR. When invoked through `$per-hour-release`, return to
+that workflow so it continues publication; otherwise do not automatically start
+`$per-hour-publish-release`.
 Discussing or editing the skill does not invoke the release workflow.
 
 ## Establish scope and version
@@ -154,5 +156,6 @@ Discussing or editing the skill does not invoke the release workflow.
   is optional and uses `git --no-pager diff --cached`. Put commands on separate
   PowerShell lines without a trailing backslash for continuation.
 - The completed PR is the handoff to `$per-hour-publish-release`. Invoke that
-  second stage only when the user requests it. Do not promise background work
+  second stage only when the user requests it, including through the combined
+  `$per-hour-release` workflow. Do not promise background work
   after ending the turn or resume operations the user has told you to stop.

@@ -10,7 +10,8 @@
   `test` for tests, `ci` for workflows, and `chore` for maintenance.
   Example: `feat: revive Per Hour for WoW Forever`.
 - Keep unrelated changes in separate commits, such as addon changes and local installation tooling.
-- Never create commits outside the requested `per-hour-prepare-release` workflow,
+- Never create commits outside the requested `per-hour-prepare-release` workflow
+  (standalone or as the preparation stage of `per-hour-release`),
   including when the user otherwise asks to commit. That release workflow is an
   authorized exception: commit only its release-preparation changes automatically.
 - Outside that workflow, when the user mentions committing, stage only the related
@@ -18,9 +19,12 @@
 - Push, create tags or publish releases only when explicitly requested.
 - Invoking `per-hour-prepare-release` authorizes its commit, push and PR creation;
   invoking `per-hour-publish-release` authorizes its merge, release publication
-  and workflow monitoring. Execute each requested stage automatically and ask only
-  about unresolved doubts or ambiguities. Discussing or editing these skills does
-  not invoke either workflow or resume an operation the user has stopped.
+  and workflow monitoring. Invoking `per-hour-release` authorizes both stages in
+  sequence, including the preparation commit, push, PR creation, merge, release
+  publication and workflow monitoring. Execute each requested stage automatically
+  and ask only about unresolved doubts or ambiguities. Discussing, creating or
+  editing these skills does not invoke a release workflow or resume an operation
+  the user has stopped.
 - Preserve the user's existing changes and staging choices; leave edits available for review and testing.
 - Follow the branch name requested by the user.
 - Name working branches `<type>/<short-description>`, using the same types and purposes as commits:

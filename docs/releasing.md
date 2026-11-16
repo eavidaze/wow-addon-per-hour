@@ -1,5 +1,14 @@
 # Publishing a release
 
+## Codex workflows
+
+Use `$per-hour-release` to prepare and publish a release end to end, including
+validation, commit, push, PR creation, merge and upload workflow verification.
+It runs both stages automatically without a separate publication request.
+Use `$per-hour-prepare-release` to stop at the PR, or
+`$per-hour-publish-release` to publish an already prepared PR.
+Creating or editing these skills does not execute a release.
+
 ## One-time setup
 
 1. Generate a token in [CurseForge API Tokens](https://www.curseforge.com/account/api-tokens)

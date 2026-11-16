@@ -1,0 +1,4 @@
+interface:
+  display_name: "Per Hour: release completa"
+  short_description: "Prepare, publique e acompanhe a release completa"
+  default_prompt: "Use $per-hour-release para preparar e validar a versão do Per Hour, fazer o commit, enviar a branch, criar e mesclar o PR, publicar a release e acompanhar o workflow até sua conclusão automaticamente."
