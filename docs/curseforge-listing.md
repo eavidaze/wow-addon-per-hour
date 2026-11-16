@@ -25,7 +25,7 @@ per hour and per minute.
 - A shared settings panel for visibility, the hourly/per-minute unit and the watched reputation.
 - Per-character window visibility, window positions and minimap button position.
 - One hourly/per-minute display preference shared by all three trackers and saved per character.
-- An optional XP speedometer with ten scale levels, shadowed artwork and animated overload feedback.
+- An optional XP speedometer with ten configurable scale levels.
 - Per-character sessions preserved between logins, including totals, active duration and manual pause state.
 - A shared continuity check flags restored sessions that may have missed progress.
 - An **Announce** option to share your results in chat.
