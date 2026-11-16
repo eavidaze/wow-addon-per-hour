@@ -59,3 +59,8 @@ end
 function Utils:DisplayRoundedNumber(num, numDecimals)
     return Utils:DisplayNumber(Utils:RoundValue(num, numDecimals))
 end
+
+function Utils:DisplayCompactNumber(value)
+    return value >= 1000 and string.format("%gk", value / 1000)
+        or string.format("%g", self:RoundValue(value, 1))
+end

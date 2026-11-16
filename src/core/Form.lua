@@ -1,6 +1,6 @@
 local Components = PerHour.Components
 local Theme = PerHour.Theme
-local ROW_HEIGHT, GROUP_HEADER = 32, 40
+local ROW_HEIGHT, GROUP_HEADER, SUBFIELD_INDENT = 32, 40, 16
 local CONTROL_WIDTH = 300
 
 local function IsFinite(value)
@@ -16,14 +16,30 @@ end
 local function CreateSlider(field, settings)
     local slider = CreateFrame("Frame", nil, field.ControlArea, "MinimalSliderWithSteppersTemplate")
     slider:SetPoint("LEFT", field.ControlArea, "LEFT", 0, 0)
+    local function FormatValue(value)
+        local text = type(settings.format) == "function" and settings.format(value)
+            or string.format(settings.format or "%g", value)
+        return text .. (settings.suffix or "")
+    end
     local right = MinimalSliderWithSteppersMixin.Label.Right
     slider:Init(settings.value or settings.min, settings.min, settings.max,
         (settings.max - settings.min) / (settings.step or 1), {
-            [right] = function(value)
-                return string.format(settings.format or "%g", value) .. (settings.suffix or "")
-            end,
+            [right] = FormatValue,
         })
     field.ValueText = slider.RightText
+    local text = field.ValueText:GetText()
+    field.ValueText:SetText(FormatValue(settings.min))
+    local valueWidth = field.ValueText:GetStringWidth()
+    field.ValueText:SetText(FormatValue(settings.max))
+    valueWidth = math.max(valueWidth, field.ValueText:GetStringWidth())
+    field.ValueText:SetText(text)
+    -- The native value label extends beyond the slider; reserve it inside the field.
+    slider:SetWidth(field.ControlArea:GetWidth() - valueWidth - 4)
+    field.ValueText:ClearAllPoints()
+    field.ValueText:SetPoint("RIGHT", field.ControlArea, "RIGHT", 0, 0)
+    field.ValueText:SetWidth(valueWidth)
+    field.ValueText:SetJustifyH("LEFT")
+    field.ValueText:SetWordWrap(false)
     slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
         if not field.Updating then field:SetValue(value) end
     end)
@@ -35,15 +51,19 @@ local function SetupSubfields(field, settings)
     function field:AddSubfield(childSettings)
         if not self.SubfieldStack then
             local stack = CreateFrame("Frame", nil, self)
-            stack:SetPoint("TOPLEFT", self, "TOPLEFT", 16, -ROW_HEIGHT - 8)
+            stack:SetPoint("TOPLEFT", self, "TOPLEFT", SUBFIELD_INDENT, -ROW_HEIGHT - 8)
             stack:SetPoint("TOPRIGHT", self, "TOPRIGHT", 0, -ROW_HEIGHT - 8)
             Components:SetupFieldStack(stack, stack, 0, 8)
             stack:HookScript("OnSizeChanged", function()
-                self:SetHeight(ROW_HEIGHT + 8 + stack:GetHeight())
+                local height = stack:GetHeight()
+                self:SetHeight(ROW_HEIGHT + (height > 0 and 8 + height or 0))
             end)
             self.SubfieldStack, self.Subfields = stack, stack.Fields
         end
-        return self.SubfieldStack:AddField(Components:CreateFormField(self.SubfieldStack, childSettings))
+        local nested = {}
+        for key, value in pairs(childSettings) do nested[key] = value end
+        nested.controlWidth = nested.controlWidth or (self.ControlArea:GetWidth() - SUBFIELD_INDENT)
+        return self.SubfieldStack:AddField(Components:CreateFormField(self.SubfieldStack, nested))
     end
     for _, childSettings in ipairs(settings.subfields or {}) do field:AddSubfield(childSettings) end
 end
@@ -142,11 +162,13 @@ function Components:CreateFormField(parent, settings, inline)
     elseif settings.type == "select" then
         field.Value = settings.value or settings.options[1].value
         field.Selector = CreateFrame("Frame", nil, field.ControlArea, "SettingsDropdownWithButtonsTemplate")
-        -- Native steppers extend beyond the selector frame on both sides.
-        field.Selector:SetPoint("CENTER", field.ControlArea, "CENTER", 0, 0)
         local control = field.Selector.Dropdown
         field.Control = control
         control:SetWidth(220)
+        -- Align the outer left stepper with other controls, including nested rows.
+        local inset = field.Selector.DecrementButton:GetWidth() + 5
+            - (field.Selector:GetWidth() - control:GetWidth()) / 2
+        field.Selector:SetPoint("LEFT", field.ControlArea, "LEFT", inset, 0)
         control:SetupMenu(function(_, root)
             if settings.maxMenuHeight then root:SetScrollMode(settings.maxMenuHeight) end
             for _, option in ipairs(settings.options) do

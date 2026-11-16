@@ -9,11 +9,32 @@ return function(equal)
     PerHourCharacter_Settings = false
     settings:Init()
     equal(xp.Settings:Get("isShown"), false, "malformed settings root recovers defaults")
-    equal(xp.Settings:Get("rate"), "hour", "missing rate defaults to hourly display")
+    equal(settings:GetRate(), "hour", "missing shared rate defaults to hourly display")
     equal(settings:GetSpeedometerEnabled(), false, "missing speedometer preference defaults to disabled")
     equal(settings:GetSpeedometerMaximum("hour"), 50000, "missing hourly maximum defaults to 50000")
     equal(settings:GetSpeedometerMaximum("minute"), 800, "missing minute maximum defaults to 800")
     equal(settings:GetMinimapAngle(), math.rad(225), "missing minimap recovers default angle")
+
+    for _, fixture in ipairs({
+        { rates = { "minute", "minute", "minute" }, expected = "minute" },
+        { rates = { "hour", "hour", "hour" }, expected = "hour" },
+        { rates = { "minute", "hour", "minute" }, expected = "hour" },
+        { rates = { "minute", "invalid", "minute" }, expected = "hour" },
+        { rates = { "minute", "minute" }, expected = "hour" },
+    }) do
+        PerHourAccount_Settings = {
+            Experience = { rate = fixture.rates[1] }, Honor = { rate = fixture.rates[2] },
+            Reputation = { rate = fixture.rates[3] },
+        }
+        PerHourCharacter_Settings = {}
+        settings:Init()
+        equal(settings:GetRate(), fixture.expected, "legacy rates migrate by agreement with an hourly fallback")
+        equal(PerHourAccount_Settings.Experience.rate, fixture.rates[1], "migration preserves account preferences for other characters")
+        local chosen = fixture.expected == "hour" and "minute" or "hour"
+        settings:SetRate(chosen)
+        settings:Init()
+        equal(settings:GetRate(), chosen, "initialization does not repeat migration over a character preference")
+    end
 
     PerHourAccount_Settings = {
         minimap = { angle = 0 },
@@ -26,9 +47,11 @@ return function(equal)
     local loaded = PerHourAccount_Settings
     settings:Init()
     equal(honor.Settings:Get("isShown"), false, "previous account visibility is ignored")
+    equal(settings:GetRate(), "hour", "conflicting or malformed account rates migrate to hourly display")
     equal(xp.Settings:Get("position"), nil, "previous account position is ignored")
     equal(settings:GetMinimapAngle(), math.rad(225), "previous account minimap angle is ignored")
     PerHourCharacter_Settings = {
+        rate = "minute",
         minimap = { angle = 0 },
         Experience = { isShown = false, position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 } },
         Honor = { isShown = true },
@@ -41,8 +64,8 @@ return function(equal)
     equal(PerHourCharacter_Settings, loadedSettings, "settings initialization preserves the character table")
     equal(settings:GetMinimapAngle(), 0, "zero angle survives initialization")
     equal(xp.Settings:Get("isShown"), false, "false visibility survives initialization")
-    equal(xp.Settings:Get("rate"), "minute", "saved minute rate survives initialization")
-    equal(honor.Settings:Get("rate"), "hour", "invalid saved rate recovers hourly display")
+    equal(settings:GetRate(), "minute", "saved character rate survives initialization")
+    equal(loaded.Honor.rate, "day", "initialization leaves legacy account rates untouched")
     equal(xp.Settings:Get("position").x, 0, "zero coordinates survive initialization")
     equal(honor.Settings:Get("isShown"), true, "valid neighbor survives malformed module settings")
     equal(rep.Settings:Get("isShown"), false, "malformed module settings recover defaults")
@@ -62,11 +85,13 @@ return function(equal)
     equal(loaded.minimap.angle, 0, "minimap writes preserve the legacy account preference")
     equal(rep.Settings:Get("isShown"), false, "XP settings do not change reputation settings")
     equal(honor.Settings:Get("position"), nil, "XP position does not change honor position")
-    rep.Settings:Set("rate", "minute")
-    equal(rep.Settings:Get("rate"), "minute", "rate preference is written per module")
-    equal(honor.Settings:Get("rate"), "hour", "reputation rate does not change honor rate")
-    equal(pcall(function() rep.Settings:Set("rate", "day") end), false, "invalid rate write is rejected")
-    equal(rep.Settings:Get("rate"), "minute", "rejected rate write preserves the previous value")
+    settings:SetRate("minute")
+    equal(settings:GetRate(), "minute", "shared rate is written for the character")
+    equal(loadedSettings.rate, "minute", "rate uses the character settings root")
+    equal(loaded.rate, nil, "rate writes do not add an account preference")
+    equal(pcall(function() settings:SetRate("day") end), false, "invalid shared rate write is rejected")
+    equal(settings:GetRate(), "minute", "rejected rate write preserves the previous value")
+    equal(pcall(function() rep.Settings:Get("rate") end), false, "module handles do not expose a misleading independent rate")
     equal(pcall(function() xp.Settings:Set("isShown", 1) end), false, "invalid visibility is rejected")
     equal(pcall(function() xp.Settings:Set("position", { x = 1, y = 2 }) end), false, "invalid position is rejected")
     equal(xp.Settings:Get("position").x, 25, "rejected writes preserve the previous setting")
@@ -96,12 +121,12 @@ return function(equal)
     for _, invalid in ipairs({ false, "bad", math.huge, 0 / 0 }) do
         PerHourCharacter_Settings.minimap.angle = invalid
         PerHourCharacter_Settings.Experience.isShown = invalid
-        PerHourAccount_Settings.Experience.rate = invalid
+        PerHourCharacter_Settings.rate = invalid
         PerHourCharacter_Settings.Experience.position = { point = "INVALID", relativePoint = "CENTER", x = 0, y = 0 }
         settings:Init()
         equal(settings:GetMinimapAngle(), math.rad(225), "invalid saved angle recovers default")
         equal(xp.Settings:Get("isShown"), false, "invalid saved visibility recovers default")
-        equal(xp.Settings:Get("rate"), "hour", "invalid saved rate recovers default")
+        equal(settings:GetRate(), "hour", "invalid saved character rate recovers default")
         equal(xp.Settings:Get("position"), nil, "invalid saved anchor is discarded")
         equal(honor.Settings:Get("isShown"), true, "settings repair preserves another module")
     end
@@ -111,8 +136,9 @@ return function(equal)
     equal(settings:GetMinimapAngle(), math.rad(225), "malformed minimap settings recover defaults")
     equal(xp.Settings:Get("position"), nil, "nonfinite saved coordinates are discarded")
 
-    -- Character layout preferences are independent, while rates remain shared by the account.
+    -- Layout, display rate and gauge preferences are independent between characters.
     local firstCharacter = PerHourCharacter_Settings
+    settings:SetRate("minute")
     settings:SetSpeedometerEnabled(true)
     settings:SetSpeedometerMaximum("minute", 1200)
     PerHourCharacter_Settings = {
@@ -122,6 +148,7 @@ return function(equal)
     }
     local secondCharacter = PerHourCharacter_Settings
     settings:Init()
+    equal(settings:GetRate(), "hour", "another character has its own migrated rate")
     equal(settings:GetSpeedometerEnabled(), false, "another character starts with the gauge disabled")
     equal(settings:GetSpeedometerMaximum("minute"), 800, "another character has its own dial maximum")
     settings:SetSpeedometerMaximum("minute", 600)
@@ -137,7 +164,7 @@ return function(equal)
     xp.Settings:Set("position", { point = "CENTER", relativePoint = "CENTER", x = 10, y = 20 })
     settings:Init()
     equal(xp.Settings:Get("position").x, 10, "initialization preserves another character's panel position")
-    rep.Settings:Set("rate", "hour")
+    settings:SetRate("hour")
     settings:SetMinimapAngle(0.5)
     PerHourCharacter_Settings = firstCharacter
     settings:Init()
@@ -147,7 +174,8 @@ return function(equal)
     equal(secondCharacter.speedometer.minute, 600, "another character's dial maximum is preserved")
     equal(xp.Settings:Get("position"), nil, "another character's panel movement leaves the first character unchanged")
     equal(settings:GetMinimapAngle(), math.rad(225), "switching characters restores its own minimap angle")
-    equal(rep.Settings:Get("rate"), "hour", "rate changes remain shared between characters")
+    equal(settings:GetRate(), "minute", "returning restores the first character rate")
+    equal(secondCharacter.rate, "hour", "the second character retains its own rate")
     equal(secondCharacter.minimap.angle, 0.5, "initializing one character preserves the other's minimap angle")
 
     PerHourCharacter_Values = { version = 1, sessions = { Experience = { total = 0, duration = 0, paused = false } } }

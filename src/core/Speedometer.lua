@@ -128,8 +128,7 @@ function Components:CreateSpeedometerDisplay(parent)
             self.Maximum = maximum
             for index, label in ipairs(self.Labels) do
                 local mark = maximum * (index - 1) / 4
-                label:SetText(mark >= 1000 and string.format("%gk", mark / 1000)
-                    or string.format("%g", Utils:RoundValue(mark, 1)))
+                label:SetText(Utils:DisplayCompactNumber(mark))
             end
         end
         local target = math.max(0, math.min(1, value / maximum))

@@ -72,14 +72,15 @@ and a `fields` array. Add the group with `panel:AddField(group)`. Each group has
 a white title using `GameFontNormalHuge`, the same font as the hourly rate, and
 indented rows with gold labels on the left and aligned controls on the right.
 Groups have no separator lines. `group:AddField(settings)` can add rows later;
-the group and enclosing panel resize and reposition subsequent groups.
+the group and enclosing panel resize and reposition subsequent groups. Hidden
+fields take no space; showing them restores their row and spacing automatically.
 
 | Field `type` | Settings and behavior |
 | --- | --- |
 | `checkbox` | Boolean `value`; `SettingsCheckboxTemplate`, including its native checkmark and hover state. Clicking the checkbox or label toggles it. |
 | `select` | `options = { { value = "hour", label = "Per hour" }, ... }`; `SettingsDropdownWithButtonsTemplate`, with its native dropdown, radio menu and previous/next buttons. |
 | `text` | String `value`, optional `maxLength` (default 64); Enter or losing focus commits the text, Escape restores the last committed value. |
-| `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (default `%g`) and `suffix`. |
+| `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (a string, default `%g`, or a function receiving the value) and `suffix`. |
 | `group` | One shared `label` and a `fields` array of controls placed side by side; optional `spacing` (default 8). Access children through `field.Fields[index]`. |
 
 Individual controls accept `label`, optional `controlWidth` (the space reserved for the control column, default 300) and
@@ -90,8 +91,13 @@ them or apply them to the addon.
 
 Fields accept a `subfields` array, or `field:AddSubfield(settings)` after
 creation. Subfields use the same field settings and appear below their parent,
-with 16 px of additional left indentation and an 8 px gap. Controls keep their
-right alignment. Access them through `field.Subfields[index]`; composite rows
+with 16 px of additional indentation for labels and controls and an 8 px gap.
+The control column narrows to keep the right boundary inside the form. Select
+fields align their outer left stepper with checkboxes at the same nesting level.
+Sliders shorten to fit the indented control column and reserve space for their
+formatted minimum and maximum values, with the readout inside the right boundary
+and a 4 px gap after the slider. Readouts align left so shorter values stay close.
+Access subfields through `field.Subfields[index]`; composite rows
 keep their inline controls in `field.Fields`. Nested subfields and later rows
 resize and reposition the enclosing group and panel automatically.
 
@@ -180,7 +186,7 @@ panel opens; call `button:Refresh()` after changing state elsewhere while open.
 Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
-The minimap left-click menu is titled **Panels**.
+The minimap left-click menu is titled **Show trackers**.
 Each tracker's gear menu is titled **Options**, with **Reset**, **Settings**
 and **Announce**, in that order. **Settings** opens the same shared settings panel as minimap
 right-click, regardless of which tracker opens it.
@@ -191,16 +197,16 @@ session's faction when available. For example:
 `[Per Hour] 240,000 XP/h - 30m (120,000 XP total)`
 `SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
 the entire boxed title in DS gold. The
-**Panels** group has one row per module, sorted by name. Each row shares
-the module's label between a visibility checkbox and a native dropdown for
-**Per hour** or **Per minute**, defaulting to hourly display. Each selection immediately changes
-that panel's numeric rate and unit, for example `XP/h` or `XP/min`; Honor and
-Reputation use the same independent preference. Changes persist through the
+**General** group starts with one **Rate** dropdown for
+**Per hour** or **Per minute**, defaulting to hourly display. It immediately changes
+all three panels' numeric rates and units, for example `XP/h` or `XP/min`.
+The **Show trackers** group contains each module's visibility checkbox, sorted by name.
+The shared unit is saved per character. Changes persist through the
 [settings store](stores.md) across reloads and logins. Rate selection preserves
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
 
-The **Speedometer** group has one **Show on all panels** checkbox. It defaults
+**General** also has one **Show speedometer** checkbox. It defaults
 to disabled and applies to Experience, Honor and Reputation together, for the
 current character. The numeric rate stays visible in either mode. Enabling the
 gauge expands each monitor from 180 x 94 to 240 x 204; disabling it restores the
@@ -208,9 +214,14 @@ compact layout. The existing placement rules keep visible panels on screen and
 avoid overlaps. Tracking and pause state are preserved.
 
 **Maximum per hour** uses a numeric slider from 10,000 to 100,000 in steps of
-1,000 (default 50,000). **Maximum per minute** uses 160 to 1,600 in steps of 10
-(default 800). These two independent integer maxima are saved per character and
-shared by all three gauges. Each panel uses the maximum matching its selected
+1,000 (default 50,000), using the same compact formatter as the dial, such as `50k`.
+The saved maximum remains the full numeric value.
+**Maximum per minute** uses 160 to 1,600 in steps of 10
+(default 800). Only the maximum matching **Rate** appears, indented below
+**Show speedometer**, while the gauge is enabled. Disabling it hides the maximum
+row and collapses its space. Switching units preserves each saved maximum.
+These two independent integer maxima are saved per character and
+shared by all three gauges. All panels use the maximum matching the shared
 rate unit. Above the maximum, the needle stays near the end stop while the numeric
 display keeps the actual rate. The gauge uses two transparent, antialiased TGA
 textures with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
@@ -256,7 +267,9 @@ reopened. Reposition the minimap button by dragging it; settings have no angle
 control.
 
 Tracker visibility, tracker positions and the minimap button position are saved
-per character. Hourly/per-minute preferences remain shared by the account.
+per character, along with the hourly/per-minute preference shared by all three panels.
+Matching valid legacy account rates are imported once per character; mixed,
+missing or invalid legacy rates default to hourly.
 Previous account layouts are not imported; characters start with hidden trackers
 and the default layout until they save their own preferences.
 
@@ -268,13 +281,15 @@ The panel retains its position while the addon remains loaded.
 Its `contentSpacing = 12` keeps 12 px below the boxed header and 14 px between
 the form content and **Close**, independently of the compact tracker layout.
 
-Validate appearance, checkbox interaction, each rate dropdown, dragging and
+Validate appearance, checkbox interaction, the shared rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
-confirm that panel visibility, selected rates and minimap position match saved preferences.
-Switch between two characters and confirm their layouts remain independent while
-hourly/per-minute selections are shared.
+confirm that panel visibility, selected unit and minimap position match saved preferences.
+Switch between two characters and confirm their layouts and display units remain independent.
+Changing the unit must update all three panels' numeric readouts and gauge scales together.
 Verify that the speedometer checkbox applies to all three monitors, keeps the
-numeric rate below the dial and restores after reload. Check both scale sliders,
+numeric rate below the dial and restores after reload. Check that only the active
+unit's scale slider appears while enabled, including after reopening and reload;
+check both saved maxima,
 pause/resume, overflow and switching characters with different gauge preferences.
 Validate the reputation subfield's indentation and scrolling, switching factions
 through both interfaces, **None**, and session reset after switching factions.

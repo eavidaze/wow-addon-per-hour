@@ -23,15 +23,23 @@ function SettingsPanel:RefreshReputation(rebuild)
     self.RefreshingReputation = false
 end
 
+function SettingsPanel:RefreshSpeedometerFields()
+    local enabled = PerHour.Stores.Settings:GetSpeedometerEnabled()
+    local rate = PerHour.Stores.Settings:GetRate()
+    self.SpeedometerHourField:SetShown(enabled and rate == "hour")
+    self.SpeedometerMinuteField:SetShown(enabled and rate == "minute")
+end
+
 function SettingsPanel:Refresh()
     if not self.Frame then return end
+    self.RateField:SetValue(PerHour.Stores.Settings:GetRate(), true)
     self.SpeedometerField:SetValue(PerHour.Stores.Settings:GetSpeedometerEnabled(), true)
     self.SpeedometerHourField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("hour"), true)
     self.SpeedometerMinuteField:SetValue(PerHour.Stores.Settings:GetSpeedometerMaximum("minute"), true)
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
-        self.RateFields[name]:SetValue(PerHour.Modules[name].Settings:Get("rate"), true)
     end
+    self:RefreshSpeedometerFields()
     self:RefreshReputation()
 end
 
@@ -53,41 +61,64 @@ function SettingsPanel:Show()
         })
         frame:SetFrameStrata("DIALOG")
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        local panels = Components:CreateFormGroup(frame.Content, { title = "Panels" })
+        local general = Components:CreateFormGroup(frame.Content, { title = "General" })
+        self.RateField = general:AddField({
+            type = "select", label = "Rate", value = PerHour.Stores.Settings:GetRate(),
+            options = {
+                { value = "hour", label = "Per hour" },
+                { value = "minute", label = "Per minute" },
+            },
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetRate(value)
+                self:RefreshSpeedometerFields()
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.SpeedometerField = general:AddField({
+            type = "checkbox", label = "Show speedometer",
+            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
+            onChanged = function(enabled)
+                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
+                self:RefreshSpeedometerFields()
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.SpeedometerHourField = self.SpeedometerField:AddSubfield({
+            type = "slider", label = "Maximum per hour", min = 10000, max = 100000, step = 1000,
+            format = function(value) return Utils:DisplayCompactNumber(value) end,
+            value = PerHour.Stores.Settings:GetSpeedometerMaximum("hour"),
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetSpeedometerMaximum("hour", value)
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.SpeedometerMinuteField = self.SpeedometerField:AddSubfield({
+            type = "slider", label = "Maximum per minute", min = 160, max = 1600, step = 10, format = "%.0f",
+            value = PerHour.Stores.Settings:GetSpeedometerMaximum("minute"),
+            onChanged = function(value)
+                PerHour.Stores.Settings:SetSpeedometerMaximum("minute", value)
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self:RefreshSpeedometerFields()
+        frame:AddField(general)
+        local panels = Components:CreateFormGroup(frame.Content, { title = "Show trackers" })
         local modules = {}
         for _, module in pairs(PerHour.Modules) do table.insert(modules, module) end
         table.sort(modules, function(a, b) return a.Name < b.Name end)
         self.ModuleFields = {}
-        self.RateFields = {}
         for _, context in ipairs(modules) do
             local module = context
             local row = panels:AddField({
-                type = "group", label = module.Name,
-                fields = {
-                    {
-                        type = "checkbox", label = "Show " .. module.Name,
-                        value = module.Settings:Get("isShown"),
-                        onChanged = function(shown)
-                            module.Settings:Set("isShown", shown)
-                            module.View.Frame:SetShown(shown)
-                            self:Refresh()
-                        end,
-                    },
-                    {
-                        type = "select", value = module.Settings:Get("rate"),
-                        options = {
-                            { value = "hour", label = "Per hour" },
-                            { value = "minute", label = "Per minute" },
-                        },
-                        onChanged = function(value)
-                            module.Settings:Set("rate", value)
-                            PerHour.TrackerPanels:RefreshRate(module)
-                        end,
-                    },
-                },
+                type = "checkbox", label = module.Name,
+                value = module.Settings:Get("isShown"),
+                onChanged = function(shown)
+                    module.Settings:Set("isShown", shown)
+                    module.View.Frame:SetShown(shown)
+                    self:Refresh()
+                end,
             })
-            self.ModuleFields[module.Name] = row.Fields[1]
-            self.RateFields[module.Name] = row.Fields[2]
+            self.ModuleFields[module.Name] = row
             if module.Name == "Reputation" then
                 self.ReputationOptions = { { value = 0, label = "None" } }
                 self.ReputationField = row:AddSubfield({
@@ -105,32 +136,6 @@ function SettingsPanel:Show()
             module.View.Frame:HookScript("OnHide", function() self:Refresh() end)
         end
         frame:AddField(panels)
-        local speedometer = Components:CreateFormGroup(frame.Content, { title = "Speedometer" })
-        self.SpeedometerField = speedometer:AddField({
-            type = "checkbox", label = "Show on all panels",
-            value = PerHour.Stores.Settings:GetSpeedometerEnabled(),
-            onChanged = function(enabled)
-                PerHour.Stores.Settings:SetSpeedometerEnabled(enabled)
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        self.SpeedometerHourField = speedometer:AddField({
-            type = "slider", label = "Maximum per hour", min = 10000, max = 100000, step = 1000, format = "%.0f",
-            value = PerHour.Stores.Settings:GetSpeedometerMaximum("hour"),
-            onChanged = function(value)
-                PerHour.Stores.Settings:SetSpeedometerMaximum("hour", value)
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        self.SpeedometerMinuteField = speedometer:AddField({
-            type = "slider", label = "Maximum per minute", min = 160, max = 1600, step = 10, format = "%.0f",
-            value = PerHour.Stores.Settings:GetSpeedometerMaximum("minute"),
-            onChanged = function(value)
-                PerHour.Stores.Settings:SetSpeedometerMaximum("minute", value)
-                PerHour.TrackerPanels:RefreshDisplays()
-            end,
-        })
-        frame:AddField(speedometer)
         self.Frame = frame
         frame:RegisterEvent("UPDATE_FACTION")
         frame:SetScript("OnEvent", function()

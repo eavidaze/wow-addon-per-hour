@@ -115,11 +115,13 @@ function Components:SetupFieldStack(frame, content, baseHeight, gap)
         if self.LayingOutFields then return end
         self.LayingOutFields = true
         local height = 0
-        for index, field in ipairs(self.Fields) do
-            if index > 1 then height = height + gap end
-            field:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
-            field:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -height)
-            height = height + field:GetHeight()
+        for _, field in ipairs(self.Fields) do
+            if field:IsShown() then
+                if height > 0 then height = height + gap end
+                field:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -height)
+                field:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -height)
+                height = height + field:GetHeight()
+            end
         end
         self.ContentHeight = height
         self:SetHeight(baseHeight + height)
@@ -128,6 +130,8 @@ function Components:SetupFieldStack(frame, content, baseHeight, gap)
     function frame:AddField(field)
         table.insert(self.Fields, field)
         field:HookScript("OnSizeChanged", function() self:LayoutFields() end)
+        field:HookScript("OnShow", function() self:LayoutFields() end)
+        field:HookScript("OnHide", function() self:LayoutFields() end)
         self:LayoutFields()
         return field
     end

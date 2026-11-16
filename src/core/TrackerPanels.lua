@@ -388,7 +388,7 @@ end
 
 function TrackerPanels:RefreshRate(module)
     RefreshDisplayLayout(module)
-    local perMinute = module.Settings:Get("rate") == "minute"
+    local perMinute = PerHour.Stores.Settings:GetRate() == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
     module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
     if module.View.SpeedometerEnabled then

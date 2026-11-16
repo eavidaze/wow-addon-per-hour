@@ -432,7 +432,9 @@ READY_CHECK_WAITING_TEXTURE_RAID = "waiting"
 local abbreviatedValue
 function AbbreviateLargeNumbers(value)
     abbreviatedValue = value
-    return "1T"
+    if value >= 1000000000000 then return "1T" end
+    -- The native formatter need not abbreviate thousands on this client.
+    return tostring(value)
 end
 function UnitXP(_unit) return xp end
 function UnitXPMax(_unit) return xpMax end
@@ -694,7 +696,7 @@ equal(minimapButton:IsMenuOpen(), false, "menu starts closed")
 equal(PerHourCharacter_Settings.minimap.angle, math.rad(225), "default minimap position")
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
-equal(minimapButton.menuDescription.title, "Panels", "native menu title")
+equal(minimapButton.menuDescription.title, "Show trackers", "native menu title matches settings visibility group")
 equal(#minimapButton.menuDescription.items, 3, "all modules in menu")
 local experienceItem = minimapButton.menuDescription.items[1]
 equal(experienceItem.text, "Experience", "stable alphabetical menu order")
@@ -736,23 +738,25 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 446, "settings height includes the character speedometer options")
+    equal(panel:GetHeight(), 406, "disabled speedometer leaves only general and panel settings")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
-    equal(#panel.Fields, 2, "settings contains panel and speedometer groups")
-    equal(panel.Fields[1].TitleText:GetText(), "Panels", "panels group title matches the minimap menu")
-    equal(#panel.Fields[1].Fields, 3, "panels contains one row per module")
+    equal(#panel.Fields, 2, "settings contains general and panel groups")
+    equal(panel.Fields[1].TitleText:GetText(), "General", "shared display preferences belong to General")
+    equal(panel.Fields[2].TitleText:GetText(), "Show trackers", "visibility group describes the tracker toggles")
+    equal(#panel.Fields[1].Fields, 2, "general contains rate and speedometer fields")
+    equal(#panel.Fields[2].Fields, 3, "panels contains three visibility rows")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
-    local row = panel.Fields[1].Fields[1]
-    local visibility = row.Fields[1]
+    local row = panel.Fields[2].Fields[1]
+    local visibility = row
     equal(row.Label:GetText(), "Experience", "shared label identifies the module")
     equal(table.concat(row.Label.textColor, ","), "1,0.82,0", "field labels are gold")
-    equal(#row.Fields, 2, "module row contains visibility and rate controls")
-    equal(visibility:GetWidth() >= visibility.Control:GetWidth(), true, "checkbox fits its own click area")
-    equal(row.Fields[2].point[4] >= visibility:GetWidth(), true, "rate select starts after the checkbox click area")
-    equal(rawget(visibility, "Label"), nil, "inline checkbox uses the shared row label")
-    equal(rawget(row.Fields[2], "Label"), nil, "inline select uses the shared row label")
+    equal(rawget(row, "Fields"), nil, "module row is only a visibility checkbox")
+    equal(visibility.ControlArea:GetWidth() >= visibility.Control:GetWidth(), true, "checkbox fits its control area")
+    equal(PerHour.SettingsPanel.RateField.Label:GetText(), "Rate", "rate is an isolated General field")
+    near(PerHour.SettingsPanel.RateField.Selector.DecrementButton:GetLeft(), visibility.Control:GetLeft(),
+        "rate stepper aligns with first-level checkboxes")
     equal(visibility.Control:GetChecked(), true, "visibility control reads the saved setting")
     visibility.Control:Click()
     equal(visibility:GetValue(), false, "checkbox updates its value")
@@ -765,7 +769,7 @@ do
     equal(experience.State.HasStarted, false, "visibility does not start tracking")
     equal(honor.Settings:Get("isShown"), false, "XP control preserves honor visibility")
     equal(reputation.Settings:Get("isShown"), false, "XP control preserves reputation visibility")
-    equal(row.Fields[2]:GetValue(), "hour", "rate control defaults to per hour")
+    equal(PerHour.SettingsPanel.RateField:GetValue(), "hour", "shared rate defaults to per hour")
     local item = minimapButton.menuDescription.items[1]
     item.callback(item.data)
     equal(visibility:GetValue(), false, "open settings follow minimap menu changes")
@@ -808,13 +812,17 @@ do
     local originalWatched = watched
     settings:Show()
     local field = settings.ReputationField
-    local row = settings.Frame.Fields[1].Fields[3]
+    local row = settings.Frame.Fields[2].Fields[3]
     equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
     equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
     equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
     equal(row.SubfieldStack.points.TOPLEFT[4], 16, "subfield label is indented sixteen pixels")
     equal(row:GetHeight(), 72, "parent height includes the subfield and its spacing")
     equal(row.ControlArea.point[1], "TOPRIGHT", "parent controls stay on their original row")
+    near(field.Selector.DecrementButton:GetLeft(), row.Control:GetLeft() + 16,
+        "faction controls are indented with their label")
+    equal(field.Selector.IncrementButton:GetLeft() + field.Selector.IncrementButton:GetWidth() <= row:GetLeft() + row:GetWidth(),
+        true, "indented faction selector fits within the form")
     equal(field:GetValue(), 72, "selector reads the game's watched faction")
     equal(field.Control:GetText(), "Stormwind", "selector displays the watched faction name")
     local choices = field.Control.menuDescription.items
@@ -868,61 +876,61 @@ do
     settings.Frame:Hide()
 end
 
--- Display rate choices apply independently without changing tracking state or saved sessions.
+-- One character rate selection updates every numeric readout without changing tracking.
 do
     local settings = PerHour.SettingsPanel
     local savedSessions = PerHourCharacter_Values
     local angle = PerHour.Stores.Settings:GetMinimapAngle()
     settings:Show()
     equal(settings.AngleField, nil, "settings no longer expose a minimap angle control")
+    local field, snapshots = settings.RateField, {}
+    equal(field:GetValue(), "hour", "shared rate defaults to per hour")
+    equal(field.Selector.template, "SettingsDropdownWithButtonsTemplate", "shared rate uses the native select")
     for _, module in ipairs({ experience, honor, reputation }) do
-        local field = settings.RateFields[module.Name]
         local state = module.State
-        local minute, hour = state.ElementPerMinute, state.ElementPerHour
-        local total, duration, started, paused = state.Element, state.Time, state.HasStarted, state.HasPaused
+        snapshots[module.Name] = {
+            minute = state.ElementPerMinute, hour = state.ElementPerHour,
+            total = state.Element, duration = state.Time, started = state.HasStarted,
+            paused = state.HasPaused, shown = module.Settings:Get("isShown"),
+        }
         state.ElementPerMinute, state.ElementPerHour = 123.45, 7407
-        local shown = module.Settings:Get("isShown")
-        equal(field:GetValue(), "hour", module.Name .. " defaults to hourly display")
-        equal(field.Selector.template, "SettingsDropdownWithButtonsTemplate", "rate uses the native select")
-        mouseClick(field.Control, "LeftButton")
-        local choices = field.Control.menuDescription.items
-        equal(#choices, 2, "rate select offers hour and minute")
-        choices[2].callback(choices[2].data)
-        equal(module.Settings:Get("isShown"), shown, "changing the inline rate preserves visibility")
-        equal(settings.ModuleFields[module.Name]:GetValue(), shown, "changing the inline rate preserves its adjacent checkbox")
-        equal(module.Settings:Get("rate"), "minute", module.Name .. " persists its minute preference")
-        equal(module.View.RateValue:GetText(), "123", module.Name .. " displays its per-minute value")
-        equal(module.View.RateUnit:GetText(), module.ShortName .. "/min", module.Name .. " displays its minute unit")
-        for _, other in ipairs({ experience, honor, reputation }) do
-            if other ~= module then
-                equal(other.Settings:Get("rate"), "hour", "rate selection preserves " .. other.Name)
-            end
-        end
-        field:SetValue("day")
-        equal(module.Settings:Get("rate"), "minute", "unknown rate options do not change preferences")
-        field.Selector.DecrementButton:Click()
-        equal(module.View.RateValue:GetText(), "7,407", module.Name .. " immediately returns to the hourly value")
-        equal(module.View.RateUnit:GetText(), module.ShortName .. "/h", module.Name .. " returns to the hourly unit")
-        field.Selector.IncrementButton:Click()
-        equal(module.View.RateValue:GetText(), "123", "native stepper switches back to per minute")
-        settings.Frame:Hide()
-        settings:Show()
-        equal(field:GetValue(), "minute", "reopening reads the saved rate")
-        equal(field.Control:GetText(), "Per minute", "reopening restores the native select label")
+    end
+    mouseClick(field.Control, "LeftButton")
+    local choices = field.Control.menuDescription.items
+    equal(#choices, 2, "one rate select offers hour and minute")
+    choices[2].callback(choices[2].data)
+    equal(PerHour.Stores.Settings:GetRate(), "minute", "shared rate persists the character's minute preference")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.RateValue:GetText(), "123", module.Name .. " changes to its minute value immediately")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/min", module.Name .. " changes to its minute unit")
+        equal(module.Settings:Get("isShown"), snapshots[module.Name].shown, "shared rate preserves each panel's visibility")
+    end
+    field:SetValue("day")
+    equal(PerHour.Stores.Settings:GetRate(), "minute", "unknown rate option is ignored")
+    field.Selector.DecrementButton:Click()
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.RateValue:GetText(), "7,407", module.Name .. " returns to its hourly value")
+        equal(module.View.RateUnit:GetText(), module.ShortName .. "/h", module.Name .. " returns to its hourly unit")
+    end
+    field.Selector.IncrementButton:Click()
+    settings.Frame:Hide()
+    settings:Show()
+    equal(field:GetValue(), "minute", "reopening reads the shared saved rate")
+    equal(field.Control:GetText(), "Per minute", "reopening restores the native select label")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        local state, snapshot = module.State, snapshots[module.Name]
         state.ElementPerMinute, state.ElementPerHour = 1000000000000, 60000000000000
         PerHour.TrackerPanels:RefreshRate(module)
-        equal(abbreviatedValue, state.ElementPerMinute, "abbreviation uses the selected minute rate")
-        equal(module.View.RateValue:GetText(), "1T", "selected rate keeps overflow abbreviation")
+        equal(abbreviatedValue, state.ElementPerMinute, "overflow uses the globally selected minute rate")
+        equal(module.View.RateValue:GetText(), "1T", "shared rate keeps overflow abbreviation")
         equal(module.View.RateFrame:GetWidth() <= module.View.Frame:GetWidth() - 30, true, "rate and selected unit fit")
-        state.ElementPerMinute, state.ElementPerHour = minute, hour
-        field:SetValue("hour")
-        equal(state.Element, total, "display changes preserve session totals")
-        equal(state.Time, duration, "display changes preserve active duration")
-        equal(state.HasStarted, started, "display changes preserve started state")
-        equal(state.HasPaused, paused, "display changes preserve pause state")
-        equal(state.ElementPerMinute, minute, "display changes preserve the calculated minute rate")
-        equal(state.ElementPerHour, hour, "display changes preserve the calculated hourly rate")
+        state.ElementPerMinute, state.ElementPerHour = snapshot.minute, snapshot.hour
+        equal(state.Element, snapshot.total, "shared rate preserves session totals")
+        equal(state.Time, snapshot.duration, "shared rate preserves active duration")
+        equal(state.HasStarted, snapshot.started, "shared rate preserves started state")
+        equal(state.HasPaused, snapshot.paused, "shared rate preserves pause state")
     end
+    field:SetValue("hour")
     equal(PerHour.Stores.Settings:GetMinimapAngle(), angle, "rate controls preserve the minimap position")
     equal(PerHourCharacter_Values, savedSessions, "preference changes leave saved sessions untouched")
     for _, module in ipairs({ experience, honor, reputation }) do
@@ -948,11 +956,14 @@ do
     local settings, store = PerHour.SettingsPanel, PerHour.Stores.Settings
     settings:Show()
     equal(settings.SpeedometerField:GetValue(), false, "speedometer is disabled by default")
+    equal(settings.SpeedometerHourField:IsShown(), false, "disabled speedometer hides hourly maximum")
+    equal(settings.SpeedometerMinuteField:IsShown(), false, "disabled speedometer hides minute maximum")
+    local compactHeight = settings.Frame:GetHeight()
     local saved, rates, visibility = {}, {}, {}
     for _, module in ipairs({ experience, honor, reputation }) do
         equal(module.View.Speedometer, nil, "disabled preference does not create a gauge")
         saved[module.Name] = module.View.RateFrame
-        rates[module.Name] = { module.State.ElementPerHour, module.State.ElementPerMinute, module.Settings:Get("rate") }
+        rates[module.Name] = { module.State.ElementPerHour, module.State.ElementPerMinute, PerHour.Stores.Settings:GetRate() }
         visibility[module.Name] = module.Settings:Get("isShown")
         settings.ModuleFields[module.Name]:SetValue(true)
         module.State.ElementPerHour, module.State.ElementPerMinute = 25000, 400
@@ -962,6 +973,22 @@ do
     local total, duration, sessions = experience.State.Element, experience.State.Time, PerHourCharacter_Values
     settings.SpeedometerField:SetValue(true)
     equal(store:GetSpeedometerEnabled(), true, "checkbox persists the character preference")
+    equal(settings.SpeedometerField.Subfields[1], settings.SpeedometerHourField, "maximum is nested under the speedometer toggle")
+    equal(settings.SpeedometerHourField:IsShown(), true, "hourly rate shows hourly maximum")
+    equal(settings.SpeedometerMinuteField:IsShown(), false, "hourly rate hides minute maximum")
+    equal(settings.Frame:GetHeight(), compactHeight + 40, "enabling adds exactly one maximum row")
+    local maximum = settings.SpeedometerHourField
+    equal(maximum.ValueText:GetText(), "50k", "hourly maximum uses the dial's compact format independently of native abbreviation")
+    near(maximum.ValueText:GetLeft() + maximum.ValueText:GetWidth(),
+        maximum:GetLeft() + maximum:GetWidth(), "maximum readout ends at the field boundary")
+    maximum:SetValue(100000)
+    equal(maximum.ValueText:GetText(), "100k", "hourly upper bound stays abbreviated")
+    equal(maximum.ValueText:GetStringWidth() <= maximum.ValueText:GetWidth(), true,
+        "abbreviated maximum fits its reserved readout space")
+    near(maximum.ValueText:GetLeft() - maximum.Control:GetLeft() - maximum.Control:GetWidth(),
+        4, "maximum readout sits four pixels after the slider")
+    maximum:SetValue(50000)
+    equal(store:GetSpeedometerMaximum("hour"), 50000, "abbreviation preserves the full stored maximum")
     for _, module in ipairs({ experience, honor, reputation }) do
         local view = module.View
         equal(view.Speedometer:IsShown(), true, "one checkbox enables the gauge for " .. module.Name)
@@ -971,6 +998,8 @@ do
         equal(view.Frame:GetWidth(), 240, "panel grows to fit the dial width")
         equal(view.Frame:GetHeight(), 204, "panel grows to fit both displays")
         equal(view.Speedometer.Target, 0.5, "needle uses the existing hourly session rate")
+        equal(view.Speedometer.Labels[5]:GetText(), maximum.ValueText:GetText(),
+            "dial maximum and settings use the same compact text")
         equal(rawget(view.Speedometer, "Readout"), nil, "gauge does not duplicate the numeric readout")
         equal(view.Speedometer.Dial.texture, "Interface\\AddOns\\per-hour\\src\\textures\\SpeedometerDial.tga",
             "dial uses the bundled transparent artwork")
@@ -989,15 +1018,24 @@ do
         near(view.Speedometer.NeedleShadow.vertexColor[4], 0.45, "needle shadow stays subtle")
         equal(view.Speedometer:GetScript("OnUpdate"), nil, "settled needle stops polling")
     end
-    settings.RateFields.Honor:SetValue("minute")
+    settings.RateField:SetValue("minute")
+    equal(settings.SpeedometerHourField:IsShown(), false, "minute rate hides hourly maximum")
+    equal(settings.SpeedometerMinuteField:IsShown(), true, "minute rate shows minute maximum")
+    equal(settings.Frame:GetHeight(), compactHeight + 40, "switching units preserves single maximum row height")
     equal(honor.View.Speedometer.Maximum, 800, "minute panels use the minute scale")
     equal(honor.View.RateUnit:GetText(), "hon/min", "numeric unit still follows the panel preference")
     settings.SpeedometerHourField:SetValue(0)
     equal(store:GetSpeedometerMaximum("hour"), 10000, "hourly maximum clamps to 10000")
     settings.SpeedometerHourField:SetValue(200000)
     equal(store:GetSpeedometerMaximum("hour"), 100000, "hourly maximum clamps to 100000")
-    equal(experience.View.Speedometer.Target, 0.25, "hourly scale changes update hourly needles")
-    equal(honor.View.Speedometer.Target, 0.5, "hourly scale changes preserve minute needles")
+    equal(experience.View.Speedometer.Target, 0.5, "hourly maximum does not affect the shared minute view")
+    settings.RateField:SetValue("hour")
+    for _, module in ipairs({ experience, honor, reputation }) do
+        equal(module.View.Speedometer.Target, 0.25, "shared hourly view updates every needle")
+        equal(module.View.Speedometer.Maximum, 100000, "shared hourly view updates every dial scale")
+    end
+    settings.RateField:SetValue("minute")
+    equal(honor.View.Speedometer.Target, 0.5, "shared minute view restores its independent maximum")
     settings.SpeedometerMinuteField:SetValue(0)
     equal(store:GetSpeedometerMaximum("minute"), 160, "minute maximum clamps to 160")
     settings.SpeedometerMinuteField:SetValue(9999)
@@ -1018,6 +1056,9 @@ do
     equal(PerHourCharacter_Values, sessions, "display preferences preserve session storage")
     click(experience)
     settings.SpeedometerField:SetValue(false)
+    equal(settings.SpeedometerHourField:IsShown(), false, "disabling hides hourly configuration")
+    equal(settings.SpeedometerMinuteField:IsShown(), false, "disabling hides minute configuration")
+    equal(settings.Frame:GetHeight(), compactHeight, "disabling removes the maximum row and its gap")
     equal(experience.State.HasPaused, true, "disabling the gauge preserves an intentional pause")
     for _, module in ipairs({ experience, honor, reputation }) do
         equal(module.View.Speedometer:IsShown(), false, "disabling hides only the gauge")
@@ -1026,7 +1067,7 @@ do
         equal(module.View.Frame:GetWidth(), 180, "disabling restores compact panel width")
         equal(module.View.Frame:GetHeight(), 94, "disabling restores compact panel height")
         module.State.ElementPerHour, module.State.ElementPerMinute = unpack(rates[module.Name])
-        settings.RateFields[module.Name]:SetValue(rates[module.Name][3])
+        settings.RateField:SetValue(rates[module.Name][3])
         PerHour.TrackerPanels:RefreshRate(module)
         settings.ModuleFields[module.Name]:SetValue(visibility[module.Name])
     end
@@ -1183,7 +1224,8 @@ do
     equal(text:GetValue(), "Another example", "losing focus commits text")
     local opacity, decimals = appearance.Fields[1], appearance.Fields[2]
     equal(opacity.Control.template, "MinimalSliderWithSteppersTemplate", "numeric field uses Forever Options slider")
-    equal(opacity.Control:GetWidth(), 250, "slider keeps native width")
+    near(opacity.ValueText:GetLeft() - opacity.Control:GetLeft() - opacity.Control:GetWidth(),
+        4, "generic slider also keeps its readout close")
     equal(opacity.Control:GetHeight(), 40, "slider keeps native height")
     equal(opacity.Control.Slider.minimum, 25, "opacity has explicit minimum")
     equal(opacity.Control.Slider.maximum, 100, "opacity has explicit maximum")
@@ -1240,6 +1282,13 @@ do
     equal(panel:GetHeight(), height + 80, "adding another subfield grows the panel again")
     equal(following.points.TOPLEFT[5], -160, "additional children preserve row spacing")
     equal(parent:GetValue(), true, "subfields preserve their parent's value")
+    child:Hide()
+    equal(panel:GetHeight(), height, "hidden nested fields collapse their full height and spacing")
+    parent.Subfields[2]:Hide()
+    equal(parent:GetHeight(), 32, "hiding every subfield restores the parent row height")
+    equal(following.points.TOPLEFT[5], -40, "later rows move up after all subfields are hidden")
+    child:Show()
+    equal(panel:GetHeight(), height + 40, "showing a nested field restores its descendants and spacing")
     panel:Hide()
 end
 
@@ -1522,10 +1571,10 @@ equal(experience.State.Element, 50, "first XP gain")
 equal(experience.State.ElementPerHour, 90000, "XP per hour")
 equal(experience.View.RateValue:GetText(), "90,000", "fitting rates retain full precision")
 equal(experience.View.RateUnit:GetText(), "XP/h", "inline rate unit")
-PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
+PerHour.SettingsPanel.RateField:SetValue("minute")
 equal(experience.View.RateValue:GetText(), "1,500", "running XP session switches to its calculated minute rate")
 equal(experience.State.HasStarted, true, "rate selection keeps a running XP session active")
-PerHour.SettingsPanel.RateFields.Experience:SetValue("hour")
+PerHour.SettingsPanel.RateField:SetValue("hour")
 equal(GameTooltip.lines.Duration, "00:02", "hovered duration updates live")
 equal(GameTooltip.lines["Total XP"], "50", "hovered XP total updates live")
 experience.View.Frame.scripts.OnEnter(experience.View.Frame)
@@ -1665,7 +1714,7 @@ do
     changeHonor(8)
     equal(honor.State.Element, 8, "an eight-point honor currency gain is captured")
     equal(honor.View.RateValue:GetText(), "14,400", "honor gains refresh the displayed rate immediately")
-    PerHour.SettingsPanel.RateFields.Honor:SetValue("minute")
+    PerHour.SettingsPanel.RateField:SetValue("minute")
     equal(honor.View.RateValue:GetText(), "240", "active honor session displays its minute rate")
     equal(honor.View.Frame:IsShown(), false, "currency gains are captured while the panel is hidden")
     changeHonor(-100)
@@ -1702,7 +1751,7 @@ do
     changeHonor(8)
     equal(honor.State.Element, 0, "reset stops currency event tracking")
     equal(honor.View.RateUnit:GetText(), "hon/min", "reset preserves the selected display period")
-    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
+    PerHour.SettingsPanel.RateField:SetValue("hour")
     honorBalance = balance
 end
 
@@ -2251,9 +2300,7 @@ do
     PerHour.SettingsPanel.ModuleFields.Experience:SetValue(false)
     PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
     PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
-    PerHour.SettingsPanel.RateFields.Experience:SetValue("minute")
-    PerHour.SettingsPanel.RateFields.Honor:SetValue("hour")
-    PerHour.SettingsPanel.RateFields.Reputation:SetValue("minute")
+    PerHour.SettingsPanel.RateField:SetValue("minute")
     PerHour.SettingsPanel.SpeedometerHourField:SetValue(70000)
     PerHour.SettingsPanel.SpeedometerMinuteField:SetValue(1100)
     PerHour.SettingsPanel.SpeedometerField:SetValue(true)
@@ -2273,20 +2320,20 @@ do
     equal(PerHour.SettingsPanel.ModuleFields.Experience:GetValue(), false, "reloaded form reads hidden XP")
     equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), true, "reloaded form reads visible honor")
     equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
-    equal(PerHour.SettingsPanel.RateFields.Experience:GetValue(), "minute", "reloaded form reads XP rate preference")
-    equal(PerHour.SettingsPanel.RateFields.Honor:GetValue(), "hour", "reloaded form reads honor rate preference")
-    equal(PerHour.SettingsPanel.RateFields.Reputation:GetValue(), "minute", "reloaded form reads reputation rate preference")
+    equal(PerHour.SettingsPanel.RateField:GetValue(), "minute", "reloaded form reads the shared character rate")
     equal(PerHour.SettingsPanel.SpeedometerField:GetValue(), true, "reload restores the character gauge preference")
     equal(PerHour.SettingsPanel.SpeedometerHourField:GetValue(), 70000, "reload restores the hourly maximum")
     equal(PerHour.SettingsPanel.SpeedometerMinuteField:GetValue(), 1100, "reload restores the minute maximum")
+    equal(PerHour.SettingsPanel.SpeedometerHourField:IsShown(), false, "reload hides the inactive hourly configuration")
+    equal(PerHour.SettingsPanel.SpeedometerMinuteField:IsShown(), true, "reload displays the active minute configuration")
     for _, module in ipairs({ experience, honor, reputation }) do
         equal(module.View.Speedometer:IsShown(), true, "reload enables the gauge in " .. module.Name)
         equal(module.View.RateFrame:IsShown(), true, "reload keeps the numeric display enabled")
-        equal(module.View.Speedometer.Maximum, module.Settings:Get("rate") == "minute" and 1100 or 70000,
+        equal(module.View.Speedometer.Maximum, PerHour.Stores.Settings:GetRate() == "minute" and 1100 or 70000,
             "reload selects the scale matching the panel unit")
     end
     equal(experience.View.RateUnit:GetText(), "XP/min", "reload applies the selected XP unit")
-    equal(honor.View.RateUnit:GetText(), "hon/h", "reload applies the independent honor unit")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "reload applies the shared rate to honor")
     equal(reputation.View.RateUnit:GetText(), "Rep/min", "reload applies the selected reputation unit")
     equal(experience.View.RateValue:GetText(), Utils:DisplayRoundedNumber(experience.State.ElementPerMinute, 0),
         "reload displays the selected rate from restored session values")
@@ -2367,8 +2414,9 @@ do
         end
     end
 end
--- Switching characters recreates the addon with independent preferences and shared rates.
+-- Switching characters recreates the addon with independent layout and rate preferences.
 do
+    local firstRate = PerHour.Stores.Settings:GetRate()
     local firstSettings = copy(PerHourCharacter_Settings)
     event("PLAYER_LOGOUT")
     local firstSessions = copy(PerHourCharacter_Values)
@@ -2384,7 +2432,7 @@ do
     showPanel(honor, true)
     PerHour.TrackerPanels:SavePosition(honor, 600, 700)
     PerHour.MinimapButton:SetAngle(0)
-    experience.Settings:Set("rate", "minute")
+    PerHour.Stores.Settings:SetRate("minute")
     event("PLAYER_LOGOUT")
     local secondSettings = copy(PerHourCharacter_Settings)
     local secondSessions = copy(PerHourCharacter_Values)
@@ -2397,7 +2445,8 @@ do
     near(experience.View.Frame:GetLeft(), firstPosition.x, "returning to the first character restores panel X")
     near(experience.View.Frame:GetTop(), firstPosition.y, "returning to the first character restores panel Y")
     equal(PerHour.Stores.Settings:GetMinimapAngle(), firstAngle, "returning restores the first minimap angle")
-    equal(experience.View.RateUnit:GetText(), "XP/min", "another character's rate selection remains shared")
+    equal(PerHour.Stores.Settings:GetRate(), firstRate, "another character does not change the first rate preference")
+    equal(experience.View.RateUnit:GetText(), "XP/h", "returning restores the first character hourly unit")
 
     PerHourCharacter_Settings = secondSettings
     login(secondSessions, 0)
@@ -2407,6 +2456,8 @@ do
     near(honor.View.Frame:GetLeft(), 600, "returning to the second character restores panel X")
     near(honor.View.Frame:GetTop(), 700, "returning to the second character restores panel Y")
     equal(PerHour.Stores.Settings:GetMinimapAngle(), 0, "returning to the second character preserves zero minimap angle")
+    equal(PerHour.Stores.Settings:GetRate(), "minute", "returning restores the second character minute rate")
+    equal(honor.View.RateUnit:GetText(), "hon/min", "the second rate preference applies across trackers")
 end
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever migration checks (".._VERSION..")")
