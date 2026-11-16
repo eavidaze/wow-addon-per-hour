@@ -36,6 +36,9 @@
 
 ## Code and documentation
 
+- Ask for explicit approval before implementing any new data or settings migration.
+  Some addon configuration loss is acceptable; do not infer migration approval
+  from a feature request or refactor. Migrations remain an option when approved.
 - Target WoW Forever; use `per-hour.toc` as the source of truth for version and interface numbers.
 - Name module Lua files in PascalCase, such as `Honor.lua` and `Experience.lua`.
 - Match filename casing exactly in TOC/XML references, including when working on Windows.
