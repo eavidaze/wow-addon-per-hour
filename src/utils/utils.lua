@@ -56,6 +56,10 @@ function Utils:IsReadableNumber(value)
     return not (issecretvalue and issecretvalue(value)) and type(value) == "number"
 end
 
+function Utils:IsFiniteNumber(value)
+    return self:IsReadableNumber(value) and value == value and value > -math.huge and value < math.huge
+end
+
 function Utils:DisplayRoundedNumber(num, numDecimals)
     return Utils:DisplayNumber(Utils:RoundValue(num, numDecimals))
 end

@@ -19,6 +19,7 @@ per hour or minute while leveling, playing PvP or working toward your next rewar
 
 - **Take a break:** pause each tracker independently to exclude paused time and gains.
 - **See the whole session:** hover for totals, active time and both rates.
+- **Plan your next milestone:** see estimated time to the next level or reputation standing; optionally show it below the rate.
 - **Watch your XP pace:** enable an optional speedometer with ten scale levels.
 - **Make room for your UI:** move or hide windows; layouts and the shared display unit are saved per character.
 - **Pick up where you left off:** sessions are saved between reloads and logins.
@@ -28,7 +29,8 @@ per hour or minute while leveling, playing PvP or working toward your next rewar
 
 1. Click the minimap clock or type `/perhour`, choose a tracker and press **Start**.
 2. Right-click the clock for **Settings**: choose hourly or per-minute rates,
-   select your watched reputation, or enable **Show speedometer** under Experience.
+   enable **Show estimates** in General, select your watched reputation,
+   or enable **Show speedometer** under Experience.
 3. Use the tracker's **Options** gear to reset a session or announce your results.
 
 Closing a window keeps its session running. **Pause** stops counting temporarily;

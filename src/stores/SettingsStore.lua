@@ -66,6 +66,15 @@ function SettingsStore:SetRate(rate)
     PerHourCharacter_Settings.rate = rate
 end
 
+function SettingsStore:GetEstimatesEnabled()
+    return PerHourCharacter_Settings.showEstimates == true
+end
+
+function SettingsStore:SetEstimatesEnabled(enabled)
+    assert(type(enabled) == "boolean", "Estimate visibility must be boolean")
+    PerHourCharacter_Settings.showEstimates = enabled
+end
+
 function SettingsStore:GetMinimapAngle()
     return PerHourCharacter_Settings.minimap.angle
 end

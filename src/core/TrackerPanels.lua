@@ -8,6 +8,7 @@ local TrackerPanels = {}
 PerHour.TrackerPanels = TrackerPanels
 
 local WIDTH, HEIGHT = 180, 94
+local ESTIMATE_HEIGHT, ESTIMATE_GAP = 14, 4
 local CONTROL_SIZE = 28
 local UPDATE_INTERVAL = 1
 local CHANNELS = { "Say", "Yell", "Party", "Guild", "Raid" }
@@ -201,18 +202,18 @@ local function CreatePanel(module, index, count)
     end)
 end
 
-local function GetTrackingState(module)
-    if not module.State.HasStarted then return "Start", "Not started", 0.5, 0.5, 0.5 end
-    if module.State.HasPaused then return "Resume", "Paused", 1, 0.8, 0 end
-    return "Pause", "Running", 0.2, 1, 0.2
-end
-
 local function ShowRunTooltip(module)
-    local _, status, r, g, b = GetTrackingState(module)
+    local status = BaseModule:GetTrackingStatus(module)
+    local r, g, b = unpack(Theme.trackerStatus[status.key])
     local totalUnit = module.Name == "Experience" and "XP" or module.Name
     GameTooltip:SetText(module.Name, goldR, goldG, goldB)
-    GameTooltip:AddLine(status, r, g, b)
+    GameTooltip:AddLine(status.label, r, g, b)
     if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 0.8, 0.8, 0.8, true) end
+    if module.CustomGetEstimateGoal then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Estimate", goldR, goldG, goldB)
+        GameTooltip:AddLine(BaseModule:GetEstimate(module), r, g, b)
+    end
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Session", goldR, goldG, goldB)
     GameTooltip:AddDoubleLine("Duration", Utils:DisplayTimer(module.State.Time), 0.7, 0.7, 0.7, 1, 1, 1)
@@ -238,6 +239,18 @@ local function CreateValues(module)
     module.View.RateValue = rateFrame.Value
     module.View.RateUnit = rateFrame.Unit
 
+    if module.CustomGetEstimateGoal then
+        local estimate = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local font, size, flags = estimate:GetFont()
+        estimate:SetFont(font, math.min(size, 10), flags)
+        estimate:SetJustifyH("CENTER")
+        estimate:SetWordWrap(false)
+        estimate:SetHeight(ESTIMATE_HEIGHT)
+        estimate:SetPoint("TOP", rateFrame, "BOTTOM", 0, -ESTIMATE_GAP)
+        estimate:Hide()
+        module.View.EstimateText = estimate
+    end
+
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         ShowRunTooltip(module)
@@ -249,7 +262,8 @@ end
 
 local function RefreshDisplayLayout(module)
     local enabled = module.Name == "Experience" and PerHour.Stores.Settings:GetSpeedometerEnabled()
-    if module.View.SpeedometerEnabled == enabled then return end
+    local estimates = module.CustomGetEstimateGoal ~= nil and PerHour.Stores.Settings:GetEstimatesEnabled()
+    if module.View.SpeedometerEnabled == enabled and module.View.EstimatesEnabled == estimates then return end
     local frame, content, rate = module.View.Frame, module.View.DisplayContent, module.View.RateFrame
     local left, top = frame:GetLeft(), frame:GetTop()
     if enabled and not module.View.Speedometer then
@@ -257,21 +271,28 @@ local function RefreshDisplayLayout(module)
         module.View.Speedometer:SetPoint("TOP", content, "TOP", 0, 0)
     end
     local gaugeHeight = enabled and module.View.Speedometer:GetHeight() or 0
+    local estimateHeight = estimates and (ESTIMATE_HEIGHT + ESTIMATE_GAP) or 0
     local contentWidth = enabled and math.max(WIDTH - 30, module.View.Speedometer:GetWidth()) or WIDTH - 30
     frame:SetWidth(contentWidth + 30)
-    frame:SetHeight(HEIGHT + gaugeHeight)
-    content:SetSize(contentWidth, rate:GetHeight() + gaugeHeight)
+    frame:SetHeight(HEIGHT + gaugeHeight + estimateHeight)
+    content:SetSize(contentWidth, rate:GetHeight() + gaugeHeight + estimateHeight)
     rate:ClearAllPoints()
     if enabled then
         module.View.Speedometer:Show()
         rate:SetPoint("TOP", module.View.Speedometer, "BOTTOM", 0, 0)
     else
         if module.View.Speedometer then module.View.Speedometer:Hide() end
-        rate:SetPoint("CENTER", content, "CENTER", 0, 0)
+        if estimates then rate:SetPoint("TOP", content, "TOP", 0, 0)
+        else rate:SetPoint("CENTER", content, "CENTER", 0, 0) end
+    end
+    if module.View.EstimateText then
+        module.View.EstimateText:SetWidth(contentWidth)
+        module.View.EstimateText:SetShown(estimates)
     end
     frame:ClearAllPoints()
     frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
     module.View.SpeedometerEnabled = enabled
+    module.View.EstimatesEnabled = estimates
     if frame:IsShown() and module.Settings:Get("isShown") then PlaceShownPanel(module) end
 end
 
@@ -398,11 +419,11 @@ function TrackerPanels:SaveDraggingPositions()
 end
 
 function TrackerPanels:RefreshTrackingState(module)
-    local text, _, r, g, b = GetTrackingState(module)
-    if module.View.TrackingText ~= text then
-        module.View.TrackingText = text
-        module.View.ToggleStartButton:SetText(text)
-        module.View.ActiveIndicator:SetVertexColor(r, g, b)
+    local status = BaseModule:GetTrackingStatus(module)
+    if module.View.TrackingStatus ~= status.key then
+        module.View.TrackingStatus = status.key
+        module.View.ToggleStartButton:SetText(status.action)
+        module.View.ActiveIndicator:SetVertexColor(unpack(Theme.trackerStatus[status.key]))
     end
     local enabled = module.State.PendingRestore == nil
     if module.View.TrackingEnabled ~= enabled then
@@ -451,6 +472,15 @@ function TrackerPanels:RefreshRate(module, skipHidden)
     local perMinute = PerHour.Stores.Settings:GetRate() == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
     module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
+    if module.View.EstimatesEnabled then
+        local status = BaseModule:GetTrackingStatus(module)
+        if module.View.EstimateStatus ~= status.key then
+            module.View.EstimateStatus = status.key
+            module.View.EstimateText:SetTextColor(unpack(Theme.trackerStatus[status.key]))
+        end
+        local estimate = BaseModule:GetEstimate(module)
+        if module.View.EstimateText:GetText() ~= estimate then module.View.EstimateText:SetText(estimate) end
+    end
     if module.View.SpeedometerEnabled then
         module.View.Speedometer:SetRate(value,
             PerHour.Stores.Settings:GetSpeedometerMaximum(perMinute and "minute" or "hour"))

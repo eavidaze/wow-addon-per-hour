@@ -212,6 +212,36 @@ The shared unit is saved per character. Changes persist through the
 tracking totals, duration and pause state; large numbers keep their abbreviation.
 The session tooltip still lists both rates.
 
+Experience and Reputation tooltips place **Estimate** first, below the title,
+tracking status and faction context, followed by **Session** and **Rates**.
+Experience predicts the next level (`Level 43 in 2h 13m`); Reputation predicts
+the next standard standing of the session's watched faction
+(`Honored in 1h 23m`). Honor keeps its Session and Rates sections.
+Estimates use current remaining progress divided by the unrounded session mean.
+Paused time is excluded; idle time while tracking is included. Durations round
+up to whole minutes, with a minimum of `1m` and hours allowed beyond 24.
+The shared tracking timer refreshes an open tooltip without resizing the panel.
+
+Before tracking, the estimate reads **Not started**. During the first active
+minute it reads **Estimating…**, and while paused it reads **Paused**.
+After that first minute, zero or negative means show **No estimate available**;
+the same message covers missing or unreadable progress, pending restoration,
+and friendship, renown or paragon reputations. Maximum level and Exalted show
+**Max level reached** and **Exalted reached** instead of a time.
+Level and standing changes advance the goal without resetting the session;
+changing the watched faction follows the existing reputation reset.
+**General → Show estimates** also displays the same estimate below the numeric
+rate in Experience and Reputation. The line uses centered text at 10 px,
+with a 4 px gap. Its color matches the button's diamond: gray before tracking,
+green while running and yellow while paused. `BaseModule:GetTrackingStatus()`
+provides the shared status key, action and label; `Theme.trackerStatus` supplies
+its DS color. The button, tooltip status and both estimate displays consume
+that same status. The checkbox defaults to disabled and is saved per character;
+it does not hide the tooltip estimate. Enabling it adds 18 px of panel height
+(180 x 112 without the gauge, or 240 x 222 with the XP gauge), and disabling it
+restores the layout without the extra line. It uses the shared refresh timer,
+skips unchanged text and refreshes hidden panels when they are shown.
+
 **Experience** has an indented **Show speedometer** row with a checkbox and
 the maximum slider immediately to its right, without a separate maximum label.
 The checkbox defaults to disabled and applies only to Experience, for the current character.

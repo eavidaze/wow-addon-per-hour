@@ -1,6 +1,45 @@
 -- definition
 BaseModule = {}
 
+local TRACKING_STATUS = {
+    idle = { key = "idle", action = "Start", label = "Not started" },
+    running = { key = "running", action = "Pause", label = "Running" },
+    paused = { key = "paused", action = "Resume", label = "Paused" },
+}
+
+function BaseModule:GetTrackingStatus(contextModule)
+    local state = contextModule.State
+    if not state.HasStarted then return TRACKING_STATUS.idle end
+    if state.HasPaused then return TRACKING_STATUS.paused end
+    return TRACKING_STATUS.running
+end
+
+-- Goals read live progress; the average uses unrounded active-session totals.
+function BaseModule:GetEstimate(contextModule)
+    local state = contextModule.State
+    local status = self:GetTrackingStatus(contextModule)
+    if status.key ~= "running" then return status.label end
+    local unavailable = "No estimate available"
+    if state.PendingRestore or not PerHour.Session.InWorld then return unavailable end
+    local goal, remaining, reached = contextModule.CustomGetEstimateGoal()
+    if reached then return reached end
+    if not goal or not Utils:IsFiniteNumber(remaining) or remaining <= 0
+        or not Utils:IsFiniteNumber(state.Time) or state.Time < 0
+        or not Utils:IsFiniteNumber(state.Element) then return unavailable end
+    if state.Time < 60 then return "Estimating…" end
+    if state.Element <= 0 then return unavailable end
+    local minutes = remaining / (state.Element / (state.Time / 60))
+    if not Utils:IsFiniteNumber(minutes) then return unavailable end
+    minutes = math.max(1, math.ceil(minutes))
+    local hours = math.floor(minutes / 60)
+    minutes = minutes % 60
+    local duration = hours > 0 and string.format("%.0fh", hours) or ""
+    if minutes > 0 then
+        duration = duration .. (hours > 0 and " " or "") .. string.format("%.0fm", minutes)
+    end
+    return goal .. " in " .. duration
+end
+
 local function FormatAnnouncementDuration(time)
     local hours = math.floor(time / 3600)
     local minutes = math.floor((time % 3600) / 60)

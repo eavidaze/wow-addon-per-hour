@@ -32,6 +32,7 @@ end
 function SettingsPanel:Refresh()
     if not self.Frame then return end
     self.RateField:SetValue(PerHour.Stores.Settings:GetRate(), true)
+    self.EstimatesField:SetValue(PerHour.Stores.Settings:GetEstimatesEnabled(), true)
     self.SpeedometerField:SetValue(PerHour.Stores.Settings:GetSpeedometerEnabled(), true)
     for name, field in pairs(self.ModuleFields) do
         field:SetValue(PerHour.Modules[name].Settings:Get("isShown"), true)
@@ -68,6 +69,14 @@ function SettingsPanel:Show()
             onChanged = function(value)
                 PerHour.Stores.Settings:SetRate(value)
                 self:RefreshSpeedometerFields()
+                PerHour.TrackerPanels:RefreshDisplays()
+            end,
+        })
+        self.EstimatesField = general:AddField({
+            type = "checkbox", label = "Show estimates",
+            value = PerHour.Stores.Settings:GetEstimatesEnabled(),
+            onChanged = function(enabled)
+                PerHour.Stores.Settings:SetEstimatesEnabled(enabled)
                 PerHour.TrackerPanels:RefreshDisplays()
             end,
         })
