@@ -50,6 +50,13 @@ plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
 Experience, Honor and Reputation: `hour` (default) or `minute`. It is saved in
 `PerHourCharacter_Settings.rate`. Invalid saved rates recover the default.
 
+`GetEstimatesEnabled()` and `SetEstimatesEnabled(boolean)` control the small
+estimate line below the XP and Reputation rates. The checkbox lives in General
+and writes `PerHourCharacter_Settings.showEstimates`. Only `true` enables it;
+missing or invalid values read as disabled without rewriting saved settings.
+There is no migration. The preference survives reloads and is independent
+between characters; tooltip estimates remain available with either value.
+
 `GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control the XP
 speedometer for the current character, disabled by default. Honor and Reputation
 keep their numeric displays. `GetSpeedometerLevel()` and `SetSpeedometerLevel(level)`

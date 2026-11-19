@@ -13,6 +13,21 @@ Module.ShortName = "XP"
 Module.AnnouncementUnit = "XP"
 Module.RegisteredEvents = { "PLAYER_XP_UPDATE" }
 
+Module.CustomGetEstimateGoal = function()
+    local currentLevel = UnitLevel("player")
+    if not Utils:IsFiniteNumber(currentLevel) or currentLevel <= 0 then return end
+    local maxLevel = GetMaxPlayerLevel and GetMaxPlayerLevel()
+    if Utils:IsFiniteNumber(maxLevel) and maxLevel > 0 and currentLevel >= maxLevel then
+        return nil, nil, "Max level reached"
+    end
+    local currentXp, maxXp = UnitXP("player"), UnitXPMax("player")
+    if not Utils:IsFiniteNumber(currentXp) or not Utils:IsFiniteNumber(maxXp)
+        or currentXp < 0 or maxXp <= currentXp then return end
+    -- A lower XP value at the same level can be an incomplete level-up snapshot.
+    if Module.State.LastLevel == currentLevel and currentXp < Module.State.LastXp then return end
+    return "Level " .. (currentLevel + 1), maxXp - currentXp
+end
+
 -- custom functions
 Module.CustomOnUpdate = function(self, elapsed)
     local currentMaxXp = UnitXPMax("player")

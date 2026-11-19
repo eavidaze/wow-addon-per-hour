@@ -24,7 +24,8 @@ code changes only need `/reload`.
 - Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
 - Windows automatically stay apart when moved or reopened.
 - The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
-- Hover over a window to see session duration, total gained, hourly and per-minute rates, and the tracked faction.
+- Hover over a window for session details and estimates to the next XP level or reputation standing.
+- Enable **Show estimates** in **Settings → General** to also display predictions below the rates.
 - Choose a watched faction in **Settings** or the game's reputation panel;
   switching factions resets the reputation tracker.
 

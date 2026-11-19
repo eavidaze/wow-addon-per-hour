@@ -2,6 +2,15 @@
 
 Run `lua tests/forever.lua` with Lua 5.1. It also runs `tests/performance.lua`
 against the same simulated client used by the tracking and session checks.
+The suite also runs `tests/estimates.lua` for tooltip section order, live goal
+updates, unrounded session means, minute rounding, pauses, level and standing
+changes, maximum progress, faction changes and unavailable or special progress.
+It also covers the General estimate toggle, centered panel text, gauge
+coexistence, immediate updates, unchanged-text/color caching and saved visibility.
+Status-color checks keep the button diamond, tooltip status and both estimates
+in sync when starting, pausing, resuming, resetting and showing hidden panels.
+These are simulation checks; tooltip layout and progress APIs still need
+confirmation in WoW Forever.
 
 The integration checks cover one shared timer, idle and loading-screen shutdown,
 event bursts followed by fallback sampling, level-ups, paused gains, hidden panel

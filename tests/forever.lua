@@ -93,6 +93,7 @@ end
 function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:SetTextColor(...) self.textColor = { ... } end
+function methods:SetJustifyH(value) self.justifyH = value end
 function methods:SetTexture(texture, wrapHorizontal, wrapVertical, filterMode)
     assert(texture ~= nil, "texture must be available")
     self.texture = texture
@@ -296,9 +297,11 @@ function methods:CreateLine() return object() end
 function methods:SetStartPoint(...) self.startPoint = { ... } end
 function methods:SetEndPoint(...) self.endPoint = { ... } end
 function methods:CreateMaskTexture() return object() end
-function methods:AddLine(text)
+function methods:AddLine(text, r, g, b)
     self.singleLines = rawget(self, "singleLines") or {}
+    self.singleLineColors = rawget(self, "singleLineColors") or {}
     table.insert(self.singleLines, text)
+    table.insert(self.singleLineColors, { r, g, b })
 end
 function methods:AddDoubleLine(label, value)
     self.lines = rawget(self, "lines") or {}
@@ -314,9 +317,11 @@ GameNoHeaderTooltip = object("GameNoHeaderTooltip")
 GameNoHeaderTooltip:Hide()
 function methods:ClearLines()
     self.text, self.lines, self.singleLines = "", {}, {}
+    self.singleLineColors = {}
 end
 function GameTooltip:SetText(text)
     self.text, self.lines, self.singleLines = text, {}, {}
+    self.singleLineColors = {}
 end
 local cursorX, cursorY = 400, 400
 function GetCursorPosition() return cursorX, cursorY end
@@ -479,6 +484,7 @@ end
 function UnitXP(_unit) return xp end
 function UnitXPMax(_unit) return xpMax end
 function UnitLevel(_unit) return level end
+function GetMaxPlayerLevel() return 60 end
 -- Keep honor-level XP fixed, matching the live dump even when Honor Points increase.
 function UnitHonor(_unit) return 0 end
 function UnitHonorMax(_unit) return 5500 end
@@ -512,6 +518,8 @@ local function factionRows(all)
 end
 C_Reputation = {
     GetWatchedFactionData = function() return watched end,
+    IsMajorFaction = function() return watched and watched.isMajorFaction or false end,
+    IsFactionParagon = function() return watched and watched.isParagon or false end,
     GetNumFactions = function() return #factionRows() end,
     GetFactionDataByIndex = function(index) return factionRows()[index] end,
     ExpandFactionHeader = function(index)
@@ -534,6 +542,9 @@ C_Reputation = {
         if factionChanged then factionChanged() end
     end,
 }
+C_GossipInfo = { GetFriendshipReputation = function()
+    return { friendshipFactionID = watched and watched.friendshipFactionID or 0 }
+end }
 C_CurrencyInfo = { GetCurrencyInfo = function(id)
     if id == 1792 then return { name = "Honor Points", quantity = honorBalance, totalEarned = 0 } end
 end }
@@ -839,12 +850,12 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 406, "settings fits the nested speedometer and faction rows")
+    equal(panel:GetHeight(), 446, "settings fits estimates, nested speedometer and faction rows")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 2, "settings contains general and panel groups")
     equal(panel.Fields[1].TitleText:GetText(), "General", "shared display preferences belong to General")
     equal(panel.Fields[2].TitleText:GetText(), "Show trackers", "visibility group describes the tracker toggles")
-    equal(#panel.Fields[1].Fields, 1, "general contains only the shared rate field")
+    equal(#panel.Fields[1].Fields, 2, "general contains rate and estimate visibility")
     equal(#panel.Fields[2].Fields, 3, "panels contains three visibility rows")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
@@ -2420,6 +2431,7 @@ do
     PerHour.SettingsPanel.ModuleFields.Honor:SetValue(true)
     PerHour.SettingsPanel.ModuleFields.Reputation:SetValue(false)
     PerHour.SettingsPanel.RateField:SetValue("minute")
+    PerHour.SettingsPanel.EstimatesField:SetValue(true)
     PerHour.SettingsPanel.SpeedometerMaximumField:SetValue(7)
     PerHour.SettingsPanel.SpeedometerField:SetValue(true)
     PerHour.MinimapButton:SetAngle(math.rad(315))
@@ -2439,6 +2451,9 @@ do
     equal(PerHour.SettingsPanel.ModuleFields.Honor:GetValue(), true, "reloaded form reads visible honor")
     equal(PerHour.SettingsPanel.ModuleFields.Reputation:GetValue(), false, "reloaded form reads hidden reputation")
     equal(PerHour.SettingsPanel.RateField:GetValue(), "minute", "reloaded form reads the shared character rate")
+    equal(PerHour.SettingsPanel.EstimatesField:GetValue(), true, "reload restores estimate visibility")
+    equal(experience.View.EstimateText:IsShown(), true, "reload restores the XP estimate line")
+    equal(experience.View.Frame:GetHeight(), 222, "restored gauge and estimate reserve their own space")
     equal(PerHour.SettingsPanel.SpeedometerField:GetValue(), true, "reload restores the character gauge preference")
     equal(PerHour.SettingsPanel.SpeedometerMaximumField:GetValue(), 7, "reload restores the single maximum level")
     equal(PerHour.SettingsPanel.SpeedometerMaximumField:IsShown(), true, "reload displays the single maximum field")
@@ -2461,6 +2476,7 @@ do
     near(PerHour.MinimapButton.point[5], -75 / math.sqrt(2), "reload applies the saved minimap Y")
     PerHour.SettingsPanel.SpeedometerField:SetValue(false)
     PerHour.SettingsPanel.SpeedometerMaximumField:SetValue(5)
+    PerHour.SettingsPanel.EstimatesField:SetValue(false)
     PerHour.SettingsPanel.Frame:Hide()
 end
 -- Reset one runtime without replacing containers held by callbacks or neighboring modules.
@@ -2578,6 +2594,22 @@ do
     equal(PerHour.Stores.Settings:GetRate(), "minute", "returning restores the second character minute rate")
     equal(honor.View.RateUnit:GetText(), "hon/min", "the second rate preference applies across trackers")
 end
+assert(loadfile("tests/estimates.lua"))()({
+    equal = equal, tick = tick, event = event, click = click,
+    fresh = function()
+        PerHourCharacter_Settings = nil
+        xp, xpMax, level = 100, 1000, 10
+        watched = { name = "Stormwind", factionID = 72, currentStanding = 0,
+            reaction = 4, currentReactionThreshold = 0, nextReactionThreshold = 3000 }
+        login(nil, 0)
+    end,
+    progress = function(values)
+        if values.xp ~= nil then xp = values.xp end
+        if values.maximum ~= nil then xpMax = values.maximum end
+        if values.level ~= nil then level = values.level end
+    end,
+    faction = function(data) watched = data end,
+})
 assert(loadfile("tests/performance.lua"))()({
     equal = equal, near = near, tick = tick, event = event, click = click,
     fresh = function()

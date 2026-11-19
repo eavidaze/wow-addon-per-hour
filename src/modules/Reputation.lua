@@ -16,6 +16,31 @@ local function GetWatchedFaction()
     end
 end
 
+local STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+
+Module.CustomGetEstimateGoal = function()
+    local data = GetWatchedFaction()
+    if not data or not Utils:IsFiniteNumber(data.factionID) or data.factionID <= 0
+        or data.factionID ~= Module.State.LastFactionID then return end
+    -- Friendship, renown and paragon do not use the standard standing ladder.
+    if C_Reputation.IsMajorFaction and C_Reputation.IsMajorFaction(data.factionID) then return end
+    if C_Reputation.IsFactionParagon and C_Reputation.IsFactionParagon(data.factionID) then return end
+    if C_GossipInfo and C_GossipInfo.GetFriendshipReputation then
+        local friendship = C_GossipInfo.GetFriendshipReputation(data.factionID)
+        if friendship and (not Utils:IsFiniteNumber(friendship.friendshipFactionID)
+            or friendship.friendshipFactionID > 0) then return end
+    end
+    local reaction = data.reaction
+    if not Utils:IsFiniteNumber(reaction) or not STANDINGS[reaction] then return end
+    if reaction == #STANDINGS then return nil, nil, "Exalted reached" end
+    if not Utils:IsFiniteNumber(data.currentStanding)
+        or not Utils:IsFiniteNumber(data.currentReactionThreshold)
+        or not Utils:IsFiniteNumber(data.nextReactionThreshold)
+        or data.currentStanding < data.currentReactionThreshold
+        or data.currentStanding >= data.nextReactionThreshold then return end
+    return STANDINGS[reaction + 1], data.nextReactionThreshold - data.currentStanding
+end
+
 -- Expand only while reading so collapsed and inactive groups remain selectable.
 function Module:GetTrackableFactions()
     local options, seen, expanded = {}, {}, {}
