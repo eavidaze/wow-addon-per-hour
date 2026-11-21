@@ -141,12 +141,17 @@ local function InitializeRow(row, entry)
     local source = SOURCES[entry.source]
     row.Time:SetText(entry.timestamp and date("%H:%M:%S", entry.timestamp) or "—")
     local name
+    row.Name:SetTextColor(unpack(Theme.text))
     -- The panel owns delayed metadata refreshes. Native SetItem's asynchronous
     -- binding could outlive a recycled row and overwrite a different event icon.
     row.Icon:SetItemButtonCount(0)
     if entry.itemID then
         local itemName, link, quality, _, _, _, _, _, _, icon = C_Item.GetItemInfo(entry.itemLink or entry.itemID)
         name = itemName
+        if quality then
+            local r, g, b = C_Item.GetItemQualityColor(quality)
+            row.Name:SetTextColor(r, g, b)
+        end
         row.Icon:SetItemButtonTexture(icon or C_Item.GetItemIconByID(entry.itemID) or "Interface\\Icons\\INV_Misc_QuestionMark")
         row.Icon:SetItemButtonQuality(quality, link or entry.itemLink)
         if not name then
