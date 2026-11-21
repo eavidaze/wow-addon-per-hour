@@ -66,8 +66,9 @@ the dial labels, needle position and native overload state. The coordinator supp
 the existing session rate to both displays, without changing the tracking calculation.
 Gold uses the same controls and layout, converts copper rates to gold for the
 panel, and requests two decimal places from the numeric display. Tooltip totals
-and rates use its monetary formatter. Its context line identifies vendor-based
-estimated net value and reports pending item prices. View the event journal
+and rates use its monetary formatter. Its context line identifies the internal
+TSM → Auctionator → Vendor priority, vendor minimum and pending item prices.
+Item icons in Details show the recorded source and value. View the event journal
 through **Gold → Options → Details** or a left-click on the Gold tracker's
 background/rate. Gold's tooltip lists that shortcut; dragging and footer controls
 keep their actions. See [Gold tracking](gold-tracking.md).

@@ -11,28 +11,67 @@ negative totals and rates are allowed.
 | Event | Effect on the session |
 | --- | --- |
 | Money looted by the player, including a party share | Add the player's amount, excluding guild deposits. |
-| Looted items and received item rewards, including quest items | Add vendor unit price × quantity when received. |
+| Looted items and received item rewards | Add selected unit price × quantity when received. |
 | Quest money | Add the `moneyReward` from `QUEST_TURNED_IN`. |
-| Items delivered to a completed quest | Subtract vendor unit price × confirmed required quantity, including items already in the bags before the session. |
-| Consumable actually used, including food and potions already in the bags | Subtract vendor value of one consumed item. |
+| Items delivered to a completed quest | Subtract recorded acquisition values for the required quantity; quote unmatched old stock. |
+| Consumable actually used, including food and potions already in the bags | Subtract one recorded acquisition value, or quote unmatched old stock. |
 | Personal repair, including repair-all and individual repair | Subtract the actual money debit associated with the native repair action. |
 | Paid taxi flight | Subtract the actual money debit associated with the selected route. |
 
 An item contributes when collected, so selling it later does not contribute
 again. Selling old inventory is also excluded. Ordinary money-balance changes
 are never treated as income. Trades, mail, item purchases, buybacks, crafting,
-bank transfers, and guild-funded repairs are excluded in M1. Purchases are not
-deducted: consumables contribute their vendor cost when used, avoiding a charge
+bank transfers, and guild-funded repairs remain excluded. Purchases are not
+deducted: consumables contribute their estimated value when used, avoiding a charge
 for both buying and consuming them. This is estimated farming value rather than
-cash profit or acquisition-cost accounting. Auctionator is reserved for M2.
+cash profit or actual purchase-cost accounting.
 
 Item data may not yet be cached. The journal keeps such entries pending and
 requests native item data; the tooltip reports pending prices. When data arrives,
 only the original accepted entry is settled, including during a pause. A known
-zero vendor price is ignored, including unsellable quest items. A pending entry
+zero selected price is ignored, including unsellable quest items. A pending entry
 is removed if its loaded price is zero; missing item data is never treated as a
 zero price. Valuable quest rewards remain included. Resolved positive prices
 stay fixed. Zero-value consumable uses are also omitted.
+
+## Pricing providers (M2)
+
+The fixed internal priority is **TSM → Auctionator → Vendor**, with vendor as the
+minimum and no source selector. Both addons are optional dependencies in the TOC.
+TSM uses `DBMarket`; Auctionator uses its last scanned price. The first valid
+positive market quote wins, even if a lower-priority addon reports more. If that
+quote is below vendor, vendor wins. Missing APIs, missing data, errors, secret or
+invalid prices fall through to the next provider. Prices are integer copper;
+market estimates are rounded and are gross, without AH commission or deposits.
+
+`src/pricing/providers/` contains the independent adapters, `Pricing.lua` selects
+quotes, and `Ledger.lua` allocates recorded values to expenses. Only public local
+addon APIs are used: there are no network requests, scans or forced addon loads.
+Availability is checked at each valuation, so late addon initialization affects
+future events. Rendering history never queries market providers.
+
+Native metadata first establishes vendor value and binding type. Only potentially
+tradable types (unbound, bind-on-equip, bind-on-use), outside the quest item class,
+receive market quotes. Bind-on-acquire, quest and account-bound items use vendor.
+Tradable zero-vendor items may still have AH value. Missing native metadata stays
+pending; missing market data uses vendor immediately. Accepted prices stay fixed,
+including when scans update or providers become available later.
+
+Expenses consume recorded acquisitions FIFO by item ID, using the oldest saved
+unit values first. Any unmatched quantity is old stock and receives a new quote
+at use. Several acquisition prices can form one expense row, with quantity and
+source/value parts saved separately. This prevents market changes from leaving
+profit assigned to units already consumed or delivered. FIFO allocates journal
+events rather than identifying physical units in identical stacks; external and
+paused movements remain outside the tracked transactions.
+
+New item records carry `pricingVersion = 1`, `priceSource` and `priceMetric` when
+resolved. Expenses also save `valuations` parts with quantities, unit prices and
+acquisition/old-stock provenance. Mixed prices may have no single `unitPrice`.
+Restore validates parts, totals and their acquisition allocations. Existing
+entries are not rewritten; pending M1 entries keep vendor valuation, and resolved
+entries keep their saved values. No migration is introduced: the shared save
+version stays 2 and Gold's context version stays 1.
 
 ## Detection and boundaries
 
@@ -58,7 +97,7 @@ the full required loss. Bag updates may precede completion or follow within two
 seconds. Each item produces one `quest_turnin` expense for its required quantity;
 extra copies remaining in the bags are not charged. Overlapping deliveries cannot
 reuse the same observed loss. The recorded time is the completion time, even if
-the bag evidence or vendor price arrives later. Known zero-value items are omitted;
+the bag evidence or item price arrives later. Known zero-value items are omitted;
 uncached prices use the existing pending-price journal and survive reload once
 the delivery has been recorded.
 
@@ -92,7 +131,7 @@ M1 records the journal; M1.5 displays it through Gold's **Details** action.
 `Gold.State.History` contains active-session elapsed time, an event `timestamp`
 from `GetServerTime()` for new records, source, signed amount
 in copper, and direction (`1` or `-1`). Item entries also hold item ID/link,
-quantity, vendor unit price or `pending = true`; quest money holds the quest ID.
+quantity, recorded valuation or `pending = true`; quest money holds the quest ID.
 Pushed item rewards use `item_reward`, distinct from corpse/self loot items.
 When `QUEST_LOOT_RECEIVED` supplies an ID, it annotates a matching pushed item
 receipt with `questID`, using the full item link and quantity within two seconds
@@ -122,7 +161,7 @@ Options and Close retain their own actions. The
 560 × 512 panel shares Settings' border, boxed title, dragging and close controls.
 It has three columns: **Time**, **Event** and **Value**. Headers sit below the
 session summary, immediately above the event list. The summary
-uses three rows: **Loot & rewards** (incoming money and vendor-valued items),
+uses three rows: **Loot & rewards** (incoming money and valued items),
 **Expenses & items used** (money spent and the value of consumed/delivered items),
 and **Estimated net profit** (income minus expenses). Labels use the same normal
 font size and left indentation as event names. Income labels and values use DS
@@ -139,9 +178,9 @@ their artwork. A native yellow quest `!` sits between the event icon and name
 only when a `questID` is recorded. Its slot is reserved on every row to align
 names, with a hover area larger than the symbol. Fonts and money symbols use the
 native game presentation.
-**Items valued at vendor prices.** appears in the tracker tooltip and as a
-discreet note below the Details event list. It describes item valuation; looted
-money, quest money, repairs and transport keep their recorded amounts. The tooltip
+**Item prices: TSM > Auctionator > Vendor; vendor minimum.** appears in the tracker
+tooltip and below the Details list. It describes item valuation; looted money,
+quest money, repairs and transport keep their recorded amounts. The tooltip
 also appends **Item prices pending.** while any accepted item price is unresolved.
 Each row has a thin copper lower border. The DS owns its color
 (`0.72, 0.45, 0.40` RGB), 3 px height and 20% opacity through `Theme.rowDivider`.
@@ -190,8 +229,13 @@ The first outgoing item row represents ten ribs delivered to the quest: its
 item icon opens the item tooltip and its `!` opens the completed quest tooltip.
 
 Item rows use the actual item icon and the standard item tooltip on hover,
-preferring the saved item link to preserve item-specific properties. Loot-pouch
-icons show a standard GameTooltip with **Looted money** or **Quest reward** and
+preferring the saved item link to preserve item-specific properties.
+Item tooltips group Per Hour's additions under **Per Hour valuation:** in DS gold,
+with white labels and values for the recorded price source, value and breakdown.
+Mixed expense
+valuations list their source/quantity/value portions, combining identical prices.
+These lines use saved snapshots, including the Vendor label for old M1 entries.
+Loot-pouch icons show a standard GameTooltip with **Looted money** or **Quest reward** and
 the recorded value using native money symbols. Flight and repair icons have no
 tooltip. All event names remain passive and have no tooltip.
 In this example, `!` represents the native quest icon, not a typed character.
@@ -235,6 +279,9 @@ prices, bounded row reuse, scroll anchoring, pause, Reset and restored history.
 `tests/gold-quest-deliveries.lua` covers required quantities, completion and bag
 event ordering, multiple items, duplicate/overlapping deliveries, pending prices,
 save/restore, native item/quest tooltips and rejected ambiguous or canceled cases.
+`tests/pricing.lua` covers provider priority, vendor floors, unavailable/broken
+APIs, invalid quotes, binding eligibility, fixed price snapshots, mixed FIFO
+expenses, pending dependencies, legacy history and source/value tooltips.
 
 In WoW Forever, verify solo/group looted coins, guild deposits, stacked loot and
 quest rewards; confirm trade/mail/vendor receipts and old-item sales are excluded.
@@ -253,6 +300,10 @@ alignment, local clock times and both Close controls. While reading older entrie
 and confirm that the same entry stays in view. Hover an item's icon and its
 quest marker separately to check both standard tooltips. Native drawing,
 clipping and mouse routing still need in-game validation.
+For M2, verify the actual APIs with TSM only, Auctionator only, both installed,
+and neither installed. Compare new quotes with TSM's DBMarket and Auctionator's
+scan data. Update prices and reload between collection and delivery to confirm
+the original values remain fixed. Simulated adapters do not replace these checks.
 
 API references: [item prices and spells](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ItemDocumentation.lua),
 [quest item receipts](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua),
@@ -264,3 +315,11 @@ API references: [item prices and spells](https://github.com/Gethe/wow-ui-source/
 and [native taxi actions](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_UIPanels_Game/Shared/TaxiFrame.xml).
 
 Clock reference: [native time APIs](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/SystemTimeDocumentation.lua).
+
+Pricing references: [TSM addon API](https://support.tradeskillmaster.com/en_US/api-documentation/what-is-the-tsm-addon-api-and-how-do-i-use-it),
+[TSM source definitions](https://support.tradeskillmaster.com/en_US/custom-strings/which-price-sources-can-i-use-and-what-do-they-mean).
+Provider signatures were also checked in the published Forever-compatible
+[Auctionator 349](https://www.curseforge.com/wow/addons/auctionator/files/9690303)
+(`Source/API/v1/GetAuctionPrice.lua`) and
+[TSM 4.15.9](https://www.curseforge.com/wow/addons/tradeskill-master/files/9718554)
+(`App/API.lua`) packages. These packages were inspected, not loaded into the game.

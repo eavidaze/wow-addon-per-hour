@@ -1,7 +1,7 @@
 local Module = {
     Name = "Gold", TagName = "gold", ShortName = "g",
     RateDivisor = 10000, RateDecimals = 2,
-    ValuationNote = "Items valued at vendor prices.",
+    ValuationNote = "Item prices: TSM > Auctionator > Vendor; vendor minimum.",
     UpdateWhilePaused = false,
     RegisteredEvents = {
         "CHAT_MSG_MONEY", "CHAT_MSG_LOOT", "QUEST_TURNED_IN", "QUEST_LOOT_RECEIVED", "PLAYER_MONEY",
@@ -93,10 +93,19 @@ local function Refresh()
 end
 
 local function ResolveEntry(entry)
-    local _, _, _, _, _, _, _, _, _, _, price = C_Item.GetItemInfo(entry.itemLink or entry.itemID)
-    if not Integer(price) then return false end
-    entry.unitPrice, entry.pending = price, nil
-    entry.amount = entry.quantity * price * entry.direction
+    if entry.pricingVersion and entry.direction < 0 then
+        if not Module.State.ValuationLedger:ResolveExpense(entry) then return false end
+    else
+        -- Pending M1 entries keep their original vendor policy without rewriting
+        -- old history. Only new records opt into optional market providers.
+        local pricing = PerHour.Pricing
+        local quote = entry.pricingVersion and pricing:GetQuote(entry.itemID, entry.itemLink)
+            or (not entry.pricingVersion and pricing:GetVendorQuote(entry.itemID, entry.itemLink))
+        if not quote then return false end
+        entry.unitPrice, entry.pending = quote.unitPrice, nil
+        if entry.pricingVersion then pricing:ApplyQuote(entry, quote) end
+        entry.amount = entry.quantity * quote.unitPrice * entry.direction
+    end
     Module.State.Element = Module.State.Element + entry.amount
     return true
 end
@@ -113,11 +122,14 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
         entry.itemLink, entry.quantity = itemLink, quantity
         entry.itemID = tonumber(itemLink:match("item:(%d+)"))
         entry.amount, entry.pending = 0, true
+        entry.pricingVersion = 1
+        if entry.direction < 0 then state.ValuationLedger:AddExpense(entry) end
     end
     local resolved = itemLink and ResolveEntry(entry)
-    if resolved and entry.unitPrice == 0 then return end
+    if resolved and entry.amount == 0 then state.ValuationLedger:Discard(entry); return end
     table.insert(state.History, entry)
     if itemLink then
+        if entry.direction > 0 then state.ValuationLedger:AddIncome(entry) end
         if not resolved then
             local pending = state.PendingPrices[entry.itemID] or {}
             state.PendingPrices[entry.itemID] = pending
@@ -132,6 +144,7 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
 end
 
 local function DiscardValuelessItem(entry)
+    Module.State.ValuationLedger:Discard(entry)
     for index, recorded in ipairs(Module.State.History) do
         if recorded == entry then table.remove(Module.State.History, index); break end
     end
@@ -304,6 +317,7 @@ end
 
 Module.CustomReset = function()
     Module.State.History, Module.State.PendingPrices = {}, {}
+    Module.State.ValuationLedger = PerHour.Pricing:CreateLedger(Module.State.History)
     Module.State.Inventory, Module.State.Casts, Module.State.LastCasts, Module.State.Expense = {}, {}, {}, nil
     Module.State.ExternalContexts, Module.State.IgnorePushedUntil = {}, 0
     Module.State.QuestItems = {}
@@ -345,16 +359,23 @@ Module.CustomRestoreSession = function(context)
         if entry.itemID then
             if not Integer(entry.itemID) or entry.itemID < 1 or not Integer(entry.quantity) or entry.quantity < 1
                 or not Readable(entry.itemLink, "string") then return false end
-            if entry.pending then
+            if entry.pricingVersion ~= nil then
+                if not PerHour.Pricing:ValidateEntry(entry) then return false end
+            elseif entry.valuations ~= nil or entry.priceSource ~= nil or entry.priceMetric ~= nil then return false
+            elseif entry.pending then
                 if entry.pending ~= true or entry.amount ~= 0 then return false end
             elseif not Integer(entry.unitPrice)
                 or entry.amount ~= entry.quantity * entry.unitPrice * entry.direction then return false end
-        elseif entry.pending then return false end
+        elseif entry.pending or entry.pricingVersion ~= nil or entry.valuations ~= nil
+            or entry.priceSource ~= nil or entry.priceMetric ~= nil then return false end
         total, count = total + entry.amount, count + 1
     end
     if count ~= #context.history or total ~= Module.State.Element then return false end
     for index = 1, count do if context.history[index] == nil then return false end end
+    local ledger = PerHour.Pricing:CreateLedger(context.history)
+    if not ledger then return false end
     Module.State.History, Module.State.PendingPrices = context.history, {}
+    Module.State.ValuationLedger = ledger
     ResetRuntime()
     for _, entry in ipairs(context.history) do
         if entry.pending then
@@ -414,12 +435,13 @@ Module.CustomOnEvent = function(self, event, ...)
         if not Integer(first) or not Readable(second, "boolean") or not second then return end
         local pending = state.PendingPrices[first]
         if pending then
-            for index = #pending, 1, -1 do
+            local index = 1
+            while index <= #pending do
                 local entry = pending[index]
                 if ResolveEntry(entry) then
                     table.remove(pending, index)
-                    if entry.unitPrice == 0 then DiscardValuelessItem(entry) end
-                end
+                    if entry.amount == 0 then DiscardValuelessItem(entry) end
+                else index = index + 1 end
             end
             if #pending == 0 then state.PendingPrices[first] = nil end
             Refresh()

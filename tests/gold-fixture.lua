@@ -35,7 +35,7 @@ function NumTaxiNodes() return 1 end
 function GetMoneyString(copper)
     return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
-function GameTooltip:SetHyperlink(link) self.hyperlink = link end
+function GameTooltip:SetHyperlink(link) self:ClearLines(); self.hyperlink = link end
 C_Item = {
     GetItemIconByID = function(id) return 100000 + id end,
     GetItemInfo = function(value)
@@ -43,7 +43,7 @@ C_Item = {
         local item = fixture.items[id]
         if not item or item.available == false then return end
         return "Item " .. id, fixture.link(id), 1, 1, 1, "Type", "Subtype", 20, "", 100000 + id,
-            item.price, item.class or 0, 1
+            item.price, item.class or 0, 1, item.bindType or 0
     end,
     GetItemSpell = function(value)
         local id = tonumber(value:match("item:(%d+)"))
@@ -60,6 +60,7 @@ C_Container = {
     end,
 }
 function fixture.reset()
+    TSM_API, Auctionator = nil, nil
     fixture.money, fixture.items, fixture.bags, fixture.requests = 1000000, {}, {}, {}
     fixture.repairCost, fixture.taxiCost, fixture.repairMode = 0, 0, false
     fixture.questID, fixture.requiredItems = nil, {}

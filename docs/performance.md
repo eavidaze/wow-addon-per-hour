@@ -80,6 +80,13 @@ schemas, session continuity rules and scale settings are unchanged.
 
 ## In-game comparison
 
+Gold's optional TSM/Auctionator providers run only while accepting an item
+valuation or settling pending native item data. History rendering and hover use
+saved price snapshots. FIFO acquisition queues are rebuilt once on restore and
+consumed by item ID; the ledger has no timer or per-frame callback of its own.
+New pricing tests check that opening Details and hovering an item make no market
+API calls. This is a simulation result, not a measured in-game performance claim.
+
 Use the same character, scene, graphics settings and other enabled addons:
 
 1. Compare a baseline checkout with the optimized checkout after `/reload`.

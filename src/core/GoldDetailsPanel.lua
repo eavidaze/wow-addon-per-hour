@@ -35,6 +35,31 @@ function Details:HideTooltip()
     self.TooltipOwner, self.TooltipEntry, self.TooltipQuest = nil, nil, nil
 end
 
+local function ValuationTooltip(entry)
+    local r, g, b = unpack(Theme.text)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Per Hour valuation:", unpack(Theme.gold.text))
+    GameTooltip:AddDoubleLine("Price source", PerHour.Pricing:EntrySourceLabel(entry), r, g, b, r, g, b)
+    GameTooltip:AddDoubleLine("Recorded value", entry.pending and "Pending" or Money(math.abs(entry.amount)), r, g, b, r, g, b)
+    if not entry.valuations or #entry.valuations < 2 then return end
+    local groups, ordered = {}, {}
+    for _, part in ipairs(entry.valuations) do
+        local key = table.concat({ part.priceSource or "pending", part.priceMetric or "", tostring(part.unitPrice) }, ":")
+        local group = groups[key]
+        if group then group.quantity = group.quantity + part.quantity
+        else
+            group = { quantity = part.quantity, unitPrice = part.unitPrice, source = part.priceSource, metric = part.priceMetric }
+            groups[key], ordered[#ordered + 1] = group, group
+        end
+    end
+    if #ordered < 2 then return end
+    for _, group in ipairs(ordered) do
+        local label = group.unitPrice and PerHour.Pricing:SourceLabel(group.source, group.metric) or "Price pending"
+        GameTooltip:AddDoubleLine(label .. " x" .. group.quantity,
+            group.unitPrice and Money(group.quantity * group.unitPrice) or "Pending", r, g, b, r, g, b)
+    end
+end
+
 local function EventTooltip(owner, entry, showQuest)
     Details:HideTooltip()
     local link = showQuest and entry.questID and ("quest:" .. entry.questID)
@@ -45,6 +70,7 @@ local function EventTooltip(owner, entry, showQuest)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     if link then
         GameTooltip:SetHyperlink(link)
+        if not showQuest and entry.itemID then ValuationTooltip(entry) end
     else
         GameTooltip:SetText(entry.source == "loot_money" and "Looted money" or "Quest reward")
         GameTooltip:AddLine(Money(math.abs(entry.amount)), unpack(Theme.text))

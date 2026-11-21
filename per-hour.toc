@@ -9,6 +9,7 @@
 ## X-Curse-Project-ID: 486717
 ## SavedVariables: PerHourAccount_Settings
 ## SavedVariablesPerCharacter: PerHourCharacter_Values, PerHourCharacter_Settings
+## OptionalDeps: TradeSkillMaster, Auctionator
 
 # Special thanks to Zwietabak (https://github.com/zwietabak) and AssisrMatheus (https://github.com/AssisrMatheus) who inspired me.
 
