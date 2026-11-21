@@ -2710,5 +2710,15 @@ assert(loadfile("tests/pricing.lua"))()({
         login(nil, 0)
     end,
 })
+assert(loadfile("tests/gold-pending.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    playedTime = function() return playedTotal end,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever simulation checks (".._VERSION..")")

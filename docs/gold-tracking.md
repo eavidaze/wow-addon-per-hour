@@ -33,6 +33,11 @@ zero selected price is ignored, including unsellable quest items. A pending entr
 is removed if its loaded price is zero; missing item data is never treated as a
 zero price. Valuable quest rewards remain included. Resolved positive prices
 stay fixed. Zero-value consumable uses are also omitted.
+After session verification, world entry and pause/resume, pending prices are
+retried against the native cache before requesting another load. This recovers
+replies that arrived during verification or a loading screen, including in paused
+sessions. Load requests made during recovery may reply synchronously. Resolved
+entries are never repriced, and legacy pending entries retain their vendor policy.
 
 ## Pricing providers (M2)
 
@@ -104,7 +109,13 @@ the delivery has been recorded.
 Canceled dialogs, unrelated quests, partial or missing losses, and requirements
 without an identifiable item link never create speculative expenses. Opening a
 quest dialog alone does not charge anything. Pause, Reset, world entry and external
-inventory contexts clear unconfirmed runtime correlations. Dialog close allows
+inventory contexts clear unconfirmed runtime correlations. Already confirmed
+deliveries retain their original two-second deadline across pause/resume, world
+entry and external inventory contexts. Bag updates can settle pre-pause deliveries
+while paused, without accepting new paused actions. Save also samples confirmed
+delivery evidence while paused. Reset clears both candidates and confirmed
+deliveries; pending runtime correlations retain their existing reload/logout
+limitations, with no new persistent delivery format. Dialog close allows
 two seconds for the native completion event. Delivery evidence outside the short
 window, items taken directly from bank storage, and simultaneous gains that mask
 the required bag loss may be missed. Verify these boundaries and actual event
@@ -121,7 +132,7 @@ unrecorded, so test actual event ordering and costs in the game.
 
 New gains and consumption while paused, outside the world, or awaiting session
 verification are excluded. Pausing, resuming and entering the world refresh
-inventory and money baselines and discard pending runtime action correlations.
+inventory and money baselines and discard unconfirmed runtime action correlations.
 The existing shared timer samples a running Gold session; paused Gold does not
 keep it running. Hiding the panel keeps tracking active.
 
@@ -282,6 +293,10 @@ save/restore, native item/quest tooltips and rejected ambiguous or canceled case
 `tests/pricing.lua` covers provider priority, vendor floors, unavailable/broken
 APIs, invalid quotes, binding eligibility, fixed price snapshots, mixed FIFO
 expenses, pending dependencies, legacy history and source/value tooltips.
+`tests/gold-pending.lua` covers load replies during verification/loading screens,
+cache-first recovery, synchronous replies, restored pause/warning states, legacy
+pricing, confirmed deliveries across pause/resume, overlapping quantities,
+original deadlines, Reset and saving while paused.
 
 In WoW Forever, verify solo/group looted coins, guild deposits, stacked loot and
 quest rewards; confirm trade/mail/vendor receipts and old-item sales are excluded.

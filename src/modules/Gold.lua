@@ -153,6 +153,36 @@ local function DiscardValuelessItem(entry)
     end
 end
 
+local function SettlePendingPrices(itemID)
+    local pending = Module.State.PendingPrices[itemID]
+    if not pending then return false end
+    local index, changed = 1, false
+    while index <= #pending do
+        local entry = pending[index]
+        if ResolveEntry(entry) then
+            table.remove(pending, index)
+            if entry.amount == 0 then DiscardValuelessItem(entry) end
+            changed = true
+        else index = index + 1 end
+    end
+    if #pending == 0 then Module.State.PendingPrices[itemID] = nil end
+    return changed
+end
+
+local function RetryPendingPrices()
+    local state = Module.State
+    if not state.HasStarted or state.PendingRestore or not PerHour.Session.InWorld then return end
+    -- Read the cache first: a load reply may have arrived during verification or
+    -- a loading screen. Snapshot IDs because requests can reply synchronously.
+    local itemIDs, changed = {}, false
+    for itemID in pairs(state.PendingPrices) do itemIDs[#itemIDs + 1] = itemID end
+    for _, itemID in ipairs(itemIDs) do
+        if SettlePendingPrices(itemID) then changed = true end
+        if state.PendingPrices[itemID] then C_Item.RequestLoadItemDataByID(itemID) end
+    end
+    if changed then Refresh() end
+end
+
 -- Quest loot supplies identity, while the localized loot message remains the
 -- single accounting event. Match the complete item link and quantity in either
 -- event order; never attribute an arbitrary reward to the last quest turned in.
@@ -280,12 +310,13 @@ ReconcileQuestDeliveries = function(current)
     end
 end
 
-local function ResetRuntime()
+local function ResetRuntime(preserveDeliveries)
     local state = Module.State
     state.LastMoney = GetMoney()
     state.Inventory = Inventory()
     state.Casts, state.LastCasts, state.Expense, state.QuestItems = {}, {}, nil, {}
-    state.QuestDelivery, state.QuestDeliveries, state.QuestDeliveryCounts = nil, {}, {}
+    state.QuestDelivery = nil
+    if not preserveDeliveries then state.QuestDeliveries, state.QuestDeliveryCounts = {}, {} end
     state.ExternalContexts, state.IgnorePushedUntil = {}, 0
     state.RepairCost = GetRepairAllCost()
     state.TaxiCosts = {}
@@ -328,13 +359,23 @@ end
 Module.CustomShowDetails = function() PerHour.GoldDetailsPanel:Show() end
 
 Module.CustomStart = ResetRuntime
-Module.CustomTrackingChanged = ResetRuntime
-Module.CustomWorldEntered = ResetRuntime
+local function ResumeRuntime()
+    ResetRuntime(true)
+    if Module.State.HasStarted and not Module.State.PendingRestore and PerHour.Session.InWorld then
+        ReconcileQuestDeliveries(Module.State.Inventory)
+    end
+    RetryPendingPrices()
+end
+Module.CustomTrackingChanged = ResumeRuntime
+Module.CustomWorldEntered = ResumeRuntime
+Module.CustomRestoreFinished = ResumeRuntime
 Module.CustomOnUpdate = function()
-    if Running() and (next(Module.State.Casts) or next(Module.State.QuestDeliveries)) then
+    local state = Module.State
+    if not state.HasStarted or state.PendingRestore or not PerHour.Session.InWorld then return true end
+    if next(state.QuestDeliveries) or (Running() and next(state.Casts)) then
         local current = Inventory()
         ReconcileQuestDeliveries(current)
-        ReconcileCasts(current)
+        if Running() then ReconcileCasts(current) end
     end
     return true
 end
@@ -384,7 +425,7 @@ Module.CustomRestoreSession = function(context)
             table.insert(pending, entry)
         end
     end
-    for itemID in pairs(Module.State.PendingPrices) do C_Item.RequestLoadItemDataByID(itemID) end
+    -- Cache settlement and new requests start only after session verification.
     if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
     return true
 end
@@ -417,7 +458,7 @@ Module.CustomOnEvent = function(self, event, ...)
         if closed then state.IgnorePushedUntil = GetTime() + 1 end
         state.Casts = {}
         state.QuestItems = {}
-        state.QuestDelivery, state.QuestDeliveries, state.QuestDeliveryCounts = nil, {}, {}
+        state.QuestDelivery = nil
         state.RepairCost = GetRepairAllCost()
         return
     end
@@ -435,16 +476,7 @@ Module.CustomOnEvent = function(self, event, ...)
         if not Integer(first) or not Readable(second, "boolean") or not second then return end
         local pending = state.PendingPrices[first]
         if pending then
-            local index = 1
-            while index <= #pending do
-                local entry = pending[index]
-                if ResolveEntry(entry) then
-                    table.remove(pending, index)
-                    if entry.amount == 0 then DiscardValuelessItem(entry) end
-                else index = index + 1 end
-            end
-            if #pending == 0 then state.PendingPrices[first] = nil end
-            Refresh()
+            if SettlePendingPrices(first) then Refresh() end
         end
         if Running() then state.Inventory = Inventory() end
         return
@@ -460,6 +492,15 @@ Module.CustomOnEvent = function(self, event, ...)
                 Record(expense.source, current - previous)
             end
         end
+        return
+    end
+    if event == "BAG_UPDATE_DELAYED" then
+        local current = Inventory()
+        -- These actions were accepted before pausing. Their original deadline
+        -- and timestamp survive; new paused actions never enter this queue.
+        ReconcileQuestDeliveries(current)
+        if Running() then ReconcileCasts(current) end
+        state.Inventory = current
         return
     end
     if not Running() then return end
@@ -513,11 +554,6 @@ Module.CustomOnEvent = function(self, event, ...)
             end
         end
         if Integer(first) and Integer(third) and third > 0 then Record("quest_money", third, nil, nil, nil, first) end
-    elseif event == "BAG_UPDATE_DELAYED" then
-        local current = Inventory()
-        ReconcileQuestDeliveries(current)
-        ReconcileCasts(current)
-        state.Inventory = current
     elseif event:match("^UNIT_SPELLCAST_") then
         local spellID = event == "UNIT_SPELLCAST_SENT" and fourth or third
         if not Readable(first, "string") or first ~= "player" or not Integer(spellID) then return end

@@ -68,6 +68,7 @@ function Session:ValidateRestore(module)
         issue = "The tracked reputation changed."
     end
     SetRestoreStatus(module, issue and "error" or "success", issue)
+    if module.State.HasStarted and module.CustomRestoreFinished then module.CustomRestoreFinished() end
     return true
 end
 
