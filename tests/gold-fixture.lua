@@ -37,12 +37,19 @@ function GetMoneyString(copper)
 end
 function GameTooltip:SetHyperlink(link) self:ClearLines(); self.hyperlink = link end
 C_Item = {
+    GetItemQualityColor = function(quality)
+        local colors = {
+            [0] = { 0.62, 0.62, 0.62 }, [1] = { 1, 1, 1 }, [2] = { 0.12, 1, 0 },
+            [3] = { 0, 0.44, 0.87 }, [4] = { 0.64, 0.21, 0.93 }, [5] = { 1, 0.5, 0 },
+        }
+        return unpack(colors[quality])
+    end,
     GetItemIconByID = function(id) return 100000 + id end,
     GetItemInfo = function(value)
         local id = type(value) == "number" and value or tonumber(value:match("item:(%d+)"))
         local item = fixture.items[id]
         if not item or item.available == false then return end
-        return "Item " .. id, fixture.link(id), 1, 1, 1, "Type", "Subtype", 20, "", 100000 + id,
+        return "Item " .. id, fixture.link(id), item.quality or 1, 1, 1, "Type", "Subtype", 20, "", 100000 + id,
             item.price, item.class or 0, 1, item.bindType or 0
     end,
     GetItemSpell = function(value)

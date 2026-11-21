@@ -19,7 +19,7 @@ frame:SetScript("OnEvent", function(self, event, name)
     end
 
     PerHour.TrackerPanels:Init()
-    PerHour.ToggleMenu:Init(PerHour.MinimapButton)
+    PerHour.ToggleMenu:Init()
     PerHour.MinimapButton:Init()
     -- Loading can expose temporary screen dimensions; do not clamp saved positions yet.
     self:RegisterEvent("PLAYER_ENTERING_WORLD")

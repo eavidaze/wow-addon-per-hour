@@ -1,0 +1,23 @@
+Embedded libraries, distributed unmodified with Per Hour:
+
+LibStub, minor 2: public domain (see its source header).
+https://repos.wowace.com/wow/libstub/trunk/LibStub.lua
+
+CallbackHandler-1.0, minor 8: Ace3 Style BSD; see LICENSE-Ace3.txt.
+https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0/CallbackHandler-1.0.lua
+
+LibDataBroker-1.1, minor 4: copyright its respective authors, all rights reserved.
+Embedded as directed by the author's distribution instructions:
+https://www.wowace.com/projects/libdatabroker-1-1
+https://github.com/tekkub/libdatabroker-1-1
+
+LibDBIcon-1.0, minor 57: Ace3 Style BSD; see LICENSE-Ace3.txt.
+https://www.wowace.com/projects/libdbicon-1-0
+https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0/LibDBIcon-1.0.lua
+
+These third-party libraries retain their own terms; Per Hour's MIT license
+does not replace them. Retrieved 2026-11-21. SHA-256 of the Lua source files:
+LibStub: 7ba7300471327c0de1b3e42a4edfd62cbad79bd30100d6377736d2c1080e9b96
+CallbackHandler: 8ab5d51799e8c67b6d17b523b3c191ff63ad24e081134ab8ac7d188ce69701b9
+LibDataBroker: f3d4758f2060215492c9764b1d7dc2a336826d4cd253cd54ff9ff7c6d78f04e2
+LibDBIcon: cafa823dfb9f216eb476af4bcd2fad4c25c718f39b7565fa1c924dbebac41f91

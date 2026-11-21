@@ -29,7 +29,8 @@ estimated net gold** per hour or minute while leveling, playing PvP or farming.
 
 #### Start tracking
 
-1. Click the minimap clock or type `/perhour`, choose a tracker and press **Start**.
+1. Left-click the minimap clock to choose a tracker, or type `/perhour` to open
+   **Settings** and enable it under **Show trackers**, then press **Start**.
 2. Right-click the clock for **Settings**: choose hourly or per-minute rates,
    enable **Show estimates** in General, select your watched reputation,
    or enable **Show speedometer** under Experience.
@@ -37,8 +38,14 @@ estimated net gold** per hour or minute while leveling, playing PvP or farming.
 4. Left-click **Gold**, or choose **Gold → Options → Details**, to review its totals
    and event history.
 
+Use `/perhour xp`, `/perhour gold`, `/perhour honor` or `/perhour rep` to show a
+tracker directly. `/perhour help` describes every command; `/perhour` opens Settings.
+The standard minimap launcher includes its libraries and can be managed by Leatrix
+Plus or other LibDBIcon organizers.
+
 Gold values items when received using optional **TSM → Auctionator → vendor**
-pricing, with vendor as the minimum. TSM uses DBMarket and Auctionator uses its
+pricing, with vendor as the minimum. Poor (gray) items always use their vendor
+sell price and never use Auction House estimates. TSM uses DBMarket and Auctionator uses its
 last scanned price; neither addon is required. Recorded prices stay fixed, and
 consumed or quest-delivered items reuse their acquisition values when available.
 Transfers, mail, item purchases and vendor-sale receipts are excluded. This is an

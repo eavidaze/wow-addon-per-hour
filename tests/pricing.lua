@@ -103,6 +103,31 @@ return function(test)
     fixture.items[901].available = false
     equal(pricing:GetQuote(901, fixture.link(901)), nil, "unknown native item data is pending rather than an invented zero")
 
+    gold, pricing = fresh()
+    installTSM()
+    installAuctionator()
+    tsmPrice, auctionPrice = 100, 200
+    fixture.items[901].quality = 0
+    quote = pricing:GetQuote(901, fixture.link(901))
+    equal(quote.provider, "vendor", "poor gray items always use vendor despite higher market prices")
+    equal(quote.unitPrice, 10, "gray item value is its vendor sell price")
+    fixture.items[901].price = 0
+    equal(pricing:GetQuote(901, fixture.link(901)).unitPrice, 0, "unsellable gray items do not acquire AH value")
+    fixture.items[901].price, fixture.items[901].available = 10, false
+    fixture.bags = { { id = 901, count = 10 } }
+    click(gold)
+    loot(10)
+    deliver(4008, 8)
+    equal(gold.State.History[1].pending, true, "uncached gray income waits for native metadata")
+    equal(gold.State.History[2].pending, true, "dependent gray delivery waits for its acquisition price")
+    fixture.items[901].available = true
+    event("GET_ITEM_INFO_RECEIVED", 901, true)
+    equal(gold.State.Element, 20, "pending gray income and delivery settle at vendor value")
+    equal(gold.State.History[1].priceSource, "vendor", "settled gray income records vendor as its source")
+    equal(gold.State.History[2].priceSource, "vendor", "gray delivery preserves the vendor acquisition value")
+    equal(calls.tsm, 0, "gray quotes and pending settlement never query TSM")
+    equal(calls.auctionator, 0, "gray quotes and pending settlement never query Auctionator")
+
     gold = fresh()
     installAuctionator()
     auctionPrice = 100

@@ -1,5 +1,6 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Include file="libs\Init.xml" />
 	<Include file="utils\Init.xml" />
     <Include file="model\Init.xml"/>
     <Include file="stores\Init.xml"/>

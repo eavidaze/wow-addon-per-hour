@@ -1,4 +1,6 @@
 package-as: per-hour
+tools-used:
+    - libdatabroker-1-1
 # Directory names must not end in a slash: the packager adds its own /* pattern.
 ignore:
     - img

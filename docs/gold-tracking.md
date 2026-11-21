@@ -55,9 +55,11 @@ addon APIs are used: there are no network requests, scans or forced addon loads.
 Availability is checked at each valuation, so late addon initialization affects
 future events. Rendering history never queries market providers.
 
-Native metadata first establishes vendor value and binding type. Only potentially
-tradable types (unbound, bind-on-equip, bind-on-use), outside the quest item class,
-receive market quotes. Bind-on-acquire, quest and account-bound items use vendor.
+Native metadata first establishes vendor value, quality and binding type. Poor
+(gray, quality 0) items always use vendor value and never query AH providers.
+Only higher-quality potentially tradable types (unbound, bind-on-equip,
+bind-on-use), outside the quest item class, receive market quotes.
+Bind-on-acquire, quest and account-bound items use vendor.
 Tradable zero-vendor items may still have AH value. Missing native metadata stays
 pending; missing market data uses vendor immediately. Accepted prices stay fixed,
 including when scans update or providers become available later.
@@ -285,8 +287,9 @@ The Value column shows absolute amounts without plus or minus signs; arrows
 identify direction. The net summary keeps a minus sign when negative. Outgoing
 values use shared DS red
 (`Theme.red.text`, matching Blizzard's standard red) rather than gray. Incoming
-and pending values use normal DS text. Item names and rarity styling retain their
-native presentation. Row reuse always reapplies the appropriate arrow and color.
+and pending values use normal DS text. Item names use the native rarity color
+returned by `C_Item.GetItemQualityColor`; loading placeholders and non-item events
+use normal DS text. Row reuse always reapplies the appropriate arrow and color.
 
 The open list updates while preserving the scroll position when reviewing older
 events. It remains available during a pause and shows an empty-state message

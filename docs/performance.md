@@ -32,6 +32,15 @@ that buttons retain their own clicks, and open the complete settings form. The
 simulation uses Forever's `region:IsMouseOver()` API without providing the removed
 `MouseIsOver` global. Mouse script bindings also enable input in the simulation,
 so accidentally making decorative layers intercept background gestures is detected.
+The minimap checks load the real embedded LibStub, CallbackHandler, LibDataBroker
+and LibDBIcon sources. They verify standard icon registration, shared-library
+reuse, broker clicks with the minimap hidden, context-menu owner dismissal,
+shape-aware placement and the existing per-character radian setting. They do not
+load Leatrix or reproduce its runtime UI in the game.
+Minimap dragging retains LibDBIcon's own update callback and sampling frequency;
+the addon saves the resulting angle on release, hide or logout, without writing
+saved settings every frame. Stationary-cursor coalescing applies to tracker
+panel dragging; the library controls minimap positioning while it is dragged.
 Restore-indicator checks cover immediate visibility, delayed dismissal, hidden
 expiry and stale-timer protection. Simulations at 60 and 144 FPS verify no restore
 frame callbacks or repeated opacity writes during the five-second success window.

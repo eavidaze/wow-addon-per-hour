@@ -15,10 +15,13 @@ code changes only need `/reload`.
 
 ## Use
 
-- Left-click the minimap clock or use `/perhour` to toggle the module menu.
-- Right-click the minimap clock to open **Settings** for panel visibility,
-  a shared hourly/per-minute display unit and the watched reputation.
+- Left-click the minimap clock to toggle the module menu.
+- Use `/perhour`, or right-click the minimap clock, to open **Settings**
+  for panel visibility, a shared hourly/per-minute display unit and the watched reputation.
+- Use `/perhour help` to list the available text commands.
+- Use `/perhour xp`, `gold`, `honor` or `rep` to show the corresponding tracker.
 - Check a module to show its window. Drag the minimap button to reposition it.
+- The standard minimap icon supports Leatrix and other LibDBIcon organizers; its libraries are included.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag a window's background to move it; its close button appears on hover and hides it without stopping tracking.
 - Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
@@ -28,7 +31,8 @@ code changes only need `/reload`.
 - Enable **Show estimates** in **Settings → General** to also display predictions below the rates.
 - Choose a watched faction in **Settings** or the game's reputation panel;
   switching factions resets the reputation tracker.
-- **Gold** values items with optional TSM → Auctionator → vendor pricing and a vendor minimum,
+- **Gold** values eligible items with optional TSM → Auctionator → vendor pricing and a vendor minimum;
+  poor (gray) items always use vendor value. It tracks loot and rewards,
   and subtracts consumed/delivered items, personal repairs and paid flights. Trades, mail, item purchases
   and vendor-sale receipts are excluded. See [Gold tracking](docs/gold-tracking.md).
 - Left-click **Gold** or choose **Gold → Options → Details** to view income, expenses and event history.
