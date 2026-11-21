@@ -6,7 +6,9 @@ function Ledger:AddIncome(entry)
     if not entry.pending and entry.unitPrice == 0 then return end
     local queue = self.Items[entry.itemID]
     if not queue then queue = { first = 1 }; self.Items[entry.itemID] = queue end
-    queue[#queue + 1] = { entry = entry, remaining = entry.quantity }
+    -- Withdrawals never funded expenses. Exclude their per-lot totals while
+    -- replaying the saved expense allocations, without changing income values.
+    queue[#queue + 1] = { entry = entry, remaining = entry.quantity - (entry.retiredQuantity or 0) }
 end
 
 function Ledger:Take(itemID, quantity)
@@ -29,6 +31,14 @@ function Ledger:Allocate(entry)
     local bindings = self:Take(entry.itemID, entry.quantity)
     self.Bindings[entry] = bindings
     return bindings
+end
+
+function Ledger:Retire(itemID, quantity)
+    for _, part in ipairs(self:Take(itemID, quantity)) do
+        if part.origin then
+            part.origin.retiredQuantity = (part.origin.retiredQuantity or 0) + part.quantity
+        end
+    end
 end
 
 function Ledger:HasIncome(itemID)

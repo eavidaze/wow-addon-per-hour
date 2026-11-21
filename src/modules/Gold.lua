@@ -123,7 +123,10 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
         entry.itemID = tonumber(itemLink:match("item:(%d+)"))
         entry.amount, entry.pending = 0, true
         entry.pricingVersion = 1
-        if entry.direction < 0 then state.ValuationLedger:AddExpense(entry) end
+        if entry.direction < 0 then
+            state.ValuationLedger:AddExpense(entry)
+            state.InventoryLosses[entry.itemID] = math.max(0, (state.InventoryLosses[entry.itemID] or 0) - quantity)
+        end
     end
     local resolved = itemLink and ResolveEntry(entry)
     if resolved and entry.amount == 0 then state.ValuationLedger:Discard(entry); return end
@@ -248,7 +251,7 @@ end
 
 -- Required-item APIs belong to the open quest dialog and may be empty by the
 -- time QUEST_TURNED_IN arrives. Keep identity and quantities before completion.
-local ReconcileQuestDeliveries
+local ReconcileQuestDeliveries, ReconcileInventory
 local function CaptureQuestDelivery(preserve)
     local state = Module.State
     local questID, count = GetQuestID(), GetNumQuestItems()
@@ -263,7 +266,7 @@ local function CaptureQuestDelivery(preserve)
     local inventory, items = Inventory(), {}
     -- Settle earlier deliveries before taking another baseline: bags may
     -- already have changed even though BAG_UPDATE_DELAYED has not arrived.
-    ReconcileQuestDeliveries(inventory)
+    ReconcileInventory(inventory)
     for index = 1, count do
         local _, _, quantity = GetQuestItemInfo("required", index)
         local link = GetQuestItemLink("required", index)
@@ -313,7 +316,7 @@ end
 local function ResetRuntime(preserveDeliveries)
     local state = Module.State
     state.LastMoney = GetMoney()
-    state.Inventory = Inventory()
+    if not preserveDeliveries then state.Inventory, state.InventoryLosses = Inventory(), {} end
     state.Casts, state.LastCasts, state.Expense, state.QuestItems = {}, {}, nil, {}
     state.QuestDelivery = nil
     if not preserveDeliveries then state.QuestDeliveries, state.QuestDeliveryCounts = {}, {} end
@@ -346,10 +349,45 @@ local function ReconcileCasts(current)
     end
 end
 
+local function ExpectedInventoryLoss(itemID)
+    local state, now = Module.State, GetTime()
+    local candidate = state.QuestDelivery
+    if candidate and candidate.items[itemID] and (not candidate.expires or now <= candidate.expires) then return true end
+    for _, delivery in ipairs(state.QuestDeliveries) do
+        if delivery.items[itemID] and now <= delivery.expires then return true end
+    end
+    if Running() and not ExternalItems() then
+        for _, cast in pairs(state.Casts) do
+            if cast.items[itemID] and now - cast.at <= (cast.succeeded and 2 or 60) then return true end
+        end
+    end
+    return false
+end
+
+ReconcileInventory = function(current)
+    local state = Module.State
+    for itemID, before in pairs(state.Inventory) do
+        local loss = before.count - (current[itemID] and current[itemID].count or 0)
+        if loss > 0 then state.InventoryLosses[itemID] = (state.InventoryLosses[itemID] or 0) + loss end
+    end
+    state.Inventory = current
+    -- Recognize accepted expenses before retiring other losses. Keep evidence
+    -- briefly when the bag event precedes cast success or quest completion.
+    ReconcileQuestDeliveries(current)
+    if Running() then ReconcileCasts(current) end
+    for itemID, quantity in pairs(state.InventoryLosses) do
+        if quantity == 0 or not ExpectedInventoryLoss(itemID) then
+            if quantity > 0 then state.ValuationLedger:Retire(itemID, quantity) end
+            state.InventoryLosses[itemID] = nil
+        end
+    end
+end
+
 Module.CustomReset = function()
     Module.State.History, Module.State.PendingPrices = {}, {}
     Module.State.ValuationLedger = PerHour.Pricing:CreateLedger(Module.State.History)
     Module.State.Inventory, Module.State.Casts, Module.State.LastCasts, Module.State.Expense = {}, {}, {}, nil
+    Module.State.InventoryLosses = {}
     Module.State.ExternalContexts, Module.State.IgnorePushedUntil = {}, 0
     Module.State.QuestItems = {}
     Module.State.QuestDelivery, Module.State.QuestDeliveries, Module.State.QuestDeliveryCounts = nil, {}, {}
@@ -362,30 +400,41 @@ Module.CustomStart = ResetRuntime
 local function ResumeRuntime()
     ResetRuntime(true)
     if Module.State.HasStarted and not Module.State.PendingRestore and PerHour.Session.InWorld then
-        ReconcileQuestDeliveries(Module.State.Inventory)
+        ReconcileInventory(Inventory())
     end
     RetryPendingPrices()
 end
 Module.CustomTrackingChanged = ResumeRuntime
 Module.CustomWorldEntered = ResumeRuntime
 Module.CustomRestoreFinished = ResumeRuntime
-Module.CustomOnUpdate = function()
+Module.CustomOnUpdate = function(self)
     local state = Module.State
     if not state.HasStarted or state.PendingRestore or not PerHour.Session.InWorld then return true end
-    if next(state.QuestDeliveries) or (Running() and next(state.Casts)) then
-        local current = Inventory()
-        ReconcileQuestDeliveries(current)
-        if Running() then ReconcileCasts(current) end
+    -- Explicit lifecycle samples (pause/resume and save) also capture losses
+    -- whose bag notification has not arrived; ordinary timer ticks stay cheap.
+    if not self or next(state.InventoryLosses) or next(state.QuestDeliveries) or (Running() and next(state.Casts)) then
+        ReconcileInventory(Inventory())
     end
     return true
 end
 
 Module.CustomSaveSession = function()
-    return { version = 1, history = Module.State.History }
+    local context = { version = 1, history = Module.State.History }
+    if next(Module.State.InventoryLosses) then
+        context.inventoryLosses = {}
+        for itemID, quantity in pairs(Module.State.InventoryLosses) do context.inventoryLosses[itemID] = quantity end
+    end
+    return context
 end
 
 Module.CustomRestoreSession = function(context)
     if type(context) ~= "table" or context.version ~= 1 or type(context.history) ~= "table" then return false end
+    if context.inventoryLosses ~= nil then
+        if type(context.inventoryLosses) ~= "table" then return false end
+        for itemID, quantity in pairs(context.inventoryLosses) do
+            if not Integer(itemID) or itemID < 1 or not Integer(quantity) or quantity < 1 then return false end
+        end
+    end
     local total, count = 0, 0
     for index, entry in pairs(context.history) do
         if not Integer(index) or index < 1 or type(entry) ~= "table"
@@ -400,6 +449,8 @@ Module.CustomRestoreSession = function(context)
         if entry.itemID then
             if not Integer(entry.itemID) or entry.itemID < 1 or not Integer(entry.quantity) or entry.quantity < 1
                 or not Readable(entry.itemLink, "string") then return false end
+            if entry.retiredQuantity ~= nil and (entry.direction ~= 1 or not Integer(entry.retiredQuantity)
+                or entry.retiredQuantity < 1 or entry.retiredQuantity > entry.quantity) then return false end
             if entry.pricingVersion ~= nil then
                 if not PerHour.Pricing:ValidateEntry(entry) then return false end
             elseif entry.valuations ~= nil or entry.priceSource ~= nil or entry.priceMetric ~= nil then return false
@@ -407,7 +458,7 @@ Module.CustomRestoreSession = function(context)
                 if entry.pending ~= true or entry.amount ~= 0 then return false end
             elseif not Integer(entry.unitPrice)
                 or entry.amount ~= entry.quantity * entry.unitPrice * entry.direction then return false end
-        elseif entry.pending or entry.pricingVersion ~= nil or entry.valuations ~= nil
+        elseif entry.pending or entry.pricingVersion ~= nil or entry.valuations ~= nil or entry.retiredQuantity ~= nil
             or entry.priceSource ~= nil or entry.priceMetric ~= nil then return false end
         total, count = total + entry.amount, count + 1
     end
@@ -415,6 +466,9 @@ Module.CustomRestoreSession = function(context)
     for index = 1, count do if context.history[index] == nil then return false end end
     local ledger = PerHour.Pricing:CreateLedger(context.history)
     if not ledger then return false end
+    -- Runtime cast/quest correlations do not survive reload. Their observed
+    -- losses still leave stock, without inventing an unconfirmed expense.
+    for itemID, quantity in pairs(context.inventoryLosses or {}) do ledger:Retire(itemID, quantity) end
     Module.State.History, Module.State.PendingPrices = context.history, {}
     Module.State.ValuationLedger = ledger
     ResetRuntime()
@@ -460,6 +514,7 @@ Module.CustomOnEvent = function(self, event, ...)
         state.QuestItems = {}
         state.QuestDelivery = nil
         state.RepairCost = GetRepairAllCost()
+        ReconcileInventory(Inventory())
         return
     end
     if event == "TAXIMAP_OPENED" or event == "MERCHANT_UPDATE" then
@@ -478,7 +533,7 @@ Module.CustomOnEvent = function(self, event, ...)
         if pending then
             if SettlePendingPrices(first) then Refresh() end
         end
-        if Running() then state.Inventory = Inventory() end
+        ReconcileInventory(Inventory())
         return
     end
     if event == "PLAYER_MONEY" then
@@ -495,12 +550,9 @@ Module.CustomOnEvent = function(self, event, ...)
         return
     end
     if event == "BAG_UPDATE_DELAYED" then
-        local current = Inventory()
         -- These actions were accepted before pausing. Their original deadline
         -- and timestamp survive; new paused actions never enter this queue.
-        ReconcileQuestDeliveries(current)
-        if Running() then ReconcileCasts(current) end
-        state.Inventory = current
+        ReconcileInventory(Inventory())
         return
     end
     if not Running() then return end
@@ -550,7 +602,7 @@ Module.CustomOnEvent = function(self, event, ...)
                 delivery.elapsed = state.Time + math.max(0, GetTime() - state.UpdatedAt)
                 delivery.timestamp = GetServerTime()
                 table.insert(state.QuestDeliveries, delivery)
-                ReconcileQuestDeliveries(Inventory())
+                ReconcileInventory(Inventory())
             end
         end
         if Integer(first) and Integer(third) and third > 0 then Record("quest_money", third, nil, nil, nil, first) end
@@ -577,9 +629,7 @@ Module.CustomOnEvent = function(self, event, ...)
         if event == "UNIT_SPELLCAST_SUCCEEDED" then
             if Readable(second, "string") then state.LastCasts[spellID] = second end
             cast.succeeded, cast.at = true, GetTime()
-            local current = Inventory()
-            ReconcileCasts(current)
-            state.Inventory = current
+            ReconcileInventory(Inventory())
         end
     end
 end

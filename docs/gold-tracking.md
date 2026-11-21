@@ -67,14 +67,37 @@ unit values first. Any unmatched quantity is old stock and receives a new quote
 at use. Several acquisition prices can form one expense row, with quantity and
 source/value parts saved separately. This prevents market changes from leaving
 profit assigned to units already consumed or delivered. FIFO allocates journal
-events rather than identifying physical units in identical stacks; external and
-paused movements remain outside the tracked transactions.
+events rather than identifying physical units in identical stacks.
+
+Observed bag losses that are not recognized expenses retire the oldest available
+acquired units. This includes sales, mail, trade, bank deposits, destruction and
+paused removals. Retirement changes only availability: it adds no journal row,
+does not deduct the collection value and never changes its saved price. Returned,
+purchased or transferred replacements supply no income and use a fresh quote
+when consumed unless another counted acquisition is still available.
+Bag losses awaiting cast success or quest completion remain reserved within the
+existing correlation window, so a delayed confirmation does not retire and charge
+the same units twice. Bag/context events and explicit pause/resume, world-entry
+and save samples reconcile stock before replacing its inventory baseline;
+ordinary timer ticks do not scan bags unless there is pending action/loss evidence.
+Detection uses observed net count decreases; simultaneous gains can mask a loss,
+and unobserved offline movements are not reconstructed.
 
 New item records carry `pricingVersion = 1`, `priceSource` and `priceMetric` when
 resolved. Expenses also save `valuations` parts with quantities, unit prices and
 acquisition/old-stock provenance. Mixed prices may have no single `unitPrice`.
+Income entries may additionally save `retiredQuantity`, the number of acquired
+units removed without an expense. Restore subtracts those per-lot quantities
+before replaying expense allocations, preserving both earlier expenses and the
+remaining stock across reload. It validates retirement bounds and rejects
+over-allocation. Entries without this optional field retain their existing
+interpretation; no past withdrawals are inferred or backfilled.
+Losses still awaiting a runtime cast/quest confirmation are saved as optional
+`context.inventoryLosses`. Since those correlations do not survive reload, restore
+retires the observed units without creating a speculative expense. A map transition
+keeps the live correlation and its original deadline as before.
 Restore validates parts, totals and their acquisition allocations. Existing
-entries are not rewritten; pending M1 entries keep vendor valuation, and resolved
+valuation fields are not rewritten; pending M1 entries keep vendor valuation, and resolved
 entries keep their saved values. No migration is introduced: the shared save
 version stays 2 and Gold's context version stays 1.
 
@@ -133,6 +156,8 @@ unrecorded, so test actual event ordering and costs in the game.
 New gains and consumption while paused, outside the world, or awaiting session
 verification are excluded. Pausing, resuming and entering the world refresh
 inventory and money baselines and discard unconfirmed runtime action correlations.
+Stock losses still retire recorded acquisitions during a pause; this does not
+accept new paused income or expenses.
 The existing shared timer samples a running Gold session; paused Gold does not
 keep it running. Hiding the panel keeps tracking active.
 
@@ -297,6 +322,10 @@ expenses, pending dependencies, legacy history and source/value tooltips.
 cache-first recovery, synchronous replies, restored pause/warning states, legacy
 pricing, confirmed deliveries across pause/resume, overlapping quantities,
 original deadlines, Reset and saving while paused.
+`tests/gold-stock.lua` covers external and unexplained withdrawals, replacement
+stock, partial FIFO lots, preserved historical expense allocations, reload,
+pause/world/save sampling, pending receipts, retirement validation and bag events
+before cast/quest confirmation.
 
 In WoW Forever, verify solo/group looted coins, guild deposits, stacked loot and
 quest rewards; confirm trade/mail/vendor receipts and old-item sales are excluded.
@@ -319,6 +348,9 @@ For M2, verify the actual APIs with TSM only, Auctionator only, both installed,
 and neither installed. Compare new quotes with TSM's DBMarket and Auctionator's
 scan data. Update prices and reload between collection and delivery to confirm
 the original values remain fixed. Simulated adapters do not replace these checks.
+Collect an item, sell/mail/trade/bank it, then obtain an uncounted replacement and
+consume or deliver it at a different market price. Repeat across reload and pause
+to confirm that the departed unit's acquisition price is no longer available.
 
 API references: [item prices and spells](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ItemDocumentation.lua),
 [quest item receipts](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/LootDocumentation.lua),
