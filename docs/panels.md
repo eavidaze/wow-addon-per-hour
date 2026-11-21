@@ -67,8 +67,10 @@ the existing session rate to both displays, without changing the tracking calcul
 Gold uses the same controls and layout, converts copper rates to gold for the
 panel, and requests two decimal places from the numeric display. Tooltip totals
 and rates use its monetary formatter. Its context line identifies vendor-based
-estimated net value and reports pending item prices. The event journal has no
-history view until M1.5; see [Gold tracking](gold-tracking.md).
+estimated net value and reports pending item prices. View the event journal
+through **Gold → Options → Details** or a left-click on the Gold tracker's
+background/rate. Gold's tooltip lists that shortcut; dragging and footer controls
+keep their actions. See [Gold tracking](gold-tracking.md).
 
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its

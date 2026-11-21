@@ -134,6 +134,8 @@ function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetParent(parent) self.parent = parent end
 function methods:GetParent() return self.parent end
+function methods:SetScale(scale) self.scale = scale end
+function methods:GetScale() return rawget(self, "scale") or 1 end
 function methods:GetChildren()
     local children = {}
     for _, frame in ipairs(frames) do
@@ -267,10 +269,15 @@ end
 function methods:CreateFontString(name, layer, template)
     assert(layer == "OVERLAY", "font strings need a valid draw layer")
     local fontString = object(name)
+    fontString.parent = self
     fontString.template = template
     return fontString
 end
-function methods:CreateTexture() return object() end
+function methods:CreateTexture(name, layer)
+    local texture = object(name)
+    texture.layer = layer
+    return texture
+end
 function methods:CreateAnimationGroup()
     local group = object()
     group.animations, group.playing, group.playCount = {}, false, 0
@@ -339,6 +346,7 @@ function methods:IsMouseOver()
 end
 MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
 SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
+local scrollBoxFixture = assert(loadfile("tests/scrollbox-fixture.lua"))()
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
@@ -346,7 +354,8 @@ function CreateFrame(kind, name, parent, template)
         or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
         or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
         or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
-        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate",
+        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate"
+        or template == "WowScrollBoxList" or template == "MinimalScrollBar",
         "unsupported template: "..tostring(template))
     if name then
         name = name:gsub("%$parent", parent.name or "")
@@ -354,6 +363,23 @@ function CreateFrame(kind, name, parent, template)
     end
     local frame = object(name)
     frame.parent, frame.template, frame.kind = parent, template, kind
+    if kind == "ItemButton" then
+        frame:SetSize(37, 37)
+        frame.icon = frame:CreateTexture(nil, "BORDER")
+        frame:EnableMouse(true)
+        function frame:SetItem(item)
+            self.item = item
+            self.iconTexture = item and C_Item.GetItemIconByID(tonumber(item:match("item:(%d+)"))) or nil
+        end
+        function frame:SetItemButtonTexture(texture)
+            self.iconTexture = texture
+            self.icon.texture = texture
+            self.icon.atlas = nil
+        end
+        function frame:SetItemButtonCount(count) self.count = count end
+        function frame:SetItemButtonQuality(quality, item) self.quality, self.qualityItem = quality, item end
+    end
+    if template == "WowScrollBoxList" then scrollBoxFixture.Initialize(frame) end
     if kind == "Button" or kind == "DropdownButton" or kind == "CheckButton" or kind == "Slider" then
         frame:EnableMouse(true)
     end
@@ -2639,6 +2665,35 @@ assert(loadfile("tests/performance.lua"))()({
 })
 assert(loadfile("tests/gold.lua"))()({
     equal = equal, near = near, tick = tick, event = event, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-details.lua"))()({
+    mouseClick = function(region, button)
+        local target = mouseTarget(region, false)
+        if target then mouseClick(target, button or "LeftButton") end
+    end,
+    mouseDrag = mouseDrag,
+    pointAt = function(frame)
+        local savedX, savedY = cursorX, cursorY
+        cursorX, cursorY = (frame:GetLeft() + 30) * frame:GetEffectiveScale(),
+            (frame:GetTop() - 30) * frame:GetEffectiveScale()
+        return function() cursorX, cursorY = savedX, savedY end
+    end,
+    equal = equal, near = near, tick = tick, event = event, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-quest-deliveries.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
     fixture = goldFixture, copy = copy, login = login,
     fresh = function()
         goldFixture.reset()

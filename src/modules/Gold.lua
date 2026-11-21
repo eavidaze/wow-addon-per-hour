@@ -3,7 +3,8 @@ local Module = {
     RateDivisor = 10000, RateDecimals = 2,
     UpdateWhilePaused = false,
     RegisteredEvents = {
-        "CHAT_MSG_MONEY", "CHAT_MSG_LOOT", "QUEST_TURNED_IN", "PLAYER_MONEY",
+        "CHAT_MSG_MONEY", "CHAT_MSG_LOOT", "QUEST_TURNED_IN", "QUEST_LOOT_RECEIVED", "PLAYER_MONEY",
+        "QUEST_PROGRESS", "QUEST_COMPLETE", "QUEST_ITEM_UPDATE", "QUEST_FINISHED", "QUEST_DETAIL", "QUEST_GREETING",
         "BAG_UPDATE_DELAYED", "GET_ITEM_INFO_RECEIVED", "ITEM_DATA_LOAD_RESULT",
         "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_SUCCEEDED", "UNIT_SPELLCAST_FAILED",
         "UNIT_SPELLCAST_INTERRUPTED",
@@ -19,7 +20,7 @@ local CONTEXT_EVENTS = {
     MERCHANT_SHOW = "merchant", MERCHANT_CLOSED = "merchant", BANKFRAME_OPENED = "bank", BANKFRAME_CLOSED = "bank",
 }
 local SOURCES = { loot_money = true, loot_item = true, item_reward = true, quest_money = true,
-    consumable = true, repair = true, transport = true }
+    consumable = true, repair = true, transport = true, quest_turnin = true }
 
 local function Readable(value, kind)
     return not (issecretvalue and issecretvalue(value)) and type(value) == kind
@@ -87,6 +88,7 @@ end
 
 local function Refresh()
     BaseModule:UpdateRates(Module)
+    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
 end
 
 local function ResolveEntry(entry)
@@ -102,6 +104,7 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
     local state = Module.State
     local entry = {
         elapsed = state.Time + math.max(0, GetTime() - state.UpdatedAt),
+        timestamp = GetServerTime(),
         source = source, amount = amount, direction = direction or (amount < 0 and -1 or 1),
         questID = questID,
     }
@@ -110,9 +113,11 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
         entry.itemID = tonumber(itemLink:match("item:(%d+)"))
         entry.amount, entry.pending = 0, true
     end
+    local resolved = itemLink and ResolveEntry(entry)
+    if resolved and entry.unitPrice == 0 then return end
     table.insert(state.History, entry)
     if itemLink then
-        if not ResolveEntry(entry) then
+        if not resolved then
             local pending = state.PendingPrices[entry.itemID] or {}
             state.PendingPrices[entry.itemID] = pending
             table.insert(pending, entry)
@@ -122,6 +127,54 @@ local function Record(source, amount, itemLink, quantity, direction, questID)
         state.Element = state.Element + amount
     end
     Refresh()
+    return entry
+end
+
+local function DiscardValuelessItem(entry)
+    for index, recorded in ipairs(Module.State.History) do
+        if recorded == entry then table.remove(Module.State.History, index); break end
+    end
+    for index = #Module.State.QuestItems, 1, -1 do
+        if Module.State.QuestItems[index].entry == entry then table.remove(Module.State.QuestItems, index) end
+    end
+end
+
+-- Quest loot supplies identity, while the localized loot message remains the
+-- single accounting event. Match the complete item link and quantity in either
+-- event order; never attribute an arbitrary reward to the last quest turned in.
+local function AssociateQuestItem(receipt)
+    local now, pending = GetTime(), Module.State.QuestItems
+    local match, matches, ambiguous = nil, 0, false
+    for index = #pending, 1, -1 do
+        local candidate = pending[index]
+        if now - candidate.at > 2 then
+            table.remove(pending, index)
+        elseif candidate.link == receipt.link and candidate.quantity == receipt.quantity then
+            if candidate.ambiguous then ambiguous = true end
+            if (candidate.entry ~= nil) ~= (receipt.entry ~= nil) then
+                match, matches = candidate, matches + 1
+            end
+        end
+    end
+    if ambiguous then return end
+    if matches == 1 then
+        local entry = receipt.entry or match.entry
+        entry.questID = receipt.questID or match.questID
+        if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
+        for index, candidate in ipairs(pending) do
+            if candidate == match then table.remove(pending, index); break end
+        end
+        return
+    end
+    if matches > 1 then
+        -- Do not choose between indistinguishable concurrent receipts.
+        for _, candidate in ipairs(pending) do
+            if candidate.link == receipt.link and candidate.quantity == receipt.quantity then candidate.ambiguous = true end
+        end
+        receipt.ambiguous = true
+    end
+    receipt.at = now
+    table.insert(pending, receipt)
 end
 
 -- Inventory is evidence of consumption, never evidence of income. Transfers and sales
@@ -149,11 +202,76 @@ local function Inventory()
     return items
 end
 
+-- Required-item APIs belong to the open quest dialog and may be empty by the
+-- time QUEST_TURNED_IN arrives. Keep identity and quantities before completion.
+local ReconcileQuestDeliveries
+local function CaptureQuestDelivery(preserve)
+    local state = Module.State
+    local questID, count = GetQuestID(), GetNumQuestItems()
+    if not Integer(questID) or questID < 1 or not Integer(count) then return end
+    local previous = preserve and state.QuestDelivery
+    if previous and previous.questID ~= questID then previous = nil end
+    if previous and previous.expires and GetTime() > previous.expires then
+        state.QuestDelivery = nil
+        return
+    end
+    if count == 0 and previous then return end
+    local inventory, items = Inventory(), {}
+    -- Settle earlier deliveries before taking another baseline: bags may
+    -- already have changed even though BAG_UPDATE_DELAYED has not arrived.
+    ReconcileQuestDeliveries(inventory)
+    for index = 1, count do
+        local _, _, quantity = GetQuestItemInfo("required", index)
+        local link = GetQuestItemLink("required", index)
+        local itemID = Readable(link, "string") and tonumber(link:match("item:(%d+)"))
+        if itemID and itemID > 0 and Integer(quantity) and quantity > 0 then
+            local old = previous and previous.items[itemID]
+            local item = items[itemID]
+            if item then item.quantity = item.quantity + quantity
+            else
+                items[itemID] = { itemID = itemID, link = link, quantity = quantity,
+                    before = old and old.before or (inventory[itemID] and inventory[itemID].count or 0),
+                    debits = old and old.debits or (state.QuestDeliveryCounts[itemID] or 0) }
+            end
+        end
+    end
+    -- Item links may load after the first dialog event. Preserve already known
+    -- requirements until QUEST_ITEM_UPDATE can supply the remaining metadata.
+    if previous then
+        for itemID, item in pairs(previous.items) do if not items[itemID] then items[itemID] = item end end
+    end
+    state.QuestDelivery = { questID = questID, items = items, expires = previous and previous.expires }
+end
+
+ReconcileQuestDeliveries = function(current)
+    local state, index = Module.State, 1
+    while index <= #state.QuestDeliveries do
+        local delivery = state.QuestDeliveries[index]
+        if GetTime() <= delivery.expires then
+            for itemID, item in pairs(delivery.items) do
+                local debits = state.QuestDeliveryCounts[itemID] or 0
+                local remaining = current[itemID] and current[itemID].count or 0
+                if item.before - remaining - (debits - item.debits) >= item.quantity then
+                    -- Allocate each observed loss once, including overlapping
+                    -- turn-ins of the same item before the bag event arrives.
+                    state.QuestDeliveryCounts[itemID] = debits + item.quantity
+                    delivery.items[itemID] = nil
+                    local entry = Record("quest_turnin", 0, item.link, item.quantity, -1, delivery.questID)
+                    if entry then entry.elapsed, entry.timestamp = delivery.elapsed, delivery.timestamp end
+                end
+            end
+        end
+        if not next(delivery.items) or GetTime() > delivery.expires then table.remove(state.QuestDeliveries, index)
+        else index = index + 1 end
+    end
+end
+
 local function ResetRuntime()
     local state = Module.State
     state.LastMoney = GetMoney()
     state.Inventory = Inventory()
-    state.Casts, state.LastCasts, state.Expense = {}, {}, nil
+    state.Casts, state.LastCasts, state.Expense, state.QuestItems = {}, {}, nil, {}
+    state.QuestDelivery, state.QuestDeliveries, state.QuestDeliveryCounts = nil, {}, {}
     state.ExternalContexts, state.IgnorePushedUntil = {}, 0
     state.RepairCost = GetRepairAllCost()
     state.TaxiCosts = {}
@@ -187,13 +305,22 @@ Module.CustomReset = function()
     Module.State.History, Module.State.PendingPrices = {}, {}
     Module.State.Inventory, Module.State.Casts, Module.State.LastCasts, Module.State.Expense = {}, {}, {}, nil
     Module.State.ExternalContexts, Module.State.IgnorePushedUntil = {}, 0
+    Module.State.QuestItems = {}
+    Module.State.QuestDelivery, Module.State.QuestDeliveries, Module.State.QuestDeliveryCounts = nil, {}, {}
+    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
 end
+
+Module.CustomShowDetails = function() PerHour.GoldDetailsPanel:Show() end
 
 Module.CustomStart = ResetRuntime
 Module.CustomTrackingChanged = ResetRuntime
 Module.CustomWorldEntered = ResetRuntime
 Module.CustomOnUpdate = function()
-    if Running() and next(Module.State.Casts) then ReconcileCasts(Inventory()) end
+    if Running() and (next(Module.State.Casts) or next(Module.State.QuestDeliveries)) then
+        local current = Inventory()
+        ReconcileQuestDeliveries(current)
+        ReconcileCasts(current)
+    end
     return true
 end
 
@@ -211,6 +338,9 @@ Module.CustomRestoreSession = function(context)
             or not Utils:IsFiniteNumber(entry.amount) or entry.amount ~= math.floor(entry.amount)
             or (entry.direction ~= 1 and entry.direction ~= -1) then return false end
         if entry.amount * entry.direction < 0 then return false end
+        if entry.timestamp ~= nil and (not Integer(entry.timestamp) or entry.timestamp > 4294967295) then return false end
+        if entry.questID ~= nil and (not Integer(entry.questID) or entry.questID < 1) then return false end
+        if entry.source == "quest_turnin" and (not entry.itemID or not entry.questID or entry.direction ~= -1) then return false end
         if entry.itemID then
             if not Integer(entry.itemID) or entry.itemID < 1 or not Integer(entry.quantity) or entry.quantity < 1
                 or not Readable(entry.itemLink, "string") then return false end
@@ -233,6 +363,7 @@ Module.CustomRestoreSession = function(context)
         end
     end
     for itemID in pairs(Module.State.PendingPrices) do C_Item.RequestLoadItemDataByID(itemID) end
+    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
     return true
 end
 
@@ -264,6 +395,8 @@ Module.CustomOnEvent = function(self, event, ...)
         state.ExternalContexts[context] = not closed or nil
         if closed then state.IgnorePushedUntil = GetTime() + 1 end
         state.Casts = {}
+        state.QuestItems = {}
+        state.QuestDelivery, state.QuestDeliveries, state.QuestDeliveryCounts = nil, {}, {}
         state.RepairCost = GetRepairAllCost()
         return
     end
@@ -282,7 +415,11 @@ Module.CustomOnEvent = function(self, event, ...)
         local pending = state.PendingPrices[first]
         if pending then
             for index = #pending, 1, -1 do
-                if ResolveEntry(pending[index]) then table.remove(pending, index) end
+                local entry = pending[index]
+                if ResolveEntry(entry) then
+                    table.remove(pending, index)
+                    if entry.unitPrice == 0 then DiscardValuelessItem(entry) end
+                end
             end
             if #pending == 0 then state.PendingPrices[first] = nil end
             Refresh()
@@ -304,7 +441,17 @@ Module.CustomOnEvent = function(self, event, ...)
         return
     end
     if not Running() then return end
-    if event == "CHAT_MSG_MONEY" then
+    if event == "QUEST_PROGRESS" or event == "QUEST_COMPLETE" or event == "QUEST_ITEM_UPDATE" then
+        if event ~= "QUEST_ITEM_UPDATE" or state.QuestDelivery then
+            CaptureQuestDelivery(event ~= "QUEST_PROGRESS")
+        end
+    elseif event == "QUEST_FINISHED" then
+        -- Native close/completion events can precede QUEST_TURNED_IN. Allow
+        -- that ordering briefly without keeping canceled dialogs indefinitely.
+        if state.QuestDelivery then state.QuestDelivery.expires = GetTime() + 2 end
+    elseif event == "QUEST_DETAIL" or event == "QUEST_GREETING" then
+        state.QuestDelivery = nil
+    elseif event == "CHAT_MSG_MONEY" then
         if not Readable(first, "string") then return end
         local money = MatchFormat(first, YOU_LOOT_MONEY_GUILD) or MatchFormat(first, LOOT_MONEY_SPLIT_GUILD)
             or MatchFormat(first, YOU_LOOT_MONEY) or MatchFormat(first, LOOT_MONEY_SPLIT)
@@ -324,12 +471,29 @@ Module.CustomOnEvent = function(self, event, ...)
         end
         quantity = tonumber(quantity) or 1
         if link and link:match("item:%d+") and Integer(quantity) and quantity > 0 then
-            Record(source, 0, link, quantity, 1)
+            local entry = Record(source, 0, link, quantity, 1)
+            if entry and source == "item_reward" then AssociateQuestItem({ link = link, quantity = quantity, entry = entry }) end
         end
+    elseif event == "QUEST_LOOT_RECEIVED" then
+        if not Integer(first) or first < 1 or not Readable(second, "string") or not second:match("item:%d+")
+            or not Integer(third) or third < 1 or ExternalItems() or GetTime() < state.IgnorePushedUntil then return end
+        AssociateQuestItem({ questID = first, link = second, quantity = third })
     elseif event == "QUEST_TURNED_IN" then
+        local delivery = state.QuestDelivery
+        if Integer(first) and delivery and delivery.questID == first then
+            state.QuestDelivery = nil
+            if not delivery.expires or GetTime() <= delivery.expires then
+                delivery.expires = GetTime() + 2
+                delivery.elapsed = state.Time + math.max(0, GetTime() - state.UpdatedAt)
+                delivery.timestamp = GetServerTime()
+                table.insert(state.QuestDeliveries, delivery)
+                ReconcileQuestDeliveries(Inventory())
+            end
+        end
         if Integer(first) and Integer(third) and third > 0 then Record("quest_money", third, nil, nil, nil, first) end
     elseif event == "BAG_UPDATE_DELAYED" then
         local current = Inventory()
+        ReconcileQuestDeliveries(current)
         ReconcileCasts(current)
         state.Inventory = current
     elseif event:match("^UNIT_SPELLCAST_") then

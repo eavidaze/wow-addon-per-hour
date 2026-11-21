@@ -16,6 +16,10 @@ confirmation in WoW Forever.
 consumption, delayed item prices and the saved journal. Gold shares the running
 session timer and does not request periodic updates while paused. Its bag/spell
 metadata is read on inventory changes rather than on every player ability cast.
+`tests/gold-details.lua` checks that the history viewport reuses a bounded row
+pool, a burst of 200 events produces one deferred repaint, hidden Details has no
+repaint work, and prepended events preserve the reader's existing scroll anchor.
+The native list handles clipping and scrolling; the panel adds no per-frame polling.
 The three-panel before/after counts below describe the earlier optimization
 comparison; they are not measurements of the new Gold module in the game.
 

@@ -171,11 +171,25 @@ local function CreatePanel(module, index, count)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
+    if module.CustomShowDetails then
+        frame:SetScript("OnMouseDown", function(self, button)
+            self.DetailsClick = button == "LeftButton"
+        end)
+        frame:SetScript("OnMouseUp", function(self, button)
+            local open = self.DetailsClick == true and button == "LeftButton" and not self.Dragging and self:IsMouseOver()
+            self.DetailsClick = nil
+            if open then
+                if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+                module.CustomShowDetails()
+            end
+        end)
+    end
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self)
         local cursorX, cursorY = GetCursorPosition()
         local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
         local lastX, lastY = cursorX, cursorY
+        self.DetailsClick = nil
         self.Dragging = true
         self:SetScript("OnUpdate", function()
             local x, y = GetCursorPosition()
@@ -190,6 +204,7 @@ local function CreatePanel(module, index, count)
         TrackerPanels:SavePosition(module)
     end)
     frame:HookScript("OnHide", function()
+        frame.DetailsClick = nil
         frame:SetScript("OnUpdate", nil)
         if frame.Dragging then
             frame.Dragging = false
@@ -224,6 +239,10 @@ local function ShowRunTooltip(module)
     GameTooltip:AddLine("Rates", goldR, goldG, goldB)
     GameTooltip:AddDoubleLine(module.ShortName .. "/h", format(module.State.ElementPerHour), 0.7, 0.7, 0.7, goldR, goldG, goldB)
     GameTooltip:AddDoubleLine(module.ShortName .. "/min", format(module.State.ElementPerMinute), 0.7, 0.7, 0.7, 1, 1, 1)
+    if module.CustomShowDetails then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Left-click: Details", goldR, goldG, goldB)
+    end
     GameTooltip:Show()
 end
 
@@ -331,6 +350,9 @@ local function CreateControls(module)
                     Utils:AddonMessage(module.Name .. " reset.")
                 end)
                 rootDescription:CreateButton("Settings", function() PerHour.SettingsPanel:Show() end)
+                if module.CustomShowDetails then
+                    rootDescription:CreateButton("Details", module.CustomShowDetails)
+                end
                 local announce = rootDescription:CreateButton("Announce")
                 for _, channel in ipairs(CHANNELS) do
                     announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)

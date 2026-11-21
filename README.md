@@ -31,6 +31,7 @@ code changes only need `/reload`.
 - **Gold** values loot and quest rewards at vendor prices and subtracts used
   consumables, personal repairs and paid flights. Trades, mail, item purchases
   and vendor-sale receipts are excluded. See [Gold tracking](docs/gold-tracking.md).
+- Left-click **Gold** or choose **Gold → Options → Details** to view income, expenses and event history.
 
 Window visibility, window positions and minimap button position are saved per character.
 One hourly/per-minute display preference applies to all windows and is saved per character.
