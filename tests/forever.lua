@@ -17,6 +17,8 @@ local function near(actual, expected, label)
 end
 
 local methods = {}
+strmatch = string.match
+function securecallfunction(callback, ...) return callback(...) end
 function methods:SetScript(event, callback)
     self.scripts[event] = callback
     if callback and (event == "OnEnter" or event == "OnLeave" or event == "OnMouseDown" or event == "OnMouseUp") then
@@ -92,6 +94,7 @@ function methods:GetFont()
 end
 function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
+function methods:GetVertexColor() return unpack(rawget(self, "vertexColor") or { 1, 1, 1, 1 }) end
 function methods:SetTextColor(...) self.textColor = { ... } end
 function methods:SetJustifyH(value) self.justifyH = value end
 function methods:SetTexture(texture, wrapHorizontal, wrapVertical, filterMode)
@@ -275,6 +278,7 @@ function methods:CreateFontString(name, layer, template)
 end
 function methods:CreateTexture(name, layer)
     local texture = object(name)
+    texture.parent = self
     texture.layer = layer
     return texture
 end
@@ -350,7 +354,7 @@ local scrollBoxFixture = assert(loadfile("tests/scrollbox-fixture.lua"))()
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
-        or template == "DialogHeaderTemplate"
+        or template == "DialogHeaderTemplate" or template == "GameTooltipTemplate"
         or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
         or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
         or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
@@ -489,6 +493,26 @@ function CreateFrame(kind, name, parent, template)
     if name then names[name] = frame end
     return frame
 end
+-- Context-menu ownership and close callbacks follow Forever's MenuUtil/Menu.
+MenuUtil = {}
+function MenuUtil.CreateContextMenu(owner, generator)
+    if MenuUtil.activeMenu then MenuUtil.activeMenu:Close() end
+    local menu = CreateFrame("Frame", nil, UIParent)
+    menu.owner, menu.description = owner, menuDescription()
+    generator(owner, menu.description)
+    function menu:SetClosedCallback(callback) self.closedCallback = callback end
+    function menu:Close()
+        if not self:IsShown() then return end
+        self:Hide()
+        if self.closedCallback then self.closedCallback(self) end
+        if MenuUtil.activeMenu == self then MenuUtil.activeMenu = nil end
+    end
+    menu:SetScript("OnUpdate", function(self)
+        if not owner:IsVisible() then self:Close() end
+    end)
+    MenuUtil.activeMenu = menu
+    return menu
+end
 function GetTime() return now end
 C_Timer = { After = function(delay, callback)
     timers[#timers + 1] = { deadline = now + delay, callback = callback }
@@ -597,6 +621,10 @@ local function loadSource(path)
     end
 end
 local function loadAddon()
+    -- A simulated client reload recreates the embedded libraries as well.
+    LibStub = nil
+    Minimap.scripts = {}
+    MenuUtil.activeMenu = nil
     for line in read("per-hour.toc"):gmatch("[^\r\n]+") do
         if not line:match("^#") and line:match("%S") then loadSource(line) end
     end
@@ -636,7 +664,8 @@ local function click(module) module.View.ToggleStartButton.scripts.OnClick() end
 local function mouseClick(frame, mouseButton)
     local function accepts(registration, phase)
         for _, registered in ipairs(registration) do
-            if registered == mouseButton .. phase or registered == "Any" .. phase then return true end
+            if registered:lower() == (mouseButton .. phase):lower()
+                or registered:lower() == ("Any" .. phase):lower() then return true end
         end
         return false
     end
@@ -829,15 +858,28 @@ equal(experience.Settings:Get("isShown"), false, "close button saves visibility"
 experience.Settings:Set("isShown", true)
 experience.View.Frame:Show()
 local minimapButton = PerHour.MinimapButton
+local minimapBroker = LibStub("LibDataBroker-1.1"):GetDataObjectByName("PerHour")
+equal(LibStub("LibDBIcon-1.0"):GetMinimapButton("PerHour"), minimapButton,
+    "minimap icon is registered with the real embedded LibDBIcon")
+equal(minimapButton.name, "LibDBIcon10_PerHour", "standard icon name avoids Leatrix's custom-button replacement")
+equal(names.PerHourMinimapButton, nil, "no legacy custom minimap button is created")
+equal(minimapBroker.type, "launcher", "broker displays recognize the Per Hour launcher")
+equal(minimapBroker.tocname, "per-hour", "broker displays can resolve the launcher's addon metadata")
+equal(minimapButton.dataObject, minimapBroker, "standard icon dispatches the registered broker callbacks")
+local beforeLibraryReload = #frames
+loadSource("src/libs/Init.xml")
+equal(LibStub("LibDBIcon-1.0"):GetMinimapButton("PerHour"), minimapButton,
+    "loading another equal-version library copy preserves the registered icon")
+equal(#frames, beforeLibraryReload, "shared library loading creates no duplicate icon or tooltip")
 equal(minimapButton.events.ADDON_LOADED, nil, "initialize once")
 equal(minimapButton:IsShown(), true, "minimap button visible")
-equal(minimapButton:IsMenuOpen(), false, "menu starts closed")
+equal(PerHour.ToggleMenu:IsOpen(), false, "menu starts closed")
 equal(PerHourCharacter_Settings.minimap.angle, math.rad(225), "default minimap position")
-SlashCmdList.PERHOUR()
-equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
-equal(minimapButton.menuDescription.title, "Show trackers", "native menu title matches settings visibility group")
-equal(#minimapButton.menuDescription.items, 4, "all modules in menu")
-local experienceItem = minimapButton.menuDescription.items[1]
+mouseClick(minimapButton, "LeftButton")
+equal(PerHour.ToggleMenu:IsOpen(), true, "left-click opens tracker menu")
+equal(PerHour.ToggleMenu.Menu.description.title, "Show trackers", "native menu title matches settings visibility group")
+equal(#PerHour.ToggleMenu.Menu.description.items, 4, "all modules in menu")
+local experienceItem = PerHour.ToggleMenu.Menu.description.items[1]
 equal(experienceItem.text, "Experience", "stable alphabetical menu order")
 equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
 experienceItem.callback(experienceItem.data)
@@ -847,15 +889,14 @@ equal(experienceItem.isSelected(experienceItem.data), false, "menu check updates
 experienceItem.callback(experienceItem.data)
 equal(experience.View.Frame:IsShown(), true, "menu shows module")
 equal(experience.Settings:Get("isShown"), true, "menu saves visible module")
-SlashCmdList.PERHOUR()
-equal(minimapButton:IsMenuOpen(), false, "slash closes menu")
-local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
 mouseClick(minimapButton, "LeftButton")
-equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
-equal(minimapButton.nativeMouseDownCalls, nativeMouseDownCalls + 1, "left click calls native menu handler exactly once")
-equal(#minimapButton.menuDescription.items, 4, "left click opens all four module options")
+equal(PerHour.ToggleMenu:IsOpen(), false, "left-click closes tracker menu")
 mouseClick(minimapButton, "LeftButton")
-equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
+equal(PerHour.ToggleMenu:IsOpen(), true, "minimap click opens menu")
+equal(minimapButton:GetScript("OnClick") ~= nil, true, "registered LibDBIcon button handles clicks")
+equal(#PerHour.ToggleMenu.Menu.description.items, 4, "left click opens all four module options")
+mouseClick(minimapButton, "LeftButton")
+equal(PerHour.ToggleMenu:IsOpen(), false, "minimap click closes menu")
 
 -- Right-click opens a reusable settings panel without toggling the module menu.
 do
@@ -864,15 +905,14 @@ do
     equal(PerHour.SettingsPanel.Frame, nil, "other mouse buttons do not open settings")
     mouseClick(minimapButton, "LeftButton")
     minimapButton.scripts.OnEnter(minimapButton)
-    equal(minimapButton:IsMenuOpen(), true, "left-button release does not toggle menu again")
+    equal(PerHour.ToggleMenu:IsOpen(), true, "left-button release does not toggle menu again")
     equal(PerHour.SettingsPanel.Frame, nil, "left-button release does not open settings")
     mouseClick(minimapButton, "RightButton")
     local panel = PerHour.SettingsPanel.Frame
     equal(panel ~= nil, true, "registered right mouse-down delivers settings action")
-    equal(table.concat(minimapButton.mouseButtons, ","),
-        "LeftButtonDown,LeftButtonUp,RightButtonDown,RightButtonUp", "minimap accepts both mouse buttons")
+    equal(table.concat(minimapButton.clickButtons, ","), "anyUp", "LibDBIcon accepts both buttons through OnClick")
     equal(panel:IsShown(), true, "right-click opens settings")
-    equal(minimapButton:IsMenuOpen(), false, "opening settings closes module menu")
+    equal(PerHour.ToggleMenu:IsOpen(), false, "opening settings closes module menu")
     equal(minimapButton.Tooltip:IsShown(), false, "opening settings dismisses minimap tooltip")
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
@@ -909,7 +949,7 @@ do
     equal(honor.Settings:Get("isShown"), false, "XP control preserves honor visibility")
     equal(reputation.Settings:Get("isShown"), false, "XP control preserves reputation visibility")
     equal(PerHour.SettingsPanel.RateField:GetValue(), "hour", "shared rate defaults to per hour")
-    local item = minimapButton.menuDescription.items[1]
+    local item = experienceItem
     item.callback(item.data)
     equal(visibility:GetValue(), false, "open settings follow minimap menu changes")
     item.callback(item.data)
@@ -943,6 +983,123 @@ do
     panel.CloseButton:Click()
     equal(panel:IsShown(), false, "X closes settings")
     equal(panel.CloseButton:GetAlpha(), 1, "closing does not fade always-visible X")
+end
+
+-- Text commands open Settings even when another addon hides the minimap button.
+do
+    local settings = PerHour.SettingsPanel
+    local panel = settings.Frame
+    equal(SLASH_PERHOUR1, "/perhour", "chat registers the documented slash command")
+    mouseClick(minimapButton, "LeftButton")
+    minimapButton.scripts.OnEnter(minimapButton)
+    GameTooltip:Show()
+    local frameCount = #frames
+    SlashCmdList.PERHOUR("")
+    equal(panel:IsShown(), true, "bare slash command opens Settings")
+    equal(PerHour.ToggleMenu:IsOpen(), false, "slash Settings closes the tracker menu")
+    equal(minimapButton.Tooltip:IsShown(), false, "slash Settings dismisses the minimap tooltip")
+    equal(GameTooltip:IsShown(), false, "slash Settings dismisses the session tooltip")
+    SlashCmdList.PERHOUR("   ")
+    equal(panel:IsShown(), true, "bare settings command ignores surrounding whitespace")
+    equal(settings.Frame, panel, "repeated slash commands reuse the Settings panel")
+    equal(#frames, frameCount, "repeated slash commands allocate no duplicate controls")
+    panel:Hide()
+    minimapButton:Hide()
+    SlashCmdList.PERHOUR()
+    equal(panel:IsVisible(), true, "bare command works with the minimap button hidden")
+    panel:Hide()
+    SlashCmdList.PERHOUR("")
+    equal(panel:IsVisible(), true, "bare settings command reopens with the minimap button hidden")
+    equal(experience.Settings:Get("isShown"), true, "opening Settings preserves tracker visibility")
+    equal(experience.State.HasStarted, false, "opening Settings does not start a session")
+    panel:Hide()
+    local trackerCommands = { { "xp", "Experience" }, { "gold", "Gold" }, { "honor", "Honor" }, { "rep", "Reputation" } }
+    local originalVisibility = {}
+    for name, module in pairs(PerHour.Modules) do
+        originalVisibility[name] = module.Settings:Get("isShown")
+        module.Settings:Set("isShown", false)
+        module.View.Frame:Hide()
+    end
+    for _, tracker in ipairs(trackerCommands) do
+        local module = PerHour.Modules[tracker[2]]
+        local started, paused, total, duration = module.State.HasStarted, module.State.HasPaused, module.State.Element, module.State.Time
+        local otherVisibility = {}
+        for name, other in pairs(PerHour.Modules) do otherVisibility[name] = other.View.Frame:IsShown() end
+        SlashCmdList.PERHOUR("  " .. tracker[1]:upper() .. "  ")
+        equal(module.View.Frame:IsVisible(), true, tracker[1] .. " opens its tracker with minimap hidden")
+        equal(module.Settings:Get("isShown"), true, tracker[1] .. " saves tracker visibility")
+        equal(settings.ModuleFields[tracker[2]]:GetValue(), true, tracker[1] .. " updates the Settings visibility checkbox")
+        equal(module.State.HasStarted, started, tracker[1] .. " preserves the session's started state")
+        equal(module.State.HasPaused, paused, tracker[1] .. " preserves the session's paused state")
+        equal(module.State.Element, total, tracker[1] .. " preserves the session total")
+        equal(module.State.Time, duration, tracker[1] .. " preserves the session duration")
+        equal(panel:IsShown(), false, tracker[1] .. " does not open Settings")
+        for name, other in pairs(PerHour.Modules) do
+            if other ~= module then equal(other.View.Frame:IsShown(), otherVisibility[name], tracker[1] .. " preserves " .. name .. " visibility") end
+        end
+        SlashCmdList.PERHOUR(tracker[1])
+        equal(module.View.Frame:IsVisible(), true, "repeating " .. tracker[1] .. " keeps its tracker visible")
+    end
+    equal(PerHour.GoldDetailsPanel.Frame, nil, "gold command opens its tracker instead of the details journal")
+    for name, module in pairs(PerHour.Modules) do
+        module.Settings:Set("isShown", originalVisibility[name])
+        module.View.Frame:SetShown(originalVisibility[name])
+    end
+    local beforeHelp = #messages
+    SlashCmdList.PERHOUR("  HeLp  ")
+    equal(#messages, beforeHelp + 6, "help lists Settings, all four trackers and help")
+    equal(messages[beforeHelp + 1]:find("/perhour: open Settings.", 1, true) ~= nil, true, "help describes the bare settings command")
+    for index, tracker in ipairs(trackerCommands) do
+        equal(messages[beforeHelp + index + 1]:find("/perhour " .. tracker[1] .. ": show the " .. tracker[2] .. " tracker.", 1, true) ~= nil,
+            true, "help describes the " .. tracker[1] .. " tracker command")
+    end
+    equal(messages[#messages]:find("/perhour help", 1, true) ~= nil, true, "help describes its own command")
+    equal(panel:IsShown(), false, "help leaves Settings closed")
+    for _, command in ipairs({ "settings", "settings extra", "xp extra", "unknown" }) do
+        SlashCmdList.PERHOUR(command)
+        equal(messages[#messages]:find("Unknown command.", 1, true) ~= nil, true, "unsupported command reports an unknown command: " .. command)
+        equal(messages[#messages]:find("/perhour help", 1, true) ~= nil, true, "unknown command points to help")
+        equal(panel:IsShown(), false, "unknown command does not open Settings")
+    end
+    minimapButton:Show()
+end
+
+-- A broker display uses its own visible launcher, independently of the minimap.
+do
+    local display = CreateFrame("Button", nil, UIParent)
+    local icons = LibStub("LibDBIcon-1.0")
+    icons:Hide("PerHour")
+    minimapBroker.OnClick(display, "LeftButton")
+    equal(PerHour.ToggleMenu:IsOpen(), true, "external broker click opens the tracker menu")
+    equal(PerHour.ToggleMenu.Menu.owner, display, "menu belongs to the clicked broker display")
+    tick(0)
+    equal(PerHour.ToggleMenu:IsOpen(), true, "hidden minimap does not close a menu owned by a visible broker")
+    minimapBroker.OnEnter(display)
+    equal(minimapButton.Tooltip:IsOwned(display), true, "broker tooltip belongs to the visible launcher")
+    equal(minimapButton.Tooltip.singleLines[1], "|cffffd100Left-click:|r Menu", "broker shows the addon actions instead of a custom-button warning")
+    minimapBroker.OnLeave(display)
+    equal(minimapButton.Tooltip:IsShown(), false, "leaving the broker dismisses its tooltip")
+    display:Hide()
+    tick(0)
+    equal(PerHour.ToggleMenu:IsOpen(), false, "hiding the actual menu owner clears menu state")
+    display:Show()
+    minimapBroker.OnClick(display, "LeftButton")
+    equal(PerHour.ToggleMenu:IsOpen(), true, "broker menu reopens after native owner dismissal")
+    minimapBroker.OnClick(display, "RightButton")
+    equal(PerHour.SettingsPanel.Frame:IsVisible(), true, "external broker right-click opens Settings with minimap hidden")
+    equal(PerHour.ToggleMenu:IsOpen(), false, "broker Settings closes the tracker menu")
+    PerHour.SettingsPanel.Frame:Hide()
+    icons:Show("PerHour")
+    local savedAngle = PerHour.Stores.Settings:GetMinimapAngle()
+    minimapButton:SetAngle(math.rad(45))
+    local roundX = minimapButton.point[4]
+    GetMinimapShape = function() return "SQUARE" end
+    minimapButton:Init()
+    equal(minimapButton.point[4] > roundX, true, "LibDBIcon places the icon along a square minimap's border")
+    GetMinimapShape = nil
+    minimapButton:SetAngle(savedAngle)
+    equal(PerHourCharacter_Settings.minimap.minimapPos, nil, "LibDBIcon degrees are not added to saved settings")
+    equal(PerHour.Stores.Settings:GetMinimapAngle(), savedAngle, "library positioning preserves the existing radian setting")
 end
 
 -- The reputation subfield controls the game's watched faction, independently of panel visibility.
@@ -1664,16 +1821,17 @@ do
     panel.CloseButton:Click()
     equal(panel:IsShown(), false, "shared panels close by default")
 end
-SlashCmdList.PERHOUR()
+mouseClick(minimapButton, "LeftButton")
 minimapButton.scripts.OnDragStart(minimapButton)
-equal(minimapButton:IsMenuOpen(), false, "drag closes menu")
+equal(PerHour.ToggleMenu:IsOpen(), false, "drag closes menu")
 local angleBeforeDrag = PerHourCharacter_Settings.minimap.angle
 minimapButton.scripts.OnUpdate(minimapButton)
 equal(PerHourCharacter_Settings.minimap.angle, angleBeforeDrag, "minimap dragging defers persistence until release")
-equal(minimapButton.DragAngle, 0, "scaled cursor determines drag angle")
+equal(minimapButton.db.minimapPos, 0, "LibDBIcon calculates the scaled cursor's angle in degrees")
 equal(minimapButton.point[4], 75, "drag stays on minimap edge")
 equal(minimapButton.point[5], 0, "drag aligns with scaled cursor")
 cursorX, cursorY = 200, 600
+minimapButton.scripts.OnUpdate(minimapButton)
 minimapButton.scripts.OnDragStop(minimapButton)
 equal(minimapButton.scripts.OnUpdate, nil, "drag stops polling cursor")
 equal(PerHourCharacter_Settings.minimap.angle, math.pi / 2, "drag stop saves final position")

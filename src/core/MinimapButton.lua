@@ -1,96 +1,87 @@
 local PerHour = PerHour
 local Theme = PerHour.Theme
-local button = CreateFrame("DropdownButton", "PerHourMinimapButton", Minimap)
-PerHour.MinimapButton = button
--- This native tooltip uses the body font on every line, including the first.
+local icons = LibStub("LibDBIcon-1.0")
 local tooltip = GameNoHeaderTooltip
-button.Tooltip = tooltip
+-- LibDBIcon uses degrees. Keep this runtime table separate from saved settings,
+-- whose existing per-character angle remains in radians.
+local position = { minimapPos = 225 }
+local initialized = false
 
-button:SetSize(31, 31)
-button:SetFrameStrata("MEDIUM")
-button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-button:RegisterForDrag("LeftButton")
--- DropdownButton only accepts left mouse events by default. Enable both buttons
--- and hook the native handler so left-click still toggles its menu exactly once.
-button:RegisterForMouse("LeftButtonDown", "LeftButtonUp", "RightButtonDown", "RightButtonUp")
-button:HookScript("OnMouseDown", function(self, mouseButton)
-    if mouseButton == "RightButton" then
-        self:CloseMenu()
-        GameTooltip:Hide()
-        tooltip:Hide()
-        PerHour.SettingsPanel:Show()
-    end
-end)
-
-local icon = button:CreateTexture(nil, "BACKGROUND")
-icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
-icon:SetSize(20, 20)
--- Align the watch with the visible ring rather than its padded texture bounds.
-icon:SetPoint("CENTER", button, "CENTER", 2, -1)
-
-local border = button:CreateTexture(nil, "OVERLAY")
-border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-border:SetSize(54, 54)
-border:SetPoint("TOPLEFT")
-
-local function UpdatePosition(angle)
-    angle = angle or PerHour.Stores.Settings:GetMinimapAngle()
-    button:SetPoint("CENTER", Minimap, "CENTER",
-        math.cos(angle) * (Minimap:GetWidth() / 2 + 5),
-        math.sin(angle) * (Minimap:GetHeight() / 2 + 5))
+local function HideTooltips()
+    GameTooltip:Hide()
+    tooltip:Hide()
 end
+
+local broker = LibStub("LibDataBroker-1.1"):NewDataObject("PerHour", {
+    type = "launcher",
+    tocname = PerHour.AddonName,
+    text = "Per Hour",
+    label = "Per Hour",
+    icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
+    OnClick = function(owner, mouseButton)
+        if mouseButton == "LeftButton" then
+            HideTooltips()
+            PerHour.ToggleMenu:Toggle(owner)
+        elseif mouseButton == "RightButton" then
+            PerHour.ToggleMenu:Close()
+            HideTooltips()
+            PerHour.SettingsPanel:Show()
+        end
+    end,
+    OnEnter = function(owner)
+        tooltip:SetOwner(owner, "ANCHOR_LEFT")
+        tooltip:ClearLines()
+        tooltip:AddLine(Theme:GoldText("Left-click:") .. " Menu", 1, 1, 1)
+        tooltip:AddLine(Theme:GoldText("Right-click:") .. " Settings", 1, 1, 1)
+        tooltip:AddLine(Theme:GoldText("Drag:") .. " Move", 1, 1, 1)
+        tooltip:Show()
+    end,
+    OnLeave = function() tooltip:Hide() end,
+})
+icons:Register("PerHour", broker, position)
+local button = icons:GetMinimapButton("PerHour")
+PerHour.MinimapButton = button
+button.Tooltip = tooltip
 
 function button:SetAngle(angle)
     PerHour.Stores.Settings:SetMinimapAngle(angle)
-    UpdatePosition()
-end
-
-local function UpdateDragPosition()
-    local x, y = GetCursorPosition()
-    if x == button.DragCursorX and y == button.DragCursorY then return end
-    button.DragCursorX, button.DragCursorY = x, y
-    local centerX, centerY = Minimap:GetCenter()
-    local scale = Minimap:GetEffectiveScale()
-    button.DragAngle = math.atan2(y / scale - centerY, x / scale - centerX)
-    UpdatePosition(button.DragAngle)
+    position.minimapPos = math.deg(angle)
+    icons:SetButtonToPosition(self, position.minimapPos)
 end
 
 function button:SaveDragPosition()
-    if button.DragAngle and button.DragAngle ~= PerHour.Stores.Settings:GetMinimapAngle() then
-        PerHour.Stores.Settings:SetMinimapAngle(button.DragAngle)
+    if not initialized then return end
+    local angle = math.rad(position.minimapPos)
+    if angle ~= PerHour.Stores.Settings:GetMinimapAngle() then
+        PerHour.Stores.Settings:SetMinimapAngle(angle)
     end
-    button.DragAngle = false
 end
-button.DragAngle = false
+button.Dragging = false
 
-button:SetScript("OnDragStart", function(self)
-    self:CloseMenu()
-    GameTooltip:Hide()
-    tooltip:Hide()
-    self.DragCursorX, self.DragCursorY = nil, nil
-    self:SetScript("OnUpdate", UpdateDragPosition)
+-- LibDBIcon owns cursor sampling, positioning and the drag update callback.
+-- Only dismiss our UI and save its resulting angle at lifecycle boundaries.
+button:HookScript("OnDragStart", function(self)
+    PerHour.ToggleMenu:Close()
+    HideTooltips()
+    self.Dragging = true
 end)
-button:SetScript("OnDragStop", function(self)
-    self:SetScript("OnUpdate", nil)
-    UpdateDragPosition()
+button:HookScript("OnDragStop", function(self)
+    self.Dragging = false
     self:SaveDragPosition()
 end)
 button:HookScript("OnHide", function(self)
-    self:SetScript("OnUpdate", nil)
+    if self.Dragging then
+        self.Dragging = false
+        -- Cancel an interrupted drag through its normal stop handler.
+        local stopDrag = self:GetScript("OnDragStop")
+        if stopDrag then stopDrag(self) end
+    end
     self:SaveDragPosition()
     tooltip:Hide()
 end)
 
-button:HookScript("OnEnter", function(self)
-    tooltip:SetOwner(self, "ANCHOR_LEFT")
-    tooltip:ClearLines()
-    tooltip:AddLine(Theme:GoldText("Left-click:") .. " Menu", 1, 1, 1)
-    tooltip:AddLine(Theme:GoldText("Right-click:") .. " Settings", 1, 1, 1)
-    tooltip:AddLine(Theme:GoldText("Drag:") .. " Move", 1, 1, 1)
-    tooltip:Show()
-end)
-button:SetScript("OnLeave", function() tooltip:Hide() end)
-
 function button:Init()
-    UpdatePosition()
+    position.minimapPos = math.deg(PerHour.Stores.Settings:GetMinimapAngle())
+    icons:SetButtonToPosition(self, position.minimapPos)
+    initialized = true
 end

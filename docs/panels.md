@@ -201,6 +201,34 @@ Use `widthFraction = 0.3` for 30% of the available footer width. A single action
 can use `align = "CENTER"` to stay centered within that footer.
 
 The minimap left-click menu is titled **Show trackers**.
+The icon is a `PerHour` LibDataBroker launcher registered with LibDBIcon as
+`LibDBIcon10_PerHour`; its `tocname` identifies the loaded addon for broker
+displays to read TOC metadata. Both libraries and their LibStub/CallbackHandler
+dependencies are embedded, so no separate library addon is required. Leatrix
+and other minimap organizers can manage the standard icon directly. Broker
+displays use the same click and tooltip callbacks: left-click toggles the native
+context menu at the cursor; right-click opens Settings. The menu belongs to the
+launcher that was clicked, so a hidden minimap icon does not dismiss a menu
+opened from a visible broker display.
+
+Text commands open Settings or a tracker independently of minimap visibility:
+
+| Command | Action |
+| --- | --- |
+| `/perhour` | Open Settings, or raise it when already open. |
+| `/perhour xp` | Show the Experience tracker. |
+| `/perhour gold` | Show the Gold tracker. |
+| `/perhour honor` | Show the Honor tracker. |
+| `/perhour rep` | Show the Reputation tracker. |
+| `/perhour help` | List the supported commands in chat. |
+
+Commands ignore surrounding whitespace and letter case. Unknown commands point
+to `/perhour help`. Opening Settings closes the minimap menu and tooltips;
+it does not change tracker visibility or start a session. Tracker commands show
+and raise the requested window and save its visibility without hiding other
+trackers or starting, resuming or resetting sessions. Repeating a tracker command
+keeps its window visible. There is no `settings` subcommand.
+
 Each tracker's gear menu is titled **Options**, with **Reset**, **Settings**
 and **Announce**, in that order. **Settings** opens the same shared settings panel as minimap
 right-click, regardless of which tracker opens it.
@@ -209,7 +237,8 @@ hourly average, followed by active session duration and total gains in
 parentheses, with a discreet `[Per Hour]` prefix. Reputation appends the
 session's faction when available. For example:
 `[Per Hour] 240,000 XP/h - 30m (120,000 XP total)`
-`SettingsPanel.lua` opens **Per Hour Settings** on minimap right-click, with
+`SettingsPanel.lua` opens **Per Hour Settings** through `/perhour`
+or minimap right-click, with
 the entire boxed title in DS gold. The
 **General** group starts with one **Rate** dropdown for
 **Per hour** or **Per minute**, defaulting to hourly display. It immediately changes
@@ -324,7 +353,10 @@ gains from different factions are never combined.
 Hiding a panel keeps its session running. The form follows visibility changes
 from the minimap menu and panel X and reads saved preferences silently when
 reopened. Reposition the minimap button by dragging it; settings have no angle
-control.
+control. LibDBIcon owns cursor sampling, drag updates, minimap shape and positioning.
+Per Hour does not replace or invoke the library's update callback. Its degree value lives
+in a runtime table; Per Hour keeps saving only the existing per-character radian
+angle. This introduces no settings migration or new saved layout format.
 
 Tracker visibility, tracker positions and the minimap button position are saved
 per character, along with the hourly/per-minute preference shared by all four panels.
@@ -345,6 +377,15 @@ the form content and **Close**, independently of the compact tracker layout.
 Validate appearance, checkbox interaction, the shared rate dropdown, dragging and
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected unit and minimap position match saved preferences.
+Verify `/perhour` opens Settings with the minimap button visible or hidden by a
+minimap organizer; repeat it while Settings is open. Check `xp`, `gold`, `honor`
+and `rep` show their trackers without changing sessions, and that `/perhour help`
+describes every command. Unknown commands, including `settings`, point to help.
+With Leatrix's minimap enhancements enabled, confirm that the standard icon has
+the Per Hour action tooltip, both clicks work and no custom-button warning is
+shown. Check dragging on round and square minimaps, then `/reload` and switch
+characters. If using a broker display, test its launcher with the minimap icon
+hidden and confirm the menu closes when its actual owner is hidden.
 Switch between two characters and confirm their layouts and display units remain independent.
 Changing the unit must update all four panels' numeric readouts and the XP gauge scale.
 Verify that the speedometer checkbox applies only to XP, keeps the
@@ -378,6 +419,7 @@ state changes, avoiding repeated footer layout.
 
 Dragging recomputes panel geometry only when the cursor moves. Already-free panel
 positions bypass the candidate search; settings are saved on release or when the
-panel is hidden during dragging. The minimap button also persists at the end
-of dragging. Logout saves any drag still in progress. See [Performance validation](performance.md) for regression coverage
+panel is hidden during dragging. The minimap uses LibDBIcon's native drag updates
+and saves the last sampled angle on release or hide. Logout saves any drag still
+in progress. See [Performance validation](performance.md) for regression coverage
 and the in-game comparison procedure.

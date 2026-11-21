@@ -15,10 +15,13 @@ code changes only need `/reload`.
 
 ## Use
 
-- Left-click the minimap clock or use `/perhour` to toggle the module menu.
-- Right-click the minimap clock to open **Settings** for panel visibility,
-  a shared hourly/per-minute display unit and the watched reputation.
+- Left-click the minimap clock to toggle the module menu.
+- Use `/perhour`, or right-click the minimap clock, to open **Settings**
+  for panel visibility, a shared hourly/per-minute display unit and the watched reputation.
+- Use `/perhour help` to list the available text commands.
+- Use `/perhour xp`, `gold`, `honor` or `rep` to show the corresponding tracker.
 - Check a module to show its window. Drag the minimap button to reposition it.
+- The standard minimap icon supports Leatrix and other LibDBIcon organizers; its libraries are included.
 - **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
 - Drag a window's background to move it; its close button appears on hover and hides it without stopping tracking.
 - Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
