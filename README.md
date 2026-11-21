@@ -31,7 +31,8 @@ code changes only need `/reload`.
 - Enable **Show estimates** in **Settings → General** to also display predictions below the rates.
 - Choose a watched faction in **Settings** or the game's reputation panel;
   switching factions resets the reputation tracker.
-- **Gold** values items with optional TSM → Auctionator → vendor pricing and a vendor minimum,
+- **Gold** values eligible items with optional TSM → Auctionator → vendor pricing and a vendor minimum;
+  poor (gray) items always use vendor value. It tracks loot and rewards,
   and subtracts consumed/delivered items, personal repairs and paid flights. Trades, mail, item purchases
   and vendor-sale receipts are excluded. See [Gold tracking](docs/gold-tracking.md).
 - Left-click **Gold** or choose **Gold → Options → Details** to view income, expenses and event history.
