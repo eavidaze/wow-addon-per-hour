@@ -139,6 +139,10 @@ their artwork. A native yellow quest `!` sits between the event icon and name
 only when a `questID` is recorded. Its slot is reserved on every row to align
 names, with a hover area larger than the symbol. Fonts and money symbols use the
 native game presentation.
+**Items valued at vendor prices.** appears in the tracker tooltip and as a
+discreet note below the Details event list. It describes item valuation; looted
+money, quest money, repairs and transport keep their recorded amounts. The tooltip
+also appends **Item prices pending.** while any accepted item price is unresolved.
 Each row has a thin copper lower border. The DS owns its color
 (`0.72, 0.45, 0.40` RGB), 3 px height and 20% opacity through `Theme.rowDivider`.
 An identical border sits above the first visible row, at the top of the list;

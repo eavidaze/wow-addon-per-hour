@@ -46,7 +46,7 @@ return function(test)
     equal(gold.View.RateUnit:GetText(), "g/min", "Gold follows shared minute preference")
     gold.View.Frame.scripts.OnEnter(gold.View.Frame)
     equal(GameTooltip.lines["Total Gold"], "3g 50s 0c", "tooltip formats total in gold silver and copper")
-    equal(GameTooltip.singleLines[2], "Estimated net value (vendor prices).", "tooltip identifies estimate")
+    equal(GameTooltip.singleLines[2], "Items valued at vendor prices.", "tooltip identifies item valuation")
     BaseModule:SendTo(gold, "say")
     fixture.items[101].price = 9000
     event("GET_ITEM_INFO_RECEIVED", 101, true)

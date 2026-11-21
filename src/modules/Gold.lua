@@ -1,6 +1,7 @@
 local Module = {
     Name = "Gold", TagName = "gold", ShortName = "g",
     RateDivisor = 10000, RateDecimals = 2,
+    ValuationNote = "Items valued at vendor prices.",
     UpdateWhilePaused = false,
     RegisteredEvents = {
         "CHAT_MSG_MONEY", "CHAT_MSG_LOOT", "QUEST_TURNED_IN", "QUEST_LOOT_RECEIVED", "PLAYER_MONEY",
@@ -378,8 +379,7 @@ Module.CustomFormatAnnouncement = function(total, duration, perHour)
 end
 
 Module.CustomGetContext = function()
-    return next(Module.State.PendingPrices) and "Estimated net value; item prices pending."
-        or "Estimated net value (vendor prices)."
+    return Module.ValuationNote .. (next(Module.State.PendingPrices) and " Item prices pending." or "")
 end
 
 Module.CustomOnEvent = function(self, event, ...)
