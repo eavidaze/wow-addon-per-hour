@@ -392,8 +392,8 @@ function Components:CreateRateDisplay(parent, unitText)
     frame.Unit:SetTextColor(unpack(Theme.gold.text))
     frame.Unit:SetPoint("BOTTOMLEFT", frame.Value, "BOTTOMRIGHT", 4, 0)
     frame.Unit:SetText(unitText)
-    function frame:SetRate(value, unit)
-        local rounded = Utils:RoundValue(value, 0)
+    function frame:SetRate(value, unit, decimals)
+        local rounded = Utils:RoundValue(value, decimals or 0)
         local width = self:GetParent():GetWidth()
         if self.DisplayValue == rounded and self.DisplayUnit == unit and self.AvailableWidth == width then return end
         self.DisplayValue, self.DisplayUnit, self.AvailableWidth = rounded, unit, width

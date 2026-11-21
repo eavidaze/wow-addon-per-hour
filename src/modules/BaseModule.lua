@@ -54,9 +54,10 @@ end
 function BaseModule:SendTo(contextModule, chatType)
     chatType = chatType:upper()
     local state = contextModule.State
-    local total = Utils:DisplayNumber(state.Element)
+    local total = contextModule.FormatValue and contextModule.FormatValue(state.Element) or Utils:DisplayNumber(state.Element)
     local duration = FormatAnnouncementDuration(state.Time)
-    local perHour = Utils:DisplayRoundedNumber(state.ElementPerHour, 0)
+    local perHour = contextModule.FormatValue and contextModule.FormatValue(state.ElementPerHour)
+        or Utils:DisplayRoundedNumber(state.ElementPerHour, 0)
     local message
     if contextModule.CustomFormatAnnouncement then
         message = contextModule.CustomFormatAnnouncement(total, duration, perHour)

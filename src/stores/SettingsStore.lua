@@ -22,16 +22,6 @@ local function IsRate(value)
     return value == "hour" or value == "minute"
 end
 
-local function MigrateRate(account)
-    local agreed
-    for name in pairs(PerHour.Modules) do
-        local legacy = type(account[name]) == "table" and account[name].rate
-        if not IsRate(legacy) or (agreed and legacy ~= agreed) then return "hour" end
-        agreed = legacy
-    end
-    return agreed or "hour"
-end
-
 local function CopyPosition(value)
     if value then
         return { point = value.point, relativePoint = value.relativePoint, x = value.x, y = value.y }
@@ -41,9 +31,8 @@ end
 function SettingsStore:Init()
     if type(PerHourAccount_Settings) ~= "table" then PerHourAccount_Settings = {} end
     if type(PerHourCharacter_Settings) ~= "table" then PerHourCharacter_Settings = {} end
-    local account, saved = PerHourAccount_Settings, PerHourCharacter_Settings
-    if saved.rate == nil then saved.rate = MigrateRate(account)
-    elseif not IsRate(saved.rate) then saved.rate = "hour" end
+    local saved = PerHourCharacter_Settings
+    if not IsRate(saved.rate) then saved.rate = "hour" end
     if type(saved.minimap) ~= "table" then saved.minimap = {} end
     if not IsFinite(saved.minimap.angle) then saved.minimap.angle = DEFAULT_MINIMAP_ANGLE end
     if type(saved.speedometer) ~= "table" then saved.speedometer = {} end

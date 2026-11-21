@@ -141,6 +141,7 @@ local function ToggleTracking(module)
             module.State.HasPaused = true
             Utils:AddonMessage(module.Name .. " paused.")
         end
+        if module.CustomTrackingChanged then module.CustomTrackingChanged() end
         BaseModule:RefreshDisplayedValues(module)
     else
         if module.CustomStart and module.CustomStart() == false then return end
@@ -170,11 +171,25 @@ local function CreatePanel(module, index, count)
     frame:EnableMouse(true)
     frame:SetClampedToScreen(true)
     frame:SetPoint("CENTER", UIParent, "CENTER", (index - (count + 1) / 2) * (WIDTH + 16), 0)
+    if module.CustomShowDetails then
+        frame:SetScript("OnMouseDown", function(self, button)
+            self.DetailsClick = button == "LeftButton"
+        end)
+        frame:SetScript("OnMouseUp", function(self, button)
+            local open = self.DetailsClick == true and button == "LeftButton" and not self.Dragging and self:IsMouseOver()
+            self.DetailsClick = nil
+            if open then
+                if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+                module.CustomShowDetails()
+            end
+        end)
+    end
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", function(self)
         local cursorX, cursorY = GetCursorPosition()
         local left, top, scale = frame:GetLeft(), frame:GetTop(), frame:GetEffectiveScale()
         local lastX, lastY = cursorX, cursorY
+        self.DetailsClick = nil
         self.Dragging = true
         self:SetScript("OnUpdate", function()
             local x, y = GetCursorPosition()
@@ -189,6 +204,7 @@ local function CreatePanel(module, index, count)
         TrackerPanels:SavePosition(module)
     end)
     frame:HookScript("OnHide", function()
+        frame.DetailsClick = nil
         frame:SetScript("OnUpdate", nil)
         if frame.Dragging then
             frame.Dragging = false
@@ -206,6 +222,7 @@ local function ShowRunTooltip(module)
     local status = BaseModule:GetTrackingStatus(module)
     local r, g, b = unpack(Theme.trackerStatus[status.key])
     local totalUnit = module.Name == "Experience" and "XP" or module.Name
+    local format = module.FormatValue or function(value) return Utils:DisplayRoundedNumber(value, 0) end
     GameTooltip:SetText(module.Name, goldR, goldG, goldB)
     GameTooltip:AddLine(status.label, r, g, b)
     if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 0.8, 0.8, 0.8, true) end
@@ -217,11 +234,15 @@ local function ShowRunTooltip(module)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Session", goldR, goldG, goldB)
     GameTooltip:AddDoubleLine("Duration", Utils:DisplayTimer(module.State.Time), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Total " .. totalUnit, Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, goldR, goldG, goldB)
+    GameTooltip:AddDoubleLine("Total " .. totalUnit, module.FormatValue and format(module.State.Element) or Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, goldR, goldG, goldB)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Rates", goldR, goldG, goldB)
-    GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.State.ElementPerHour, 0), 0.7, 0.7, 0.7, goldR, goldG, goldB)
-    GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.State.ElementPerMinute, 0), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/h", format(module.State.ElementPerHour), 0.7, 0.7, 0.7, goldR, goldG, goldB)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/min", format(module.State.ElementPerMinute), 0.7, 0.7, 0.7, 1, 1, 1)
+    if module.CustomShowDetails then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Left-click: Details", goldR, goldG, goldB)
+    end
     GameTooltip:Show()
 end
 
@@ -329,6 +350,9 @@ local function CreateControls(module)
                     Utils:AddonMessage(module.Name .. " reset.")
                 end)
                 rootDescription:CreateButton("Settings", function() PerHour.SettingsPanel:Show() end)
+                if module.CustomShowDetails then
+                    rootDescription:CreateButton("Details", module.CustomShowDetails)
+                end
                 local announce = rootDescription:CreateButton("Announce")
                 for _, channel in ipairs(CHANNELS) do
                     announce:CreateButton(channel, function(chatType) BaseModule:SendTo(module, chatType) end, channel)
@@ -354,7 +378,8 @@ end
 
 local function NeedsUpdate(module)
     return module.State.HasStarted
-        and (not module.State.HasPaused or module.State.PendingRestore or module.CustomOnUpdate)
+        and (not module.State.HasPaused or module.State.PendingRestore
+            or (module.CustomOnUpdate and module.UpdateWhilePaused ~= false))
 end
 
 local function UpdateModule(module, now)
@@ -471,7 +496,8 @@ function TrackerPanels:RefreshRate(module, skipHidden)
     if skipHidden and not module.View.Frame:IsVisible() then return end
     local perMinute = PerHour.Stores.Settings:GetRate() == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
-    module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
+    module.View.RateFrame:SetRate(value / (module.RateDivisor or 1),
+        module.ShortName .. (perMinute and "/min" or "/h"), module.RateDecimals)
     if module.View.EstimatesEnabled then
         local status = BaseModule:GetTrackingStatus(module)
         if module.View.EstimateStatus ~= status.key then

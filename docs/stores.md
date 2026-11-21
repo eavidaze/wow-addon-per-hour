@@ -47,7 +47,7 @@ accessed through their respective containers; there are no root-level aliases.
 with `Get(key)` and `Set(key, value)` for `isShown` and `position`. Positions are
 plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
 `nil` removes it. `GetRate()` and `SetRate(rate)` control one display unit for
-Experience, Honor and Reputation: `hour` (default) or `minute`. It is saved in
+Experience, Gold, Honor and Reputation: `hour` (default) or `minute`. It is saved in
 `PerHourCharacter_Settings.rate`. Invalid saved rates recover the default.
 
 `GetEstimatesEnabled()` and `SetEstimatesEnabled(boolean)` control the small
@@ -74,10 +74,12 @@ and resetting never modify character preferences.
 
 Previous account layout preferences are no longer read. Characters without saved
 preferences start with hidden trackers, the default panel layout and the default
-minimap angle. When a character has no saved display unit, matching valid legacy
-account rates are imported; mixed, missing or invalid rates default to hourly.
-Legacy account preferences remain intact so other characters can migrate on
-their next login. Existing character sessions are preserved.
+minimap angle. A missing or invalid character display unit defaults to hourly;
+legacy account rates are ignored. A character that only had a legacy per-minute
+preference starts hourly and can choose per-minute again. Valid character
+preferences survive initialization and new modules cannot change the shared
+rate. Legacy account data remains untouched, and existing character sessions
+are preserved.
 
 Initialization preserves valid values, including `false` and zero, and repairs
 malformed data using defaults. Invalid positions are discarded so panels use
@@ -98,6 +100,9 @@ Each module receives `module.Store:ReadSession()` and `ClearSession()`.
 so the session coordinator can report an error. The common store validates
 totals, duration and flags; the module validates its own context, such as a
 reputation faction. A module's handle only accesses that module's saved entry.
+Gold's context stores its versioned event journal, including pending item prices;
+Gold validates its entries and their sum against the restored total. See
+[Gold tracking](gold-tracking.md) for the journal contract and retention rules.
 
 `PerHour.Session` captures progress and owns continuity checks, pause/resume and
 restoration. It calls `PerHour.Stores.Sessions:SaveAll(snapshots, playedAtSave)`

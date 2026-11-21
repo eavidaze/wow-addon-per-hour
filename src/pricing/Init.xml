@@ -1,0 +1,7 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Script file="Pricing.lua" />
+    <Script file="providers\Vendor.lua" />
+    <Script file="providers\Auctionator.lua" />
+    <Script file="providers\TSM.lua" />
+    <Script file="Ledger.lua" />
+</Ui>

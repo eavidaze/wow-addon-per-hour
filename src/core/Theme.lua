@@ -1,6 +1,7 @@
 local GREEN_TEXT = { 0.2, 1, 0.2 }
 local GRAY_TEXT = { 0.5, 0.5, 0.5 }
 local YELLOW_TEXT = { 1, 0.8, 0 }
+local RED_TEXT = { 1, 0.1, 0.1 } -- Blizzard's standard RED_FONT_COLOR.
 local Theme = {
     -- Different source textures need different tints to share the close button's antique gold.
     gold = {
@@ -10,7 +11,9 @@ local Theme = {
     green = { text = GREEN_TEXT },
     gray = { text = GRAY_TEXT },
     yellow = { text = YELLOW_TEXT },
+    red = { text = RED_TEXT },
     text = { 1, 1, 1 },
+    rowDivider = { color = { 0.72, 0.45, 0.40 }, height = 3, alpha = 0.1 },
     circularBackground = { 0.08, 0.08, 0.08, 1 },
     toggle = { on = GREEN_TEXT, off = GRAY_TEXT },
     trackerStatus = { idle = GRAY_TEXT, running = GREEN_TEXT, paused = YELLOW_TEXT },

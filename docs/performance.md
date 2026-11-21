@@ -12,6 +12,17 @@ in sync when starting, pausing, resuming, resetting and showing hidden panels.
 These are simulation checks; tooltip layout and progress APIs still need
 confirmation in WoW Forever.
 
+`tests/gold.lua` covers the fourth tracker, including source classification,
+consumption, delayed item prices and the saved journal. Gold shares the running
+session timer and does not request periodic updates while paused. Its bag/spell
+metadata is read on inventory changes rather than on every player ability cast.
+`tests/gold-details.lua` checks that the history viewport reuses a bounded row
+pool, a burst of 200 events produces one deferred repaint, hidden Details has no
+repaint work, and prepended events preserve the reader's existing scroll anchor.
+The native list handles clipping and scrolling; the panel adds no per-frame polling.
+The three-panel before/after counts below describe the earlier optimization
+comparison; they are not measurements of the new Gold module in the game.
+
 The integration checks cover one shared timer, idle and loading-screen shutdown,
 event bursts followed by fallback sampling, level-ups, paused gains, hidden panel
 updates, presentation cache invalidation, overload, drag persistence and recovery
@@ -68,6 +79,13 @@ The shared timer retains periodic baseline sampling as a fallback. Saved-data
 schemas, session continuity rules and scale settings are unchanged.
 
 ## In-game comparison
+
+Gold's optional TSM/Auctionator providers run only while accepting an item
+valuation or settling pending native item data. History rendering and hover use
+saved price snapshots. FIFO acquisition queues are rebuilt once on restore and
+consumed by item ID; the ledger has no timer or per-frame callback of its own.
+New pricing tests check that opening Details and hovering an item make no market
+API calls. This is a simulation result, not a measured in-game performance claim.
 
 Use the same character, scene, graphics settings and other enabled addons:
 

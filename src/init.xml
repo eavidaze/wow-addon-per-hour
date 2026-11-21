@@ -3,6 +3,7 @@
 	<Include file="utils\Init.xml" />
     <Include file="model\Init.xml"/>
     <Include file="stores\Init.xml"/>
+    <Include file="pricing\Init.xml"/>
     <Include file="modules\init.xml"/>
     <Include file="core\Init.xml"/>
 </Ui>

@@ -134,6 +134,8 @@ function methods:OverrideText(value) self:SetText(value) end
 function methods:SetSize(width, height) self.width, self.height = width, height end
 function methods:SetParent(parent) self.parent = parent end
 function methods:GetParent() return self.parent end
+function methods:SetScale(scale) self.scale = scale end
+function methods:GetScale() return rawget(self, "scale") or 1 end
 function methods:GetChildren()
     local children = {}
     for _, frame in ipairs(frames) do
@@ -267,10 +269,15 @@ end
 function methods:CreateFontString(name, layer, template)
     assert(layer == "OVERLAY", "font strings need a valid draw layer")
     local fontString = object(name)
+    fontString.parent = self
     fontString.template = template
     return fontString
 end
-function methods:CreateTexture() return object() end
+function methods:CreateTexture(name, layer)
+    local texture = object(name)
+    texture.layer = layer
+    return texture
+end
 function methods:CreateAnimationGroup()
     local group = object()
     group.animations, group.playing, group.playCount = {}, false, 0
@@ -339,6 +346,7 @@ function methods:IsMouseOver()
 end
 MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
 SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
+local scrollBoxFixture = assert(loadfile("tests/scrollbox-fixture.lua"))()
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
         or template == "DialogBorderTranslucentTemplate"
@@ -346,7 +354,8 @@ function CreateFrame(kind, name, parent, template)
         or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
         or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
         or template == "SettingsCheckboxTemplate" or template == "MinimalSliderWithSteppersTemplate"
-        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate",
+        or template == "MinimalSliderTemplate" or template == "SettingsDropdownWithButtonsTemplate"
+        or template == "WowScrollBoxList" or template == "MinimalScrollBar",
         "unsupported template: "..tostring(template))
     if name then
         name = name:gsub("%$parent", parent.name or "")
@@ -354,6 +363,23 @@ function CreateFrame(kind, name, parent, template)
     end
     local frame = object(name)
     frame.parent, frame.template, frame.kind = parent, template, kind
+    if kind == "ItemButton" then
+        frame:SetSize(37, 37)
+        frame.icon = frame:CreateTexture(nil, "BORDER")
+        frame:EnableMouse(true)
+        function frame:SetItem(item)
+            self.item = item
+            self.iconTexture = item and C_Item.GetItemIconByID(tonumber(item:match("item:(%d+)"))) or nil
+        end
+        function frame:SetItemButtonTexture(texture)
+            self.iconTexture = texture
+            self.icon.texture = texture
+            self.icon.atlas = nil
+        end
+        function frame:SetItemButtonCount(count) self.count = count end
+        function frame:SetItemButtonQuality(quality, item) self.quality, self.qualityItem = quality, item end
+    end
+    if template == "WowScrollBoxList" then scrollBoxFixture.Initialize(frame) end
     if kind == "Button" or kind == "DropdownButton" or kind == "CheckButton" or kind == "Slider" then
         frame:EnableMouse(true)
     end
@@ -575,6 +601,7 @@ local function loadAddon()
         if not line:match("^#") and line:match("%S") then loadSource(line) end
     end
 end
+local goldFixture = assert(loadfile("tests/gold-fixture.lua"))()
 loadAddon()
 local function event(name, ...)
     if name == "TIME_PLAYED_MSG" then playedRequested = false end
@@ -809,7 +836,7 @@ equal(PerHourCharacter_Settings.minimap.angle, math.rad(225), "default minimap p
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
 equal(minimapButton.menuDescription.title, "Show trackers", "native menu title matches settings visibility group")
-equal(#minimapButton.menuDescription.items, 3, "all modules in menu")
+equal(#minimapButton.menuDescription.items, 4, "all modules in menu")
 local experienceItem = minimapButton.menuDescription.items[1]
 equal(experienceItem.text, "Experience", "stable alphabetical menu order")
 equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
@@ -826,7 +853,7 @@ local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
 mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
 equal(minimapButton.nativeMouseDownCalls, nativeMouseDownCalls + 1, "left click calls native menu handler exactly once")
-equal(#minimapButton.menuDescription.items, 3, "left click opens all three module options")
+equal(#minimapButton.menuDescription.items, 4, "left click opens all four module options")
 mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
 
@@ -850,13 +877,13 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 446, "settings fits estimates, nested speedometer and faction rows")
+    equal(panel:GetHeight(), 486, "settings fits four trackers, estimates, speedometer and faction rows")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 2, "settings contains general and panel groups")
     equal(panel.Fields[1].TitleText:GetText(), "General", "shared display preferences belong to General")
     equal(panel.Fields[2].TitleText:GetText(), "Show trackers", "visibility group describes the tracker toggles")
     equal(#panel.Fields[1].Fields, 2, "general contains rate and estimate visibility")
-    equal(#panel.Fields[2].Fields, 3, "panels contains three visibility rows")
+    equal(#panel.Fields[2].Fields, 4, "panels contains four visibility rows")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
@@ -924,7 +951,7 @@ do
     local originalWatched = watched
     settings:Show()
     local field = settings.ReputationField
-    local row = settings.Frame.Fields[2].Fields[3]
+    local row = settings.Frame.Fields[2].Fields[4]
     equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
     equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
     equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
@@ -2271,7 +2298,7 @@ xp, xpMax, level = 0, 0, 0
 watched = nil
 login(saved, 0)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.State.RestoreStatus, name == "Honor" and "success" or "pending",
+    equal(module.State.RestoreStatus, (name == "Honor" or name == "Gold") and "success" or "pending",
         name .. " requires a baseline only when tracking counter differences")
 end
 tick(2)
@@ -2319,6 +2346,7 @@ login({ version = 2, playedAtSave = 100000, sessions = {
     Experience = { total = 10, duration = -1, paused = false },
     Honor = { total = math.huge, duration = 10, paused = false },
     Reputation = { total = -20, duration = 10, paused = true, context = {} },
+    Gold = { total = 10, duration = 10, paused = false, context = {} },
 } }, 0)
 for name, module in pairs(PerHour.Modules) do
     equal(module.State.HasStarted, false, name .. " rejects malformed save")
@@ -2634,6 +2662,72 @@ assert(loadfile("tests/performance.lua"))()({
         return count
     end,
     cursor = function(x, y) cursorX, cursorY = x, y end,
+})
+assert(loadfile("tests/gold.lua"))()({
+    equal = equal, near = near, tick = tick, event = event, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-details.lua"))()({
+    mouseClick = function(region, button)
+        local target = mouseTarget(region, false)
+        if target then mouseClick(target, button or "LeftButton") end
+    end,
+    mouseDrag = mouseDrag,
+    pointAt = function(frame)
+        local savedX, savedY = cursorX, cursorY
+        cursorX, cursorY = (frame:GetLeft() + 30) * frame:GetEffectiveScale(),
+            (frame:GetTop() - 30) * frame:GetEffectiveScale()
+        return function() cursorX, cursorY = savedX, savedY end
+    end,
+    equal = equal, near = near, tick = tick, event = event, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-quest-deliveries.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/pricing.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-pending.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    playedTime = function() return playedTotal end,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
+})
+assert(loadfile("tests/gold-stock.lua"))()({
+    equal = equal, event = event, tick = tick, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
 })
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever simulation checks (".._VERSION..")")

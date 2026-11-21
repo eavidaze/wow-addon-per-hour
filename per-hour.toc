@@ -1,14 +1,15 @@
 ## Interface: 16001
 ## Title: Per Hour
-## Notes: Track experience, honor and reputation earned per hour in WoW Forever.
+## Notes: Track experience, honor, reputation and estimated net gold per hour in WoW Forever.
 ## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
 ## Category: Statistics
 ## Category-ptBR: Estatísticas
 ## Author: José Júnior - https://github.com/juninze
-## Version: 1.5.0-forever
+## Version: 1.6.0-forever
 ## X-Curse-Project-ID: 486717
 ## SavedVariables: PerHourAccount_Settings
 ## SavedVariablesPerCharacter: PerHourCharacter_Values, PerHourCharacter_Settings
+## OptionalDeps: TradeSkillMaster, Auctionator
 
 # Special thanks to Zwietabak (https://github.com/zwietabak) and AssisrMatheus (https://github.com/AssisrMatheus) who inspired me.
 

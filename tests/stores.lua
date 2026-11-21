@@ -19,11 +19,11 @@ return function(equal)
     equal(settings:GetMinimapAngle(), math.rad(225), "missing minimap recovers default angle")
 
     for _, fixture in ipairs({
-        { rates = { "minute", "minute", "minute" }, expected = "minute" },
-        { rates = { "hour", "hour", "hour" }, expected = "hour" },
-        { rates = { "minute", "hour", "minute" }, expected = "hour" },
-        { rates = { "minute", "invalid", "minute" }, expected = "hour" },
-        { rates = { "minute", "minute" }, expected = "hour" },
+        { rates = { "minute", "minute", "minute" } },
+        { rates = { "hour", "hour", "hour" } },
+        { rates = { "minute", "hour", "minute" } },
+        { rates = { "minute", "invalid", "minute" } },
+        { rates = { "minute", "minute" } },
     }) do
         PerHourAccount_Settings = {
             Experience = { rate = fixture.rates[1] }, Honor = { rate = fixture.rates[2] },
@@ -31,13 +31,16 @@ return function(equal)
         }
         PerHourCharacter_Settings = {}
         settings:Init()
-        equal(settings:GetRate(), fixture.expected, "legacy rates migrate by agreement with an hourly fallback")
-        equal(PerHourAccount_Settings.Experience.rate, fixture.rates[1], "migration preserves account preferences for other characters")
-        local chosen = fixture.expected == "hour" and "minute" or "hour"
-        settings:SetRate(chosen)
+        equal(settings:GetRate(), "hour", "missing character rate defaults to hourly regardless of legacy module rates")
+        equal(PerHourAccount_Settings.Experience.rate, fixture.rates[1], "initialization leaves legacy account data untouched")
+        settings:SetRate("minute")
         settings:Init()
-        equal(settings:GetRate(), chosen, "initialization does not repeat migration over a character preference")
+        equal(settings:GetRate(), "minute", "initialization preserves the character's chosen rate")
     end
+
+    PerHourCharacter_Settings.rate = "day"
+    settings:Init()
+    equal(settings:GetRate(), "hour", "invalid saved character rate recovers the hourly default")
 
     PerHourAccount_Settings = {
         minimap = { angle = 0 },
@@ -50,7 +53,7 @@ return function(equal)
     local loaded = PerHourAccount_Settings
     settings:Init()
     equal(honor.Settings:Get("isShown"), false, "previous account visibility is ignored")
-    equal(settings:GetRate(), "hour", "conflicting or malformed account rates migrate to hourly display")
+    equal(settings:GetRate(), "hour", "missing character preference uses the hourly default")
     equal(xp.Settings:Get("position"), nil, "previous account position is ignored")
     equal(settings:GetMinimapAngle(), math.rad(225), "previous account minimap angle is ignored")
     PerHourCharacter_Settings = {

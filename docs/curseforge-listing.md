@@ -2,18 +2,18 @@
 
 ## Project name
 
-Per Hour - XP, Honor & Reputation Farming Tracker
+Per Hour - XP, Honor, Reputation & Gold Tracker
 
 ## Summary
 
-Track XP, honor and reputation per hour or minute in WoW Forever. Pause your sessions, keep your progress and share your results.
+Track XP, honor, reputation and estimated net gold per hour or minute in WoW Forever. Review Gold events, pause your sessions and share your results.
 
 ## Description
 
 ### Per Hour - WoW Forever
 
-See what your farming sessions earn. Track **XP, Honor Points and reputation**
-per hour or minute while leveling, playing PvP or working toward your next reward.
+See what your farming sessions earn. Track **XP, Honor Points, reputation and
+estimated net gold** per hour or minute while leveling, playing PvP or farming.
 
 #### Your progress at a glance
 
@@ -21,6 +21,8 @@ per hour or minute while leveling, playing PvP or working toward your next rewar
 - **See the whole session:** hover for totals, active time and both rates.
 - **Plan your next milestone:** see estimated time to the next level or reputation standing; optionally show it below the rate.
 - **Watch your XP pace:** enable an optional speedometer with ten scale levels.
+- **Estimate your Gold gains:** include looted money, quest rewards and collected items; subtract consumables used, items delivered to quests, personal repairs and paid flights.
+- **Review the Gold session:** open a scrolling journal with income, expenses, event times and item/quest tooltips, including each item's recorded price source and value.
 - **Make room for your UI:** move or hide windows; layouts and the shared display unit are saved per character.
 - **Pick up where you left off:** sessions are saved between reloads and logins.
 - **Share your results:** send a session summary to chat with **Announce**.
@@ -32,6 +34,15 @@ per hour or minute while leveling, playing PvP or working toward your next rewar
    enable **Show estimates** in General, select your watched reputation,
    or enable **Show speedometer** under Experience.
 3. Use the tracker's **Options** gear to reset a session or announce your results.
+4. Left-click **Gold**, or choose **Gold → Options → Details**, to review its totals
+   and event history.
+
+Gold values items when received using optional **TSM → Auctionator → vendor**
+pricing, with vendor as the minimum. TSM uses DBMarket and Auctionator uses its
+last scanned price; neither addon is required. Recorded prices stay fixed, and
+consumed or quest-delivered items reuse their acquisition values when available.
+Transfers, mail, item purchases and vendor-sale receipts are excluded. This is an
+estimate of farming value, not cash profit or guaranteed Auction House proceeds.
 
 Closing a window keeps its session running. **Pause** stops counting temporarily;
 **Reset** clears and stops the session. For reputation, select a watched faction
