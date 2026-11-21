@@ -575,6 +575,7 @@ local function loadAddon()
         if not line:match("^#") and line:match("%S") then loadSource(line) end
     end
 end
+local goldFixture = assert(loadfile("tests/gold-fixture.lua"))()
 loadAddon()
 local function event(name, ...)
     if name == "TIME_PLAYED_MSG" then playedRequested = false end
@@ -809,7 +810,7 @@ equal(PerHourCharacter_Settings.minimap.angle, math.rad(225), "default minimap p
 SlashCmdList.PERHOUR()
 equal(minimapButton:IsMenuOpen(), true, "slash opens menu")
 equal(minimapButton.menuDescription.title, "Show trackers", "native menu title matches settings visibility group")
-equal(#minimapButton.menuDescription.items, 3, "all modules in menu")
+equal(#minimapButton.menuDescription.items, 4, "all modules in menu")
 local experienceItem = minimapButton.menuDescription.items[1]
 equal(experienceItem.text, "Experience", "stable alphabetical menu order")
 equal(experienceItem.isSelected(experienceItem.data), true, "menu reflects saved visibility")
@@ -826,7 +827,7 @@ local nativeMouseDownCalls = minimapButton.nativeMouseDownCalls
 mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), true, "minimap click opens menu")
 equal(minimapButton.nativeMouseDownCalls, nativeMouseDownCalls + 1, "left click calls native menu handler exactly once")
-equal(#minimapButton.menuDescription.items, 3, "left click opens all three module options")
+equal(#minimapButton.menuDescription.items, 4, "left click opens all four module options")
 mouseClick(minimapButton, "LeftButton")
 equal(minimapButton:IsMenuOpen(), false, "minimap click closes menu")
 
@@ -850,13 +851,13 @@ do
     equal(panel.TitleText:GetText(), "Per Hour Settings", "settings title uses the shared boxed title style")
     equal(panel.TitleBox.template, "DialogHeaderTemplate", "settings uses the native boxed header")
     equal(panel:GetWidth(), 560, "settings leaves room for stock controls and their labels")
-    equal(panel:GetHeight(), 446, "settings fits estimates, nested speedometer and faction rows")
+    equal(panel:GetHeight(), 486, "settings fits four trackers, estimates, speedometer and faction rows")
     equal(panel.Content.point[5] - panel.FooterSize, 14, "settings footer gap is two pixels larger than the header gap")
     equal(#panel.Fields, 2, "settings contains general and panel groups")
     equal(panel.Fields[1].TitleText:GetText(), "General", "shared display preferences belong to General")
     equal(panel.Fields[2].TitleText:GetText(), "Show trackers", "visibility group describes the tracker toggles")
     equal(#panel.Fields[1].Fields, 2, "general contains rate and estimate visibility")
-    equal(#panel.Fields[2].Fields, 3, "panels contains three visibility rows")
+    equal(#panel.Fields[2].Fields, 4, "panels contains four visibility rows")
     equal(panel.TitleText.template, "GameFontNormalLarge", "settings uses the reduced default title font")
     equal(panel.Fields[1].TitleText.template, experience.View.RateValue.template, "group title uses the rate number font")
     equal(table.concat(panel.Fields[1].TitleText.textColor, ","), "1,1,1", "group titles are white")
@@ -924,7 +925,7 @@ do
     local originalWatched = watched
     settings:Show()
     local field = settings.ReputationField
-    local row = settings.Frame.Fields[2].Fields[3]
+    local row = settings.Frame.Fields[2].Fields[4]
     equal(row.Label:GetText(), "Reputation", "reputation remains the parent row")
     equal(row.Subfields[1], field, "watched faction belongs to the reputation row")
     equal(row.SubfieldStack.point[4], 0, "subfield right edge aligns with the parent")
@@ -2271,7 +2272,7 @@ xp, xpMax, level = 0, 0, 0
 watched = nil
 login(saved, 0)
 for name, module in pairs(PerHour.Modules) do
-    equal(module.State.RestoreStatus, name == "Honor" and "success" or "pending",
+    equal(module.State.RestoreStatus, (name == "Honor" or name == "Gold") and "success" or "pending",
         name .. " requires a baseline only when tracking counter differences")
 end
 tick(2)
@@ -2319,6 +2320,7 @@ login({ version = 2, playedAtSave = 100000, sessions = {
     Experience = { total = 10, duration = -1, paused = false },
     Honor = { total = math.huge, duration = 10, paused = false },
     Reputation = { total = -20, duration = 10, paused = true, context = {} },
+    Gold = { total = 10, duration = 10, paused = false, context = {} },
 } }, 0)
 for name, module in pairs(PerHour.Modules) do
     equal(module.State.HasStarted, false, name .. " rejects malformed save")
@@ -2634,6 +2636,15 @@ assert(loadfile("tests/performance.lua"))()({
         return count
     end,
     cursor = function(x, y) cursorX, cursorY = x, y end,
+})
+assert(loadfile("tests/gold.lua"))()({
+    equal = equal, near = near, tick = tick, event = event, click = click,
+    fixture = goldFixture, copy = copy, login = login,
+    fresh = function()
+        goldFixture.reset()
+        PerHourCharacter_Settings = nil
+        login(nil, 0)
+    end,
 })
 assert(loadfile("tests/stores.lua"))()(equal)
 print("PASS: "..checks.." Forever simulation checks (".._VERSION..")")

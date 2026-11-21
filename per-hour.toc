@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Per Hour
-## Notes: Track experience, honor and reputation earned per hour in WoW Forever.
+## Notes: Track experience, honor, reputation and estimated net gold per hour in WoW Forever.
 ## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
 ## Category: Statistics
 ## Category-ptBR: Estatísticas

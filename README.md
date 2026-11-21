@@ -1,6 +1,6 @@
 # Per Hour - WoW Forever
 
-Track experience, honor and watched reputation earned per minute and per hour.
+Track experience, honor, watched reputation and estimated net gold per minute and per hour.
 Targets **WoW Forever 1.60.1 (Interface 16001)**. In-game validation is pending.
 
 ## Install
@@ -28,9 +28,12 @@ code changes only need `/reload`.
 - Enable **Show estimates** in **Settings → General** to also display predictions below the rates.
 - Choose a watched faction in **Settings** or the game's reputation panel;
   switching factions resets the reputation tracker.
+- **Gold** values loot and quest rewards at vendor prices and subtracts used
+  consumables, personal repairs and paid flights. Trades, mail, item purchases
+  and vendor-sale receipts are excluded. See [Gold tracking](docs/gold-tracking.md).
 
 Window visibility, window positions and minimap button position are saved per character.
-One hourly/per-minute display preference applies to all three windows and is saved per character.
+One hourly/per-minute display preference applies to all windows and is saved per character.
 Sessions survive reloads and logins per character. Offline time and gains are excluded;
 running sessions resume automatically, and manually paused sessions stay paused.
 The top-left restore icon reports the continuity check. Hover for details; sessions

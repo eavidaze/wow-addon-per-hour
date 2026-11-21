@@ -56,7 +56,7 @@ panel's configured size. Replacing the component hides the previous one. A compo
 component can contain multiple displays. Adding footer actions later updates the
 content boundary. Use custom content or form fields for a given panel.
 
-`TrackerPanels.lua` creates and coordinates the three monitors, including session
+`TrackerPanels.lua` creates and coordinates the four monitors, including session
 controls, positioning and refreshes. Each monitor mounts a composite through
 `SetContent`. It always contains a `CreateRateDisplay` component, whose
 `SetRate(value, unit)` method formats the number, unit and overflow abbreviation
@@ -64,6 +64,11 @@ using its parent's width. When enabled, a `CreateSpeedometerDisplay` component
 sits above that numeric display. Its `SetRate(value, maximum)` method updates only
 the dial labels, needle position and native overload state. The coordinator supplies
 the existing session rate to both displays, without changing the tracking calculation.
+Gold uses the same controls and layout, converts copper rates to gold for the
+panel, and requests two decimal places from the numeric display. Tooltip totals
+and rates use its monetary formatter. Its context line identifies vendor-based
+estimated net value and reports pending item prices. The event journal has no
+history view until M1.5; see [Gold tracking](gold-tracking.md).
 
 Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
 provide their own height; the panel stacks them with spacing and adjusts its
@@ -205,7 +210,7 @@ session's faction when available. For example:
 the entire boxed title in DS gold. The
 **General** group starts with one **Rate** dropdown for
 **Per hour** or **Per minute**, defaulting to hourly display. It immediately changes
-all three panels' numeric rates and units, for example `XP/h` or `XP/min`.
+all four panels' numeric rates and units, for example `XP/h` or `XP/min`.
 The **Show trackers** group contains each module's visibility checkbox, sorted by name.
 The shared unit is saved per character. Changes persist through the
 [settings store](stores.md) across reloads and logins. Rate selection preserves
@@ -319,9 +324,10 @@ reopened. Reposition the minimap button by dragging it; settings have no angle
 control.
 
 Tracker visibility, tracker positions and the minimap button position are saved
-per character, along with the hourly/per-minute preference shared by all three panels.
-Matching valid legacy account rates are imported once per character; mixed,
-missing or invalid legacy rates default to hourly.
+per character, along with the hourly/per-minute preference shared by all four panels.
+Missing or invalid character rates default to hourly; legacy account rates are
+ignored. A valid saved per-minute character preference remains per-minute,
+independently of which modules are registered.
 Previous account layouts are not imported; characters start with hidden trackers
 and the default layout until they save their own preferences.
 
@@ -337,7 +343,7 @@ Validate appearance, checkbox interaction, the shared rate dropdown, dragging an
 both close controls in WoW Forever. After `/reload` and a normal logout/login,
 confirm that panel visibility, selected unit and minimap position match saved preferences.
 Switch between two characters and confirm their layouts and display units remain independent.
-Changing the unit must update all three panels' numeric readouts and the XP gauge scale.
+Changing the unit must update all four panels' numeric readouts and the XP gauge scale.
 Verify that the speedometer checkbox applies only to XP, keeps the
 numeric rate below the dial and restores after reload. Check that the single
 maximum slider appears while enabled, including after reopening and reload;

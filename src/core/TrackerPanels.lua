@@ -141,6 +141,7 @@ local function ToggleTracking(module)
             module.State.HasPaused = true
             Utils:AddonMessage(module.Name .. " paused.")
         end
+        if module.CustomTrackingChanged then module.CustomTrackingChanged() end
         BaseModule:RefreshDisplayedValues(module)
     else
         if module.CustomStart and module.CustomStart() == false then return end
@@ -206,6 +207,7 @@ local function ShowRunTooltip(module)
     local status = BaseModule:GetTrackingStatus(module)
     local r, g, b = unpack(Theme.trackerStatus[status.key])
     local totalUnit = module.Name == "Experience" and "XP" or module.Name
+    local format = module.FormatValue or function(value) return Utils:DisplayRoundedNumber(value, 0) end
     GameTooltip:SetText(module.Name, goldR, goldG, goldB)
     GameTooltip:AddLine(status.label, r, g, b)
     if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(), 0.8, 0.8, 0.8, true) end
@@ -217,11 +219,11 @@ local function ShowRunTooltip(module)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Session", goldR, goldG, goldB)
     GameTooltip:AddDoubleLine("Duration", Utils:DisplayTimer(module.State.Time), 0.7, 0.7, 0.7, 1, 1, 1)
-    GameTooltip:AddDoubleLine("Total " .. totalUnit, Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, goldR, goldG, goldB)
+    GameTooltip:AddDoubleLine("Total " .. totalUnit, module.FormatValue and format(module.State.Element) or Utils:DisplayNumber(module.State.Element), 0.7, 0.7, 0.7, goldR, goldG, goldB)
     GameTooltip:AddLine(" ")
     GameTooltip:AddLine("Rates", goldR, goldG, goldB)
-    GameTooltip:AddDoubleLine(module.ShortName .. "/h", Utils:DisplayRoundedNumber(module.State.ElementPerHour, 0), 0.7, 0.7, 0.7, goldR, goldG, goldB)
-    GameTooltip:AddDoubleLine(module.ShortName .. "/min", Utils:DisplayRoundedNumber(module.State.ElementPerMinute, 0), 0.7, 0.7, 0.7, 1, 1, 1)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/h", format(module.State.ElementPerHour), 0.7, 0.7, 0.7, goldR, goldG, goldB)
+    GameTooltip:AddDoubleLine(module.ShortName .. "/min", format(module.State.ElementPerMinute), 0.7, 0.7, 0.7, 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -354,7 +356,8 @@ end
 
 local function NeedsUpdate(module)
     return module.State.HasStarted
-        and (not module.State.HasPaused or module.State.PendingRestore or module.CustomOnUpdate)
+        and (not module.State.HasPaused or module.State.PendingRestore
+            or (module.CustomOnUpdate and module.UpdateWhilePaused ~= false))
 end
 
 local function UpdateModule(module, now)
@@ -471,7 +474,8 @@ function TrackerPanels:RefreshRate(module, skipHidden)
     if skipHidden and not module.View.Frame:IsVisible() then return end
     local perMinute = PerHour.Stores.Settings:GetRate() == "minute"
     local value = perMinute and module.State.ElementPerMinute or module.State.ElementPerHour
-    module.View.RateFrame:SetRate(value, module.ShortName .. (perMinute and "/min" or "/h"))
+    module.View.RateFrame:SetRate(value / (module.RateDivisor or 1),
+        module.ShortName .. (perMinute and "/min" or "/h"), module.RateDecimals)
     if module.View.EstimatesEnabled then
         local status = BaseModule:GetTrackingStatus(module)
         if module.View.EstimateStatus ~= status.key then

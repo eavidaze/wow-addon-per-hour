@@ -12,6 +12,13 @@ in sync when starting, pausing, resuming, resetting and showing hidden panels.
 These are simulation checks; tooltip layout and progress APIs still need
 confirmation in WoW Forever.
 
+`tests/gold.lua` covers the fourth tracker, including source classification,
+consumption, delayed item prices and the saved journal. Gold shares the running
+session timer and does not request periodic updates while paused. Its bag/spell
+metadata is read on inventory changes rather than on every player ability cast.
+The three-panel before/after counts below describe the earlier optimization
+comparison; they are not measurements of the new Gold module in the game.
+
 The integration checks cover one shared timer, idle and loading-screen shutdown,
 event bursts followed by fallback sampling, level-ups, paused gains, hidden panel
 updates, presentation cache invalidation, overload, drag persistence and recovery

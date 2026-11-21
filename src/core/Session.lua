@@ -127,7 +127,10 @@ frame:RegisterEvent("TIME_PLAYED_MSG")
 frame:SetScript("OnEvent", function(self, event, totalPlayed)
     if event == "PLAYER_ENTERING_WORLD" then
         Session.InWorld = true
-        for _, module in pairs(PerHour.Modules) do module.State.PolledAt = GetTime() end
+        for _, module in pairs(PerHour.Modules) do
+            module.State.PolledAt = GetTime()
+            if module.CustomWorldEntered then module.CustomWorldEntered() end
+        end
         if not Session.Restored then
             Session.Restored = true
             Session:Restore()
