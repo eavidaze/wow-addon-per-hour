@@ -6,6 +6,7 @@ local Theme = {
     -- Different source textures need different tints to share the close button's antique gold.
     gold = {
         text = { 1, 0.82, 0 },
+        subtleText = { 0.72, 0.64, 0.44 },
         buttonTint = { 0.65, 0.50, 0.70 }, ringTint = { 0.75, 0.58, 0.35 },
     },
     green = { text = GREEN_TEXT },

@@ -1,61 +1,55 @@
-# Session continuity
+# Shared session continuity
 
-Per Hour saves each module's total, active duration, pause state and context. It
-validates all restored sessions against one character-wide reference: total time
-played, obtained through `RequestTimePlayed()` and `TIME_PLAYED_MSG`.
+Per Hour has one session per character. Start, Pause, Resume and Finish control
+all metrics and the same measured period. Travel and waiting while running count;
+pauses, offline time, loading and verification do not.
 
-The reference is extrapolated from the latest server reply to the instant the
-sessions are saved. On the next login or UI reload, time elapsed since the addon
-started loading is subtracted from the new reply. Differences of up to **30
-seconds**, in either direction, are accepted. This is an approximate check;
-server timing and time before the addon starts loading can affect it.
+## Reload, logout and interruption
 
-## Restoring a session
+- A UI reload restores the prior running/paused state only after continuity checks.
+- A normal logout/login returns the current session paused, without archiving it.
+  Resume continues it; Finish and Reset archives it.
+- Disconnects or abrupt exits restore the checkpoint available from the last
+  client save. Uncertain continuity remains paused for review with partial flags.
+- A session already paused stays paused.
+- Finish is allowed during verification: it archives preserved data as partial
+  without waiting for a reply. A late reply cannot revive that session.
+- A late played-time response updates future reference availability but never
+  silently resumes a session whose verification already timed out.
 
-- A matching reference restores the previous running or paused state.
-- A mismatch pauses restored sessions and preserves their saved totals.
-- A missing or failed query reports that verification is unavailable. A query
-  without a valid reply times out after 10 seconds. A late reply does not silently
-  resume sessions already marked for review.
-- A successful time check still waits for readable module data to establish new
-  gain counters. Reputation retains its faction identity and resets on a change.
-- Resume accepts the saved totals; Reset clears and stops the session. Each module
-  retains its own unresolved warning until the player makes that choice.
+The first PLAYER_ENTERING_WORLD flags distinguish a reload from a normal login.
+Session.lua requests total time played and compares its login-adjusted reference
+with the saved value, accepting a difference of up to 30 seconds in either direction.
+Verification times out after 10 seconds. Totals and the clock stay suspended
+while a current session awaits verification.
 
-The top-left indicator is yellow while verification is pending, green after a
-successful check, and red when the session needs review. Hover for details.
-It appears immediately at full opacity, without fading. The success indicator
-hides after 5 seconds. Unresolved errors stay visible until Resume or Reset;
-after that decision, the error indicator hides after 0.5 seconds without fading.
-Each dismissal uses one delayed callback, with no per-frame work during the wait.
-Timers also expire while the panel is hidden, and an older timer cannot dismiss
-a newer status. Pending and unresolved-error indicators have no dismissal timer.
+Before resuming, XP and reputation establish fresh progress baselines; Gold
+refreshes inventory/money baselines and pending accepted entries. Paused/offline
+progress is not added retrospectively. Watched-faction changes create reputation
+segments without resetting other metrics.
 
-## Limits
+## Limits and recovery
 
-The check can detect unsaved playing time even without XP, honor or reputation
-gains. Interruptions within the tolerance may go unnoticed. It cannot recover
-lost gains or distinguish unrecorded manual tracker pauses, so it does not add
-missing time to the run or adjust its hourly rate automatically.
+SavedVariables reach disk when the client saves them, such as normal logout or
+reload. The addon cannot force a disk write or recover gains lost in a crash.
+The played-time check is approximate: gaps within its tolerance can be missed.
+Resume accepts the preserved totals and retains the partial warning.
 
-Disk persistence still depends on the client saving addon data during normal
-exit or a UI reload. Existing version 1 sessions retain their results but lack a
-played-time reference and require Resume or Reset once. New saves use version 2;
-modules no longer save individual progress checkpoints.
+A failed metric read does not stop the others. Invalid saved data is preserved
+for recovery; an unreadable module context is isolated instead of pretending its
+data is complete. A new-format save is restored normally on later logins.
 
-## Validation
+## Validation in Forever
 
-Run `lua tests/forever.lua` with Lua 5.1 for simulated coverage. Actual Forever
-validation remains pending:
+1. Start, earn XP/Gold, reload: verify the same session resumes after verification.
+2. Pause and reload: it remains paused and retains its totals.
+3. Log out normally while running: login shows Resume, with the same totals.
+4. Wait outside the game and before Resume: neither interval increases duration.
+5. Change faction while paused or during loading: prior faction results remain.
+6. Test delayed price data during verification, pause and world entry.
+7. After a checkpoint, play for more than 30 seconds and force-close only if you
+   want to exercise crash recovery. Verify preserved totals and partial/review state.
+8. Confirm a late reply never resumes a timed-out or finalized session.
 
-1. Start a session, earn progress, then return through character selection. Check
-   that results and duration continue, excluding time spent away.
-2. Pause a module and repeat. It should remain paused.
-3. Exit normally, reopen the client and check the restored state.
-4. After a saved checkpoint, play for more than 30 seconds without earning any
-   progress, then force-close the client. On return, the old session should need
-   review if the server retained that additional played time.
-5. Check that indicators appear immediately, success disappears after 5 seconds,
-   and unresolved errors remain visible. After Resume or Reset, the error icon
-   should disappear after 0.5 seconds without fading. Hiding and reopening a panel
-   must not restart an expired confirmation or let an older timer hide a new warning.
+The Lua 5.1 suite simulates these transitions. Native saving and event order
+still require the in-game checks above.

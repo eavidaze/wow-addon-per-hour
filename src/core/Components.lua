@@ -14,13 +14,24 @@ local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130 },
+    small = { font = "GameFontHighlightSmall", fontSize = 10, headerHeight = 36 },
     default = { font = "GameFontNormalLarge", headerHeight = 56 },
 }
 
 local function CreatePanelTitle(frame, settings, style)
     local small = settings.titleSize == "small"
-    if not small then
+    if small then
+        frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
+        local font,_,flags = frame.TitleText:GetFont()
+        frame.TitleText:SetFont(font,style.fontSize,flags)
+        frame.TitleText:SetText(settings.title)
+        frame.TitleText:SetPoint("TOP",frame.Border.Bg,"TOP",0,-6)
+        frame.TitleText:SetJustifyH("CENTER")
+        frame.TitleText:SetWordWrap(false)
+        frame.TitleText:SetTextColor(unpack(Theme.gold.subtleText))
+        return
+    end
+    do
         frame.BrandText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         frame.BrandText:SetText("powered by Per Hour")
         frame.BrandText:SetTextColor(0.6, 0.6, 0.6)
@@ -37,22 +48,12 @@ local function CreatePanelTitle(frame, settings, style)
         box.headerTextPadding = style.boxPadding or box.headerTextPadding
         box:SetHeaderFont(style.font)
         box:Setup(settings.title)
-        if small then
-            box:ClearAllPoints()
-            box:SetPoint("TOP", frame.Border.Bg, "TOP", 0, DIALOG_BORDER_INSET + 11)
-        end
         frame.TitleText:ClearAllPoints()
         frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
         local function LayoutTitleBox()
             local padding = box.headerTextPadding
-            local width
-            if small then
-                width = math.min(math.max(style.boxMinWidth, frame.TitleText:GetStringWidth() + padding),
-                    math.max(style.boxMinWidth, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING)))
-            else
-                width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
-                    math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
-            end
+            local width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
+                math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
             box:SetWidth(width)
             frame.TitleText:SetWidth(width - padding)
         end
@@ -61,13 +62,8 @@ local function CreatePanelTitle(frame, settings, style)
     else
         frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
         frame.TitleText:SetText(settings.title)
-        if small then
-            frame.TitleText:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, -8)
-            frame.TitleText:SetPoint("TOPRIGHT", frame.Border.Bg, "TOPRIGHT", -FOOTER_PADDING, -8)
-        else
-            frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
-            frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
-        end
+        frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
+        frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
     end
     frame.TitleText:SetJustifyH("CENTER")
     frame.TitleText:SetWordWrap(false)
@@ -135,7 +131,8 @@ function Components:CreatePanel(parent, settings)
     local frame = CreateFrame("Frame", settings.name, parent)
     local footerSize = settings.footerSize or 28
     -- The native box extends 28 px below the panel top; leave 12 px before content.
-    local headerHeight = settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
+    local headerHeight = settings.titleSize == "small" and titleStyle.headerHeight
+        or settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
     local footerSpacing = CONTENT_PADDING
     if settings.contentSpacing ~= nil then
         local spacing = settings.contentSpacing
@@ -154,6 +151,7 @@ function Components:CreatePanel(parent, settings)
     -- Keep half of the footer below the visible border, within the panel bounds.
     frame.Border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, footerSize / 2 - DIALOG_BORDER_INSET)
 
+    frame.TitleBox = false
     CreatePanelTitle(frame, settings, titleStyle)
 
     frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -166,8 +164,10 @@ function Components:CreatePanel(parent, settings)
     frame.CloseButton:EnableMouse(true)
 
     frame.Content = CreateFrame("Frame", nil, frame)
-    frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
-    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + footerSpacing)
+    frame.ContentInsets = {left=settings.form and 32 or DIALOG_BORDER_INSET+FOOTER_PADDING,
+        right=DIALOG_BORDER_INSET+FOOTER_PADDING,top=headerHeight,bottom=footerSize+footerSpacing}
+    frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", frame.ContentInsets.left, -frame.ContentInsets.top)
+    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -frame.ContentInsets.right, frame.ContentInsets.bottom)
     frame.ContentComponent = false
     self:SetupFieldStack(frame, frame.Content, baseHeight,
         settings.form and 20 or FIELD_GAP)

@@ -14,9 +14,8 @@ return function(test)
         event("CHAT_MSG_LOOT", string.format(format, fixture.link(id), count))
     end
     local gold = fresh()
-    equal(gold.Settings:Get("isShown"), false, "Gold starts hidden")
-    equal(gold.View.Frame.TitleText:GetText(), "Gold", "Gold uses shared tracker panel")
-    equal(gold.View.RateUnit:GetText(), "g/h", "Gold starts in gold per hour")
+    equal(PerHour.Dashboard.Frame.TitleText:GetText(), "Per Hour", "Gold uses shared tracker panel")
+    equal(PerHour.Dashboard.Displays[2].Unit:GetText(), "g/h", "unstarted Gold shows its zero-value rate unit")
     fixture.items[101] = { price = 5000, class = 7 }
     loot(101, 3)
     equal(gold.State.Element, 0, "unstarted Gold ignores loot")
@@ -38,15 +37,14 @@ return function(test)
     equal(gold.State.History[2].elapsed, 60, "history records active-session time")
     equal(gold.State.History[2].timestamp, GetServerTime(), "new history entries record the actual event timestamp")
     equal(gold.State.ElementPerHour, 2100000, "Gold rates use active duration and copper internally")
-    gold.View.Frame:Show()
-    equal(gold.View.RateValue:GetText(), "210", "panel converts copper to gold")
+    PerHour.Dashboard:Show()
+    equal(PerHour.Dashboard.Displays[2].Value:GetText(), "210", "panel converts copper to gold")
     PerHour.Stores.Settings:SetRate("minute")
-    PerHour.TrackerPanels:RefreshDisplays()
-    equal(gold.View.RateValue:GetText(), "3.5", "minute display retains fractional gold")
-    equal(gold.View.RateUnit:GetText(), "g/min", "Gold follows shared minute preference")
-    gold.View.Frame.scripts.OnEnter(gold.View.Frame)
-    equal(GameTooltip.lines["Total Gold"], "3g 50s 0c", "tooltip formats total in gold silver and copper")
-    equal(GameTooltip.singleLines[2], "Item prices: TSM > Auctionator > Vendor; vendor minimum.", "tooltip identifies item valuation")
+    PerHour.Dashboard:RefreshDisplays()
+    equal(PerHour.Dashboard.Displays[2].Value:GetText(), "3.5", "minute display retains fractional gold")
+    equal(PerHour.Dashboard.Displays[2].Unit:GetText(), "g/m", "Gold follows shared minute preference")
+    PerHour.Dashboard.Displays[2].scripts.OnEnter(PerHour.Dashboard.Displays[2])
+    equal(GameTooltip.lines["Total"], "3g 50s 0c", "tooltip formats total in gold silver and copper")
     BaseModule:SendTo(gold, "say")
     fixture.items[101].price = 9000
     event("GET_ITEM_INFO_RECEIVED", 101, true)
@@ -183,7 +181,7 @@ return function(test)
     equal(gold.State.Element, -15, "duplicate cast success cannot charge an unrelated later removal")
     click(gold)
     tick(1)
-    equal(PerHour.TrackerPanels.UpdateScheduled, false, "paused Gold alone does not keep the shared timer alive")
+    equal(PerHour.Capture.Token, nil, "paused Gold alone does not keep the shared timer alive")
 
     -- Consume preexisting inventory, with both native bag/cast event orderings.
     gold = fresh()
@@ -236,36 +234,36 @@ return function(test)
     loot(203, 2)
     local count = #gold.State.History
     event("PLAYER_LOGOUT")
-    local saved = test.copy(PerHourCharacter_Values)
-    equal(#saved.sessions.Gold.context.history, count, "journal is persisted with Gold's session")
-    equal(saved.sessions.Gold.total, 200, "save includes negative consumption and positive farming")
+    local saved = test.copy(PerHourRevampSession)
+    equal(#saved.current.modules.Gold.history, count, "journal is persisted with Gold's session")
+    equal(saved.current.record.metrics.Gold.total, 200, "save includes negative consumption and positive farming")
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
     equal(gold.State.Element, 200, "Gold restores its estimated net total")
     equal(#gold.State.History, count, "Gold restores the complete journal")
     equal(gold.State.HasPaused, false, "running Gold resumes after continuity check")
-    equal(gold.State.History[1].timestamp, saved.sessions.Gold.context.history[1].timestamp, "restoration preserves recorded timestamps")
+    equal(gold.State.History[1].timestamp, saved.current.modules.Gold.history[1].timestamp, "restoration preserves recorded timestamps")
     fixture.items[203].available = true
     event("GET_ITEM_INFO_RECEIVED", 203, true)
     equal(gold.State.Element, 220, "pending price is settled after reload")
-    equal(saved.sessions.Gold.context.history[count].pending, true, "live settlement cannot mutate saved fixture")
+    equal(saved.current.modules.Gold.history[count].pending, true, "live settlement cannot mutate saved fixture")
     click(gold)
     event("PLAYER_LOGOUT")
-    test.login(test.copy(PerHourCharacter_Values), 0)
+    test.login(test.copy(PerHourRevampSession), 0)
     gold = PerHour.Modules.Gold
     equal(gold.State.HasPaused, true, "manually paused Gold restores paused")
     equal(#gold.State.History, count, "paused restore retains journal")
-    BaseModule:ResetModule(gold)
+    PerHour.Session:Finish()
     equal(#gold.State.History, 0, "Reset clears journal and pending prices")
-    equal(PerHourCharacter_Values.sessions.Gold, nil, "Reset clears saved Gold session")
+    equal(PerHourRevampSession.current, nil, "Reset clears saved Gold session")
     event("GET_ITEM_INFO_RECEIVED", 203, true)
     equal(gold.State.Element, 0, "late item response cannot revive reset session")
 
-    saved.sessions.Gold.context.history[1].amount = -999
+    saved.current.modules.Gold.history[1].amount = -999
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
-    equal(gold.State.HasStarted, false, "inconsistent journal cannot restore misleading totals")
-    equal(gold.State.RestoreStatus, "error", "invalid journal exposes existing restore warning")
+    equal(gold.State.Available, false, "inconsistent journal is unavailable while readable totals are preserved")
+    equal(gold.State.Partial, true, "invalid journal exposes existing restore warning")
     equal(#gold.State.History, 0, "rejected history leaves a clean runtime")
 
     gold = fresh()
@@ -276,8 +274,8 @@ return function(test)
     event("UNIT_SPELLCAST_SUCCEEDED", "player", "logout-cast", 9001)
     fixture.bags[1].count = 1
     event("PLAYER_LOGOUT")
-    equal(PerHourCharacter_Values.sessions.Gold.total, -50, "logout captures confirmed consumption before delayed bag event")
-    equal(PerHourCharacter_Values.sessions.Gold.context.history[1].amount, -50, "logout history matches its final sampled total")
+    equal(PerHourRevampSession.current.record.metrics.Gold.total, -50, "logout captures confirmed consumption before delayed bag event")
+    equal(PerHourRevampSession.current.modules.Gold.history[1].amount, -50, "logout history matches its final sampled total")
     event("PLAYER_LEAVING_WORLD")
     fixture.bags[1] = nil
     event("PLAYER_ENTERING_WORLD")
@@ -346,7 +344,7 @@ return function(test)
     loot(502, 4, true)
     equal(gold.State.History[14].questID, nil, "excluded external context cannot seed a later quest association")
     event("PLAYER_LOGOUT")
-    local questSave = test.copy(PerHourCharacter_Values)
+    local questSave = test.copy(PerHourRevampSession)
     local questTotal = gold.State.Element
     test.login(questSave, 0)
     gold = PerHour.Modules.Gold
@@ -356,13 +354,13 @@ return function(test)
     equal(gold.State.Element, questTotal, "quest metadata does not alter restored session totals")
     for _, timestamp in ipairs({ -1, 1.5, "invalid", math.huge, 4294967296 }) do
         local invalidTimestamp = test.copy(questSave)
-        invalidTimestamp.sessions.Gold.context.history[1].timestamp = timestamp
+        invalidTimestamp.current.modules.Gold.history[1].timestamp = timestamp
         test.login(invalidTimestamp, 0)
-        equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "malformed optional event timestamp is rejected on restore")
+        equal(PerHour.Modules.Gold.State.Partial, true, "malformed optional event timestamp is rejected on restore")
     end
-    questSave.sessions.Gold.context.history[1].questID = -1
+    questSave.current.modules.Gold.history[1].questID = -1
     test.login(questSave, 0)
-    equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "malformed optional quest ID is rejected on restore")
+    equal(PerHour.Modules.Gold.State.Partial, true, "malformed optional quest ID is rejected on restore")
 
     gold = fresh()
     fixture.items[701] = { price = 0, class = 12, available = false }
@@ -391,7 +389,7 @@ return function(test)
     fixture.items[701].available = false
     loot(701, 1)
     event("PLAYER_LOGOUT")
-    local zeroSave = test.copy(PerHourCharacter_Values)
+    local zeroSave = test.copy(PerHourRevampSession)
     test.login(zeroSave, 0)
     gold = PerHour.Modules.Gold
     fixture.items[701].available = true

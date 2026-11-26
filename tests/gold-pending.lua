@@ -26,7 +26,7 @@ return function(test)
         if paused then click(gold) end
         event("PLAYER_LOGOUT")
         fixture.requests = {}
-        return test.copy(PerHourCharacter_Values)
+        return test.copy(PerHourRevampSession)
     end
 
     for _, paused in ipairs({ false, true }) do
@@ -44,10 +44,10 @@ return function(test)
         equal(gold.State.History[2].pending, nil, "cached pending delivery is also resolved")
         equal(gold.State.HasPaused, paused, "price recovery preserves the saved pause choice")
         equal(fixture.requests[901], nil, "already cached data is settled before requesting another load")
-        equal(gold.State.History[1].timestamp, saved.sessions.Gold.context.history[1].timestamp, "price recovery retains the event timestamp")
+        equal(gold.State.History[1].timestamp, saved.current.modules.Gold.history[1].timestamp, "price recovery retains the event timestamp")
         event("GET_ITEM_INFO_RECEIVED", 901, true)
         equal(gold.State.Element, 20, "duplicate load replies cannot settle accepted values twice")
-        equal(saved.sessions.Gold.context.history[1].pending, true, "cache settlement cannot rewrite the saved input fixture")
+        equal(saved.current.modules.Gold.history[1].pending, true, "cache settlement cannot rewrite the saved input fixture")
     end
 
     local saved = pendingSave(true)
@@ -73,7 +73,7 @@ return function(test)
     equal(next(gold.State.PendingPrices), nil, "synchronous replies cannot leave stale pending item IDs")
 
     saved = pendingSave(false)
-    for _, entry in ipairs(saved.sessions.Gold.context.history) do
+    for _, entry in ipairs(saved.current.modules.Gold.history) do
         entry.pricingVersion, entry.priceSource, entry.priceMetric, entry.valuations = nil, nil, nil, nil
     end
     TSM_API = { ToItemString = function() return "i:901" end,
@@ -89,7 +89,7 @@ return function(test)
     gold = PerHour.Modules.Gold
     fixture.items[901].available = true
     event("TIME_PLAYED_MSG", test.playedTime() + 120, 0)
-    equal(gold.State.RestoreStatus, "error", "cache settlement preserves a continuity warning")
+    equal(gold.State.Partial, true, "cache settlement preserves a continuity warning")
     equal(gold.State.HasPaused, true, "an unverified restored session remains paused")
     equal(gold.State.Element, 20, "existing accepted entries can finish pricing after a continuity warning")
 
@@ -106,7 +106,7 @@ return function(test)
     saved = pendingSave(false)
     test.login(saved, 0, { autoReply = false })
     gold = PerHour.Modules.Gold
-    BaseModule:ResetModule(gold)
+    PerHour.Session:Finish()
     fixture.items[901].available = true
     event("TIME_PLAYED_MSG", test.playedTime(), 0)
     event("ITEM_DATA_LOAD_RESULT", 901, true)
@@ -179,12 +179,12 @@ return function(test)
     click(gold)
     fixture.bags = {}
     event("PLAYER_LOGOUT")
-    equal(PerHourCharacter_Values.sessions.Gold.total, 0, "saving while paused reconciles confirmed delivery evidence")
-    equal(#PerHourCharacter_Values.sessions.Gold.context.history, 2, "saved paused history includes the accepted delivery")
+    equal(PerHourRevampSession.current.record.metrics.Gold.total, 0, "saving while paused reconciles confirmed delivery evidence")
+    equal(#PerHourRevampSession.current.modules.Gold.history, 2, "saved paused history includes the accepted delivery")
 
     gold = fresh(true)
     confirm(gold, 5009, 10)
-    BaseModule:ResetModule(gold)
+    PerHour.Session:Finish()
     click(gold)
     fixture.bags = {}
     event("BAG_UPDATE_DELAYED")

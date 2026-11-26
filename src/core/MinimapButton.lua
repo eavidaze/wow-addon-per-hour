@@ -21,9 +21,8 @@ local broker = LibStub("LibDataBroker-1.1"):NewDataObject("PerHour", {
     OnClick = function(owner, mouseButton)
         if mouseButton == "LeftButton" then
             HideTooltips()
-            PerHour.ToggleMenu:Toggle(owner)
+            PerHour.Dashboard:Toggle()
         elseif mouseButton == "RightButton" then
-            PerHour.ToggleMenu:Close()
             HideTooltips()
             PerHour.SettingsPanel:Show()
         end
@@ -31,7 +30,13 @@ local broker = LibStub("LibDataBroker-1.1"):NewDataObject("PerHour", {
     OnEnter = function(owner)
         tooltip:SetOwner(owner, "ANCHOR_LEFT")
         tooltip:ClearLines()
-        tooltip:AddLine(Theme:GoldText("Left-click:") .. " Menu", 1, 1, 1)
+        tooltip:AddLine("Per Hour · " .. BaseModule:GetTrackingStatus().label, 1, 0.82, 0)
+        if PerHour.Session.Current then
+            tooltip:AddLine(PerHour.Session.Current.name .. " · " .. Utils:DisplayTimer(PerHour.Session.Current.duration), 1, 1, 1)
+            if PerHour.Session.CheckingPlayed then tooltip:AddLine("Verifying saved session…", 1, 0.8, 0)
+            elseif PerHour.Session.Current.needsReview then tooltip:AddLine("Review preserved totals before Resume.", 1, 0.8, 0) end
+        end
+        tooltip:AddLine(Theme:GoldText("Left-click:") .. " Show/hide Per Hour", 1, 1, 1)
         tooltip:AddLine(Theme:GoldText("Right-click:") .. " Settings", 1, 1, 1)
         tooltip:AddLine(Theme:GoldText("Drag:") .. " Move", 1, 1, 1)
         tooltip:Show()
@@ -61,7 +66,6 @@ button.Dragging = false
 -- LibDBIcon owns cursor sampling, positioning and the drag update callback.
 -- Only dismiss our UI and save its resulting angle at lifecycle boundaries.
 button:HookScript("OnDragStart", function(self)
-    PerHour.ToggleMenu:Close()
     HideTooltips()
     self.Dragging = true
 end)

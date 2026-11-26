@@ -9,8 +9,8 @@ PerHour.Modules.Experience = Module
 -- properties
 Module.Name = "Experience"
 Module.TagName = "experience"
-Module.ShortName = "XP"
-Module.AnnouncementUnit = "XP"
+Module.ShortName = "xp"
+Module.AnnouncementUnit = "xp"
 Module.RegisteredEvents = { "PLAYER_XP_UPDATE" }
 
 Module.CustomGetEstimateGoal = function()
@@ -34,15 +34,19 @@ Module.CustomOnUpdate = function(self, elapsed)
     local currentXp = UnitXP("player")
     local currentLevel = UnitLevel("player")
 
-    if not Utils:IsReadableNumber(currentXp) or not Utils:IsReadableNumber(currentMaxXp)
-        or not Utils:IsReadableNumber(currentLevel) then
-        return
+    if not Utils:IsFiniteNumber(currentXp) or not Utils:IsFiniteNumber(currentMaxXp)
+        or not Utils:IsFiniteNumber(currentLevel) then
+        Module.State.LastLevel = 0
+        return false
     end
 
     -- Loading screens may expose empty or incomplete player progress.
     -- Keep the last valid snapshot so restored XP is not counted again.
-    if currentMaxXp <= 0 or currentLevel <= 0 or currentXp < 0 then
-        return
+    local maximum = GetMaxPlayerLevel and GetMaxPlayerLevel()
+    local capped = Utils:IsFiniteNumber(maximum) and currentLevel >= maximum
+    if (currentMaxXp <= 0 and not capped) or currentLevel <= 0 or currentXp < 0 then
+        Module.State.LastLevel = 0
+        return false
     end
     local xpReceived = 0
     if Module.State.LastLevel ~= 0 and (currentLevel < Module.State.LastLevel
@@ -53,6 +57,9 @@ Module.CustomOnUpdate = function(self, elapsed)
     if Module.State.LastLevel ~= 0 then
         if currentLevel > Module.State.LastLevel then
             xpReceived = Module.State.LastMaxXp - Module.State.LastXp + currentXp
+            if currentLevel > Module.State.LastLevel + 1 then
+                PerHour.Session:MarkPartial(Module,"Some level-up progress could not be observed.")
+            end
         else
             xpReceived = math.max(0, currentXp - Module.State.LastXp)
         end
@@ -62,6 +69,7 @@ Module.CustomOnUpdate = function(self, elapsed)
     Module.State.LastMaxXp = currentMaxXp
     Module.State.LastXp = currentXp
     Module.State.LastLevel = currentLevel
+    Module.State.Available = true
     
     -- Element is the amount of XP
     if not Module.State.HasPaused then
@@ -72,7 +80,7 @@ end
 
 Module.CustomOnEvent = function(self, event, unit)
     if event ~= "PLAYER_XP_UPDATE" or (issecretvalue and issecretvalue(unit)) or unit ~= "player" then return end
-    Module.CustomOnUpdate(self, 0)
+    return Module.CustomOnUpdate(self, 0)
 end
 
 Module.CustomReset = function()
@@ -84,5 +92,5 @@ end
 -- Snapshot at the click, so the first gain after Start is included.
 Module.CustomStart = function()
     Module.CustomReset()
-    Module.CustomOnUpdate()
+    return Module.CustomOnUpdate()
 end

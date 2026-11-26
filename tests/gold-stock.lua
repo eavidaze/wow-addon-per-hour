@@ -63,9 +63,9 @@ return function(test)
             equal(gold.State.History[1].unitPrice, 100, "retiring stock never reprices the acquisition")
             event("BAG_UPDATE_DELAYED")
             event("PLAYER_LOGOUT")
-            test.login(test.copy(PerHourCharacter_Values), 0)
+            test.login(test.copy(PerHourRevampSession), 0)
             gold = PerHour.Modules.Gold
-            equal(gold.State.RestoreStatus, "success", "retired stock survives session verification")
+            equal(gold.State.Partial == true, false, "retired stock survives session verification")
             marketPrice = 300
             bags(1) -- A purchased, returned or transferred unit is not farming income.
             event("BAG_UPDATE_DELAYED")
@@ -86,10 +86,10 @@ return function(test)
     equal(gold.State.History[4].amount, -200, "partial withdrawals retire the oldest remaining units across lots")
     equal(gold.State.Element, 600, "transfers do not subtract their value from the farming total")
     event("PLAYER_LOGOUT")
-    local saved = test.copy(PerHourCharacter_Values)
+    local saved = test.copy(PerHourRevampSession)
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
-    equal(gold.State.RestoreStatus, "success", "retirement metadata preserves earlier expense allocations")
+    equal(gold.State.Partial == true, false, "retirement metadata preserves earlier expense allocations")
     consume()
     equal(gold.State.History[5].amount, -200, "reload retains the last available unit at its original price")
     bags(1)
@@ -98,14 +98,14 @@ return function(test)
     equal(gold.State.History[6].amount, -500, "exhausted lots cannot price a later replacement")
     for _, invalidQuantity in ipairs({ 0, -1, 3, 4, 0.5, "1", math.huge }) do
         local invalid = test.copy(saved)
-        invalid.sessions.Gold.context.history[1].retiredQuantity = invalidQuantity
+        invalid.current.modules.Gold.history[1].retiredQuantity = invalidQuantity
         test.login(invalid, 0)
-        equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "invalid retirement quantities are rejected")
+        equal(PerHour.Modules.Gold.State.Partial, true, "invalid retirement quantities are rejected")
     end
     local invalid = test.copy(saved)
-    invalid.sessions.Gold.context.history[3].retiredQuantity = 1
+    invalid.current.modules.Gold.history[3].retiredQuantity = 1
     test.login(invalid, 0)
-    equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "expenses cannot carry retired acquisition quantities")
+    equal(PerHour.Modules.Gold.State.Partial, true, "expenses cannot carry retired acquisition quantities")
 
     gold = fresh()
     loot(1)
@@ -126,8 +126,8 @@ return function(test)
         equal(gold.State.History[3].amount, -100, "quest event order cannot retire a unit before its delivery")
         equal(gold.State.Element, 0, "recognized expenses cancel acquisition values exactly once")
         event("PLAYER_LOGOUT")
-        test.login(test.copy(PerHourCharacter_Values), 0)
-        equal(PerHour.Modules.Gold.State.RestoreStatus, "success", "consumed units are not also saved as retired")
+        test.login(test.copy(PerHourRevampSession), 0)
+        equal(PerHour.Modules.Gold.State.Partial == true, false, "consumed units are not also saved as retired")
     end
 
     gold = fresh()
@@ -156,7 +156,7 @@ return function(test)
     loot(1)
     bags(0)
     event("PLAYER_LOGOUT") -- Save must sample even when there are no pending casts or quests.
-    test.login(test.copy(PerHourCharacter_Values), 0)
+    test.login(test.copy(PerHourRevampSession), 0)
     gold = PerHour.Modules.Gold
     marketPrice = 300
     bags(1)
@@ -197,12 +197,12 @@ return function(test)
     bags(0)
     event("BAG_UPDATE_DELAYED")
     event("PLAYER_LOGOUT") -- Observed loss is still reserved for an unconfirmed dialog.
-    saved = test.copy(PerHourCharacter_Values)
+    saved = test.copy(PerHourRevampSession)
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
-    equal(gold.State.RestoreStatus, "success", "reload accepts a reserved observed bag loss")
+    equal(gold.State.Partial == true, false, "reload accepts a reserved observed bag loss")
     event("PLAYER_LOGOUT")
-    test.login(test.copy(PerHourCharacter_Values), 0)
+    test.login(test.copy(PerHourRevampSession), 0)
     gold = PerHour.Modules.Gold
     marketPrice = 300
     bags(1)
@@ -211,16 +211,16 @@ return function(test)
     equal(gold.State.History[2].amount, -300, "reload retires reserved losses once when their runtime correlation is gone")
     equal(#gold.State.History, 2, "restoring reserved loss does not invent a quest expense")
     invalid = test.copy(saved)
-    invalid.sessions.Gold.context.inventoryLosses[901] = -1
+    invalid.current.modules.Gold.inventoryLosses[901] = -1
     test.login(invalid, 0)
-    equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "malformed saved bag evidence is rejected")
+    equal(PerHour.Modules.Gold.State.Partial, true, "malformed saved bag evidence is rejected")
 
     gold = fresh()
     fixture.items[901].available = false
     loot(1)
     withdraw(1, "MERCHANT_SHOW", "MERCHANT_CLOSED")
     event("PLAYER_LOGOUT")
-    test.login(test.copy(PerHourCharacter_Values), 0)
+    test.login(test.copy(PerHourRevampSession), 0)
     gold = PerHour.Modules.Gold
     fixture.items[901].available = true
     event("GET_ITEM_INFO_RECEIVED", 901, true)

@@ -1,26 +1,13 @@
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
-frame:SetScript("OnEvent", function(self, event, name)
-    if event == "PLAYER_ENTERING_WORLD" then
-        self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-        PerHour.TrackerPanels:RestorePositions()
-        return
-    end
+frame:SetScript("OnEvent",function(self,_,name)
     if name ~= PerHour.AddonName then return end
     self:UnregisterEvent("ADDON_LOADED")
-
     PerHour.Stores.Settings:Init()
     PerHour.Stores.Sessions:Init()
-    for name, module in pairs(PerHour.Modules) do
-        module.State = {}
-        module.View = {}
-        module.Settings = PerHour.Stores.Settings:ForModule(name)
-        module.Store = PerHour.Stores.Sessions:ForModule(name)
-    end
-
-    PerHour.TrackerPanels:Init()
-    PerHour.ToggleMenu:Init()
+    for _, module in pairs(PerHour.Modules) do module.View = {} end
+    PerHour.Session:ResetModules()
+    PerHour.Capture:Init()
+    PerHour.Dashboard:Init()
     PerHour.MinimapButton:Init()
-    -- Loading can expose temporary screen dimensions; do not clamp saved positions yet.
-    self:RegisterEvent("PLAYER_ENTERING_WORLD")
 end)

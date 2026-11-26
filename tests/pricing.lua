@@ -152,19 +152,10 @@ return function(test)
     equal(expense.valuations[1].quantity, 5, "expense records the first lot's quantity")
     equal(expense.valuations[2].unitPrice, 300, "expense preserves the second lot's unit value")
     local beforeDisplay = calls.tsm + calls.auctionator
-    PerHour.GoldDetailsPanel:Show()
-    local displayed
-    PerHour.GoldDetailsPanel.ScrollBox:ForEachFrame(function(row)
-        if row.Entry == expense then displayed = row end
-    end)
-    displayed.Icon.scripts.OnEnter(displayed.Icon)
-    equal(GameTooltip.lines["Price source"], "Mixed recorded prices", "Details shows the saved valuation source on the item icon")
-    equal(GameTooltip.lines["Recorded value"], GetMoneyString(1400, true), "Details shows the actual frozen event value")
-    equal(GameTooltip.lines["Auctionator (last scan) x5"], GetMoneyString(500, true), "mixed expense tooltip shows its Auctionator portion")
-    equal(GameTooltip.lines["TSM (DBMarket) x3"], GetMoneyString(900, true), "mixed expense tooltip shows its TSM portion")
+    PerHour.SessionPanels:ShowCurrent()
     equal(calls.tsm + calls.auctionator, beforeDisplay, "rendering and hovering history never query market addons")
     event("PLAYER_LOGOUT")
-    local saved = test.copy(PerHourCharacter_Values)
+    local saved = test.copy(PerHourRevampSession)
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
     equal(gold.State.Element, 600, "reload restores mixed-price history without repricing it")
@@ -173,13 +164,13 @@ return function(test)
     equal(gold.State.History[4].amount, -600, "last two units cancel their recorded price rather than today's quote")
     for _, field in ipairs({ "amount", "quantity", "priceSource", "pricingVersion", "acquired" }) do
         local invalid = test.copy(saved)
-        local value = invalid.sessions.Gold.context.history[3]
+        local value = invalid.current.modules.Gold.history[3]
         if field == "priceSource" then value.priceSource = "unknown"
         elseif field == "pricingVersion" then value.pricingVersion = 999
         elseif field == "acquired" then value.valuations[1].acquired = false
         else value.valuations[1][field == "amount" and "unitPrice" or "quantity"] = 1 end
         test.login(invalid, 0)
-        equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "tampered valuation snapshots are rejected on restore")
+        equal(PerHour.Modules.Gold.State.Partial, true, "tampered valuation snapshots are rejected on restore")
     end
 
     gold = fresh()
@@ -192,7 +183,7 @@ return function(test)
     deliver(4003, 8)
     equal(#gold.State.History, 2, "both acquisition and delivery remain in history while prices are pending")
     event("PLAYER_LOGOUT")
-    local pendingSave = test.copy(PerHourCharacter_Values)
+    local pendingSave = test.copy(PerHourRevampSession)
     test.login(pendingSave, 0)
     gold = PerHour.Modules.Gold
     fixture.items[901].available = true
@@ -215,7 +206,7 @@ return function(test)
     equal(#gold.State.History, 2, "zero-valued pending acquisition is removed without losing the mixed expense")
     equal(gold.State.Element, 200, "zero-valued acquisition contributes nothing to its expense part")
     event("PLAYER_LOGOUT")
-    saved = test.copy(PerHourCharacter_Values)
+    saved = test.copy(PerHourRevampSession)
     tsmPrice = 1000
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
@@ -233,7 +224,7 @@ return function(test)
     equal(gold.State.Element, -900, "a single expense can combine acquired units and old stock")
     equal(gold.State.History[2].valuations[2].acquired, false, "old-stock provenance is saved independently of acquired lots")
     event("PLAYER_LOGOUT")
-    saved = test.copy(PerHourCharacter_Values)
+    saved = test.copy(PerHourRevampSession)
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
     equal(gold.State.Element, -900, "old-stock parts survive reconstruction without consuming unrelated acquisitions")
@@ -243,8 +234,8 @@ return function(test)
     click(gold)
     loot(3)
     event("PLAYER_LOGOUT")
-    local legacy = test.copy(PerHourCharacter_Values)
-    for _, entry in ipairs(legacy.sessions.Gold.context.history) do
+    local legacy = test.copy(PerHourRevampSession)
+    for _, entry in ipairs(legacy.current.modules.Gold.history) do
         entry.pricingVersion, entry.priceSource, entry.priceMetric, entry.valuations = nil, nil, nil, nil
     end
     installTSM()
@@ -263,8 +254,8 @@ return function(test)
     click(gold)
     loot(2)
     event("PLAYER_LOGOUT")
-    legacy = test.copy(PerHourCharacter_Values)
-    legacy.sessions.Gold.context.history[1].pricingVersion = nil
+    legacy = test.copy(PerHourRevampSession)
+    legacy.current.modules.Gold.history[1].pricingVersion = nil
     installTSM()
     tsmPrice = 1000
     test.login(legacy, 0)

@@ -41,23 +41,25 @@ return function(test)
     event("BAG_UPDATE_DELAYED")
     equal(#deliveries(gold), 1, "repeated completion and bag events cannot deduct the same delivery twice")
 
-    local details = PerHour.GoldDetailsPanel
-    details:Show()
+    local details = PerHour.SessionPanels
+    details:ShowCurrent()
+    details.Details.ScrollBox:ScrollToOffset(#details.Details.Rows * 64)
     local row
-    details.ScrollBox:ForEachFrame(function(candidate)
-        if candidate.Entry.source == "quest_turnin" then row = candidate end
+    details.Details.ScrollBox:ForEachFrame(function(candidate)
+        if candidate.Data.event and candidate.Data.event.source == "quest_turnin" then row = candidate end
     end)
-    assert(row, "delivery must appear in Gold Details")
-    equal(row.Name:GetText(), "Item 801 x10", "Details shows the delivered item and quantity on one line")
-    equal(row.Quest:IsShown(), true, "delivered item exposes the quest marker")
-    equal(row.Amount:GetText(), GetMoneyString(200, true), "delivery uses the native unsigned Value format")
-    equal(table.concat(row.Amount.textColor, ","), table.concat(PerHour.Theme.red.text, ","), "delivery value uses the outgoing DS color")
+    assert(row, "delivery must appear in Session Details")
+    equal(row.Left:GetText(), "Item 801 x10", "Details shows delivered item and quantity")
+    equal(row.Quest:IsShown(), true, "delivery exposes the native quest marker")
+    equal(row.Right:GetText():find("-0g 2s 0c",1,true) ~= nil, true, "delivery preserves its negative copper value")
+    equal(table.concat(row.Right.textColor, ","), table.concat(PerHour.Theme.red.text, ","), "expense keeps outgoing DS color")
     row.Icon.scripts.OnEnter(row.Icon)
-    equal(GameTooltip.hyperlink, fixture.link(801), "delivery icon opens the standard item tooltip")
+    equal(GameTooltip.hyperlink, fixture.link(801), "item icon opens the native item tooltip")
     row.Quest.scripts.OnEnter(row.Quest)
-    equal(GameTooltip.hyperlink, "quest:3001", "delivery marker opens the standard quest tooltip")
-    equal(details.Income:GetText(), GetMoneyString(700, true), "summary includes looted items and quest rewards")
-    equal(details.Expenses:GetText(), GetMoneyString(200, true), "summary includes delivered item costs")
+    equal(GameTooltip.hyperlink, "quest:3001", "quest marker opens the native quest tooltip")
+    local summary = PerHour.Session:GetSnapshot(false).gold
+    equal(summary.coins + summary.items, 700, "summary includes loot and quest rewards")
+    equal(summary.expenses, 200, "summary includes delivered item costs")
 
     gold = fresh()
     fixture.items[801] = { price = 20, class = 7 }
@@ -83,7 +85,7 @@ return function(test)
     equal(pending.quantity, 2, "pending delivery keeps the confirmed quantity")
     click(gold)
     event("PLAYER_LOGOUT")
-    local saved = test.copy(PerHourCharacter_Values)
+    local saved = test.copy(PerHourRevampSession)
     test.login(saved, 0)
     gold = PerHour.Modules.Gold
     equal(gold.State.Element, -60, "reload preserves settled delivery expenses")
@@ -93,9 +95,9 @@ return function(test)
     equal(#deliveries(gold), 2, "settlement updates the original delivery entry")
     for _, invalid in ipairs({ "questID", "itemID" }) do
         local malformed = test.copy(saved)
-        malformed.sessions.Gold.context.history[1][invalid] = nil
+        malformed.current.modules.Gold.history[1][invalid] = nil
         test.login(malformed, 0)
-        equal(PerHour.Modules.Gold.State.RestoreStatus, "error", "delivery context requires both item and quest identity")
+        equal(PerHour.Modules.Gold.State.Partial, true, "delivery context requires both item and quest identity")
     end
 
     gold = fresh()
@@ -154,7 +156,7 @@ return function(test)
         progress(3006, { { id = 801, quantity = 10 } })
         if boundary == "cancel" then event("QUEST_FINISHED"); tick(3); event("QUEST_ITEM_UPDATE")
         elseif boundary == "pause" then click(gold); click(gold)
-        elseif boundary == "reset" then BaseModule:ResetModule(gold); click(gold)
+        elseif boundary == "reset" then PerHour.Session:Finish(); click(gold)
         elseif boundary == "world" then event("PLAYER_ENTERING_WORLD")
         elseif boundary == "external" then event("MAIL_SHOW"); event("MAIL_CLOSED") end
         event("QUEST_TURNED_IN", boundary == "wrong quest" and 9999 or 3006, 0, 0)
