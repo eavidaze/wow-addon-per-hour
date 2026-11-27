@@ -8,11 +8,13 @@ pauses, offline time, loading and verification do not.
 
 - A UI reload restores the prior running/paused state only after continuity checks.
 - A normal logout/login returns the current session paused, without archiving it.
-  Resume continues it; Finish and Reset archives it.
+  Resume continues it; Finish Session archives it.
 - Disconnects or abrupt exits restore the checkpoint available from the last
   client save. Uncertain continuity remains paused for review with partial flags.
 - A session already paused stays paused.
-- Finish is allowed during verification: it archives preserved data as partial
+- Finish Session always asks for confirmation, from both the Sessions menu and
+  current Details. Cancel, X or Escape leaves the session running/paused as before.
+- Confirmed Finish is allowed during verification: it archives preserved data as partial
   without waiting for a reply. A late reply cannot revive that session.
 - A late played-time response updates future reference availability but never
   silently resumes a session whose verification already timed out.

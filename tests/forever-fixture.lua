@@ -78,7 +78,7 @@ function methods:SetText(value)
     if rawget(self, "Text") then self.Text:SetText(value) end
     if rawget(self, "template") == "SharedGoldRedButtonSmallTemplate" and value ~= ""
         and not rawget(self, "fontString") then
-        self.fontString = self:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        self.fontString = self:CreateFontString(nil, "OVERLAY", rawget(self,"normalFontObject"))
     end
     if rawget(self, "fontString") then self.fontString:SetText(value) end
 end
@@ -86,6 +86,15 @@ function methods:GetText() return self.text end
 function methods:SetOwner(owner) self.owner = owner end
 function methods:IsOwned(owner) return self.owner == owner end
 function methods:GetFontString() return rawget(self, "fontString") end
+function methods:SetNormalFontObject(font)
+    self.normalFontObject=font
+    if rawget(self,"fontString") then self.fontString:SetFontObject(font) end
+end
+function methods:GetNormalFontObject() return rawget(self,"normalFontObject") end
+function methods:SetHighlightFontObject(font) self.highlightFontObject=font end
+function methods:GetHighlightFontObject() return rawget(self,"highlightFontObject") end
+function methods:SetDisabledFontObject(font) self.disabledFontObject=font end
+function methods:GetDisabledFontObject() return rawget(self,"disabledFontObject") end
 function methods:SetFontObject(font) self.template = font end
 function methods:GetFont()
     return rawget(self, "fontPath") or "Fonts\\FRIZQT__.TTF",
@@ -95,7 +104,11 @@ end
 function methods:SetFont(path, size, flags) self.fontPath, self.fontSize, self.fontFlags = path, size, flags end
 function methods:SetVertexColor(...) self.vertexColor = { ... } end
 function methods:GetVertexColor() return unpack(rawget(self, "vertexColor") or { 1, 1, 1, 1 }) end
-function methods:SetTextColor(...) self.textColor = { ... } end
+function methods:SetTextColor(r,g,b,a)
+    assert(type(r)=="number" and type(g)=="number" and type(b)=="number", "SetTextColor requires numeric RGB components")
+    assert(a==nil or type(a)=="number", "SetTextColor alpha must be numeric, not an item quality string")
+    self.textColor={r,g,b,a}
+end
 function methods:SetJustifyH(value) self.justifyH = value end
 function methods:SetTexture(texture, wrapHorizontal, wrapVertical, filterMode)
     assert(texture ~= nil, "texture must be available")
@@ -105,9 +118,14 @@ end
 function methods:SetRotation(radians) self.rotation = radians end
 function methods:SetBlendMode(mode) self.blendMode = mode end
 function methods:SetColorTexture(...) self.color = { ... } end
-function methods:SetAtlas(atlas)
+function methods:SetAtlas(atlas,useAtlasSize)
     assert(type(atlas) == "string", "atlas must be available")
     self.atlas = atlas
+    if atlas == "Options_InnerFrame" then
+        -- Synthetic atlas bounds exercise cropping within a larger texture sheet.
+        self:SetTexCoord(0.125,0.625,0.25,0.8125)
+        if useAtlasSize then self:SetSize(880,580) end
+    end
 end
 function methods:SetEnabled(enabled) self.enabled = enabled end
 function methods:EnableMouse(enabled) self.mouseEnabled, self.mouseMotionEnabled = enabled, enabled end
@@ -139,6 +157,16 @@ function methods:SetParent(parent) self.parent = parent end
 function methods:GetParent() return self.parent end
 function methods:SetScale(scale) self.scale = scale end
 function methods:GetScale() return rawget(self, "scale") or 1 end
+function methods:SetFrameStrata(strata) self.strata = strata end
+function methods:GetFrameStrata() return rawget(self,"strata") or "MEDIUM" end
+function methods:SetFrameLevel(level) self.frameLevel=level end
+function methods:GetFrameLevel()
+    return rawget(self,"frameLevel") or (rawget(self,"parent") and self.parent:GetFrameLevel()+1 or 0)
+end
+function methods:SetToplevel(value) self.topLevel = value end
+function methods:IsToplevel() return rawget(self,"topLevel") == true end
+function methods:SetFlattensRenderLayers(value) self.flattenLayers = value end
+function methods:GetFlattensRenderLayers() return rawget(self,"flattenLayers") == true end
 function methods:GetChildren()
     local children = {}
     for _, frame in ipairs(frames) do
@@ -171,6 +199,11 @@ function methods:ClearFocus()
     if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
 end
 function methods:SetTexCoord(...) self.texCoords = { ... } end
+function methods:GetTexCoord()
+    local coords=self.texCoords
+    if #coords == 4 then return coords[1],coords[3],coords[1],coords[4],coords[2],coords[3],coords[2],coords[4] end
+    return unpack(coords)
+end
 function methods:GetWidth()
     local width = rawget(self, "width")
     if width then return width end
@@ -187,6 +220,16 @@ function methods:GetStringWidth()
     local width = self.template == "GameFontNormalHuge" and 10 or 6
     if self.template == "GameFontDisableSmall" then width = select(2, self:GetFont()) / 2 end
     return #self.text * width
+end
+function methods:GetUnboundedStringWidth() return self:GetStringWidth() end
+function methods:GetStringHeight()
+    local width=rawget(self,"width") or 0
+    local _,fontSize=self:GetFont()
+    local lines=0
+    for line in ((self:GetText() or "").."\n"):gmatch("(.-)\n") do
+        lines=lines+math.max(1,width > 0 and math.ceil(#line*fontSize/2/width) or 1)
+    end
+    return lines*(fontSize+2)
 end
 function methods:SetPoint(...)
     self.point = { ... }
@@ -220,14 +263,39 @@ function methods:ClearAllPoints() self.point, self.points = nil, {} end
 function methods:StartMoving() self.moving = true end
 function methods:StopMovingOrSizing() self.moving = false end
 function methods:GetCenter() return 100, 200 end
-function methods:GetEffectiveScale() return 2 end
+function methods:GetEffectiveScale()
+    local parent = rawget(self,"parent")
+    return self:GetScale()*(parent and parent:GetEffectiveScale() or 2)
+end
 function methods:SetupMenu(generator) self.menuGenerator = generator end
 function methods:IsMenuOpen() return self.menuOpen == true end
-function methods:CloseMenu() self.menuOpen = false end
+function methods:CloseMenu()
+    self.menuOpen = false
+    local description=rawget(self,"menuDescription")
+    for _,item in ipairs(description and description.items or {}) do
+        if item.frame then item.frame:Hide() end
+    end
+end
 local function menuDescription()
     local root = { items = {} }
     function root:SetScrollMode(height) self.maxScrollExtent = height end
     function root:CreateTitle(text) self.title = text end
+    function root:CreateDivider() self.items[#self.items + 1] = {kind="divider"} end
+    -- MenuUtil.CreateFrame takes no arguments; initializers/data are registered
+    -- on the returned description, unlike the lower-level MenuTemplates API.
+    function root:CreateFrame()
+        local item={initializers={}}
+        function item:AddInitializer(initializer) self.initializers[#self.initializers+1]=initializer end
+        function item:SetData(data) self.data=data end
+        function item:SetResponder(callback) self.callback=callback end
+        function item:Pick(context,buttonName)
+            self.inputContext,self.buttonName=context,buttonName
+            local response=self.callback()
+            if response == MenuResponse.CloseAll then self.owner:CloseMenu() end
+        end
+        self.items[#self.items+1]=item
+        return item
+    end
     function root:CreateCheckbox(text, isSelected, callback, data)
         self.items[#self.items + 1] = { text = text, isSelected = isSelected, callback = callback, data = data }
     end
@@ -243,9 +311,25 @@ local function menuDescription()
     return root
 end
 function methods:GenerateMenu()
+    local previous=rawget(self,"menuDescription")
+    for _,item in ipairs(previous and previous.items or {}) do
+        if item.frame then item.frame:Hide() end
+    end
     local root = menuDescription()
     self.menuGenerator(self, root)
     self.menuDescription = root
+    for _,item in ipairs(root.items) do
+        if item.initializers then
+            item.owner=self
+            item.frame=CreateFrame("Frame",nil,self)
+            item.width,item.height=1,1
+            for _,initializer in ipairs(item.initializers) do
+                local width,height=initializer(item.frame,item)
+                if width and height then item.width,item.height=width,height end
+            end
+            item.frame:SetSize(item.width,item.height)
+        end
+    end
     if rawget(self, "Text") then
         for index, item in ipairs(root.items) do
             if item.isSelected and item.isSelected(item.data) then
@@ -260,6 +344,7 @@ function methods:GenerateMenu()
     end
 end
 function methods:SetMenuOpen(open)
+    if not open then self:CloseMenu(); return end
     self.menuOpen = open
     if open then self:GenerateMenu() end
 end
@@ -356,9 +441,28 @@ end
 MinimalSliderWithSteppersMixin = { Label = { Right = 2 }, Event = { OnValueChanged = "OnValueChanged" } }
 SettingsCheckboxMixin = { Event = { OnValueChanged = "OnValueChanged" } }
 local scrollBoxFixture = assert(loadfile("tests/scrollbox-fixture.lua"))()
+ButtonGroupBaseMixin={Event={Selected="Selected"}}
+SOUNDKIT={IG_CHARACTER_INFO_TAB=1}
+function PlaySound(sound) end
+-- Simulate native radio selection/callback contracts, without simulating drawing.
+function CreateRadioButtonGroup()
+    local group={buttons={}}
+    function group:RegisterCallback(event,callback,owner) self.callback,self.owner=callback,owner end
+    function group:Select(button)
+        if button:IsSelected() then return end
+        for _,candidate in ipairs(self.buttons) do candidate:SetSelected(candidate==button) end
+        self.callback(self.owner,button)
+    end
+    function group:AddButton(button)
+        self.buttons[#self.buttons+1]=button
+        button:SetScript("OnClick",function() self:Select(button) end)
+    end
+    return group
+end
 function CreateFrame(kind, name, parent, template)
     assert(template == nil or template == "UIPanelButtonTemplate" or template == "SharedGoldRedButtonSmallTemplate"
-        or template == "DialogBorderTranslucentTemplate"
+        or template == "DialogBorderTranslucentTemplate" or template == "FlatPanelBackgroundTemplate"
+        or template == "MinimalTabTemplate"
         or template == "DialogHeaderTemplate" or template == "GameTooltipTemplate"
         or template == "UIPanelCloseButton" or template == "UIPanelSquareButton"
         or template == "UICheckButtonTemplate" or template == "InputBoxTemplate"
@@ -395,6 +499,16 @@ function CreateFrame(kind, name, parent, template)
     if template == "DialogBorderTranslucentTemplate" then
         frame.Bg = object()
     end
+    if template == "MinimalTabTemplate" then
+        frame:SetSize(100,37)
+        frame.Text=frame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+        frame.selected=false
+        function frame:IsSelected() return self.selected end
+        function frame:SetSelected(selected)
+            self.selected=selected
+            self.Text:SetFontObject(selected and "GameFontHighlightSmall" or "GameFontNormalSmall")
+        end
+    end
     -- Mirror Forever's DialogHeaderTemplate sizing and font methods.
     if template == "DialogHeaderTemplate" then
         frame:SetSize(200, 39)
@@ -419,6 +533,9 @@ function CreateFrame(kind, name, parent, template)
     end
     if template == "SharedGoldRedButtonSmallTemplate" then
         frame.Left, frame.Center, frame.Right = object(), object(), object()
+        frame:SetNormalFontObject("GameFontNormal")
+        frame:SetHighlightFontObject("GameFontHighlight")
+        frame:SetDisabledFontObject("GameFontDisable")
     end
     if template == "UIPanelSquareButton" then
         frame.icon = object()
@@ -500,6 +617,8 @@ function CreateFrame(kind, name, parent, template)
 end
 -- Context-menu ownership and close callbacks follow Forever's MenuUtil/Menu.
 MenuUtil = {}
+MenuInputContext={MouseButton=1}
+MenuResponse={Open=1,Refresh=2,Close=3,CloseAll=4}
 function MenuUtil.CreateContextMenu(owner, generator)
     if MenuUtil.activeMenu then MenuUtil.activeMenu:Close() end
     local menu = CreateFrame("Frame", nil, UIParent)
@@ -714,7 +833,7 @@ local function mouseDrag(region, dx, dy)
 end
 
 local fixture = {}
-function UnitName() return fixture.characterName or "Tester" end
+function UnitName() return fixture.characterName or "Tester", fixture.characterSurname end
 function GetRealmName() return fixture.realm or "Forever" end
 function UnitGUID() return fixture.characterID or "Player-1-Test" end
 C_Map = { GetBestMapForUnit=function() return fixture.mapID or 1 end,
@@ -744,6 +863,11 @@ function fixture.reload(saved, unsaved, options)
     event("PLAYER_ENTERING_WORLD",false,true)
 end
 function fixture.playedTime() return playedTotal end
+-- Core capture tests explicitly confirm the current identity; UI tests exercise the dialog.
+function fixture.finish()
+    local current=PerHour.Session.Current
+    return current and PerHour.Session:Finish(current.id) or false
+end
 fixture.gold, fixture.frames, fixture.sent, fixture.copy = goldFixture, function() return frames end, sent, function(value)
     return PerHour.Copy(value)
 end

@@ -5,6 +5,7 @@ function CreateDataProvider(elements) return { elements = elements } end
 function CreateScrollBoxListLinearView()
     local view = {}
     function view:SetElementExtent(extent) self.extent = extent end
+    function view:SetElementExtentCalculator(calculator) self.calculator = calculator end
     function view:SetElementInitializer(kind, initializer) self.kind, self.initializer = kind, initializer end
     return view
 end
@@ -17,14 +18,26 @@ ScrollUtil = {
 local fixture = {}
 function fixture.Initialize(box)
     box.pool, box.offset, box.elements = {}, 0, {}
+    function box:GetElementExtent(index)
+        return self.view.calculator and self.view.calculator(index,self.elements[index]) or self.view.extent
+    end
     function box:GetDerivedScrollRange()
-        return math.max(0, #self.elements * self.view.extent - self:GetHeight())
+        local height=0
+        for index=1,#self.elements do height=height+self:GetElementExtent(index) end
+        return math.max(0,height-self:GetHeight())
     end
     function box:GetDerivedScrollOffset() return self.offset end
     function box:Render()
-        local extent = self.view.extent
-        local first = math.floor(self.offset / extent) + 1
-        local count = math.min(#self.elements - first + 1, math.ceil((self:GetHeight() + self.offset % extent) / extent))
+        local visible,position={},0
+        for index,element in ipairs(self.elements) do
+            local extent=self:GetElementExtent(index)
+            if position >= self.offset+self:GetHeight() then break end
+            if position+extent > self.offset then
+                visible[#visible+1]={data=element,extent=extent,position=position}
+            end
+            position=position+extent
+        end
+        local count=#visible
         for index = 1, math.max(#self.pool, count) do
             local row = self.pool[index]
             if index <= count then
@@ -32,10 +45,11 @@ function fixture.Initialize(box)
                     row = CreateFrame(self.view.kind, nil, self)
                     self.pool[index] = row
                 end
-                row:SetSize(self:GetWidth(), extent)
+                local item=visible[index]
+                row:SetSize(self:GetWidth(),item.extent)
                 row:ClearAllPoints()
-                row:SetPoint("TOPLEFT", self, "TOPLEFT", 0, -((first + index - 2) * extent - self.offset))
-                self.view.initializer(row, self.elements[first + index - 1])
+                row:SetPoint("TOPLEFT",self,"TOPLEFT",0,-(item.position-self.offset))
+                self.view.initializer(row,item.data)
                 row:Show()
             elseif row then row:Hide() end
         end

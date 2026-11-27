@@ -1,0 +1,77 @@
+return function(t,fresh)
+    fresh()
+    local equal=t.equal
+    local panels,dashboard=PerHour.SessionPanels,PerHour.Dashboard
+    PerHour.SettingsPanel:Show(); panels:ShowHistory()
+    PerHour.Session:Start(); panels:ShowCurrent()
+    for _,button in ipairs({PerHour.SettingsPanel.Frame.Actions.close,panels.History.Actions.compare}) do
+        equal(button:GetWidth(),96,"normal footer actions use the same minimum width")
+        equal(button:GetHeight(),28,"normal footer actions use the same height")
+    end
+    equal(dashboard.Frame.Actions.sessions.Icon.texture,"Interface\\Icons\\INV_Scroll_03","tracker Sessions inherits the shared menu icon")
+    equal(panels.Details.Actions.announce.Icon.texture,"Interface\\Icons\\INV_Scroll_03","Details Announce inherits the shared menu icon")
+    equal(dashboard.Frame.Actions.settings.Icon.texture,"Interface\\Icons\\Trade_Engineering","direct Settings action retains its own icon")
+    equal(dashboard.Frame.Actions.primary:GetWidth(),96,"normal button defaults preserve the fixed session action width")
+    panels.Details.ActionBar.scripts.OnSizeChanged(panels.Details.ActionBar,900)
+    equal(panels.Details.SessionFrames[1].Body.Rename:GetWidth(),72,"inline Rename uses the shared enlarged width")
+    equal(panels.Details.SessionFrames[1].Body.Rename:GetHeight(),24,"inline Rename uses the shared enlarged height")
+    equal(panels.Details.Actions.rename,nil,"Details does not duplicate Rename in the footer")
+    local menu=dashboard.Frame.Actions.sessions
+    menu:SetMenuOpen(true)
+    local items=menu.menuDescription.items
+    equal(#items,4,"the active Sessions menu has three actions and one divider")
+    equal(items[1].text,"History","History remains the first session menu action")
+    equal(items[2].text,"Current Session","the live-session action has an explicit name")
+    equal(items[3].kind,"divider","Finish is separated from consultation actions")
+    local finishButton=dashboard.FinishMenuButton
+    equal(items[4].data,"Finish Session","Finish stays at the end of the dropdown")
+    equal(items[4].frame.kind,"Frame","the menu pools only the action's container")
+    equal(finishButton.template,"SharedGoldRedButtonSmallTemplate","menu Finish uses the same normal button component as panel actions")
+    equal(finishButton:GetParent(),items[4].frame,"the normal button is placed inside the menu container")
+    equal(finishButton:GetFontString():GetText(),"Finish Session","the normal panel button owns its visible label")
+    equal(items[4].height,panels.Details.Actions.finish:GetHeight(),"menu Finish shares the footer button's height")
+    finishButton:Click()
+    equal(menu:IsMenuOpen(),false,"picking the embedded Finish button closes the dropdown")
+    equal(finishButton:IsShown(),false,"closing the menu hides the embedded button")
+    equal(finishButton:GetParent(),dashboard.Frame,"closing the menu returns the button to its persistent owner")
+    equal(panels.FinishDialog:IsShown(),true,"the embedded Finish button opens the shared confirmation")
+    equal(PerHour.Session.Current ~= nil,true,"the embedded button still requires confirmation")
+    panels.FinishDialog.Actions.cancel:Click()
+    panels.Details.Actions.finish:Click()
+    equal(panels.FinishDialog:IsShown(),true,"the retained footer button reopens the same confirmation")
+    panels.FinishDialog.Actions.cancel:Click()
+    menu:SetMenuOpen(true)
+    equal(dashboard.FinishMenuButton,finishButton,"reopening Sessions reuses the same normal panel button")
+    equal(finishButton:IsShown(),true,"reopening Sessions shows the normal button again")
+    equal(finishButton:GetParent(),menu.menuDescription.items[4].frame,"reopening Sessions places the button in the new menu container")
+    equal(finishButton:GetFontString():GetText(),"Finish Session","reopening Sessions preserves the visible button label")
+    panels.Details:Hide(); items[2].callback()
+    equal(panels.Details:IsShown(),true,"Current Session opens the existing Details window")
+    equal(panels.CurrentDetails,true,"Current Session targets the live session")
+    menu:SetMenuOpen(false)
+
+    t.finish(); panels:RefreshHistory()
+    menu:SetMenuOpen(true)
+    equal(#menu.menuDescription.items,1,"without a live session the menu omits current actions and their divider")
+    menu:SetMenuOpen(false)
+    local row
+    panels.History.ScrollBox:ForEachFrame(function(frame) if frame.Data.kind == "history" then row=frame.Body end end)
+    equal(row.Rename:GetWidth(),72,"list Rename has more horizontal padding between its neighboring icons")
+    equal(row.Rename:GetHeight(),24,"list Rename matches the Delete icon height")
+    equal(row.Open.Icon.texture,"Interface\\Icons\\INV_Misc_Note_06","session view action remains distinct from a menu")
+
+    local clicked=0
+    local panel=PerHour.Components:CreatePanel(UIParent,{name="TestActionDefaults",title="Actions",width=700,height=180,
+        actions={{key="long",text="Delete Session"},{key="menu",texture="old-icon",menu=function(_,root)
+            root:CreateButton("Action",function() clicked=clicked+1 end)
+        end}}})
+    equal(panel.Actions.long:GetWidth() >= panel.Actions.long:GetFontString():GetStringWidth()+32,true,
+        "long normal labels reserve enough horizontal padding")
+    equal(panel.Actions.menu.kind,"DropdownButton","menu actions automatically create a native dropdown")
+    equal(panel.Actions.menu.Icon.texture,"Interface\\Icons\\INV_Scroll_03","menu role consistently selects the standard icon")
+    panel:Show(); panel.Actions.menu:SetMenuOpen(true)
+    panel.Actions.menu.menuDescription.items[1].callback()
+    equal(clicked,1,"standard menu icon preserves action routing")
+    panel:Hide()
+    equal(panel.Actions.menu:IsMenuOpen(),false,"hiding its panel still closes the dropdown")
+end

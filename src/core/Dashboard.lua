@@ -54,15 +54,9 @@ local function Tooltip(display)
     local metric = Metric(module)
     GameTooltip:SetOwner(display,"ANCHOR_RIGHT")
     GameTooltip:SetText(name)
-    GameTooltip:AddLine(BaseModule:GetTrackingStatus().label,1,1,1)
-    if module.CustomGetContext then GameTooltip:AddLine(module.CustomGetContext(),1,1,1,true) end
-    if module.CustomGetEstimateGoal then GameTooltip:AddLine(BaseModule:GetEstimate(module),1,1,1,true) end
-    GameTooltip:AddDoubleLine("Duration",Format:Duration(metric.duration))
     GameTooltip:AddDoubleLine("Total",metric.available and Format:Amount(name,metric.total) or "—")
-    GameTooltip:AddDoubleLine("Rate",metric.available and metric.total == 0 and "0 "..Format:Unit(name) or Format:RateText(name,metric))
-    local flags = Format:Flags(metric)
-    if flags ~= "" then GameTooltip:AddLine(flags,1,0.8,0,true) end
-    if metric.issue then GameTooltip:AddLine(metric.issue,1,0.8,0,true) end
+    local oppositePeriod = Settings:GetRate() == "minute" and "hour" or "minute"
+    GameTooltip:AddDoubleLine("Rate",Format:RateText(name,metric,oppositePeriod))
     GameTooltip:Show()
 end
 local function Display(parent, style)
@@ -82,9 +76,6 @@ local function Display(parent, style)
     frame.Unit:SetWordWrap(false)
     frame.Unit:SetWidth(0)
     frame.Unit:SetHeight(0)
-    frame.Background = frame:CreateTexture(nil,"BACKGROUND")
-    frame.Background:SetAllPoints(frame)
-    frame.Background:SetColorTexture(0,0,0,0.1)
     frame:SetScript("OnEnter",Tooltip)
     frame:SetScript("OnLeave",function() GameTooltip:Hide() end)
     frame:SetScript("OnClick",function() if PerHour.Session.Current then PerHour.SessionPanels:ShowCurrent() end end)
@@ -127,8 +118,7 @@ local function Display(parent, style)
         self.Metric = name
         local module = PerHour.Modules[name]
         local metric = Metric(module)
-        local rate = metric.available and metric.total == 0 and 0 or Format:Rate(metric)
-        self:SetReading(rate and Format:Compact(rate/(module.RateDivisor or 1)) or "—",rate and Format:Unit(name) or nil)
+        self:SetReading(Format:RateReading(name,metric))
     end
     return frame
 end
@@ -192,13 +182,14 @@ function Dashboard:RefreshDisplays()
     if self.Frame:IsVisible() then
         local mode = Settings:Get("panelType")
         local gauge = Settings:GetSpeedometerEnabled() and not capped
-        local source = Settings:Get("estimateSource")
-        local estimate = Settings:GetEstimatesEnabled() and not (capped and source == "Experience")
+        local experienceEstimate = Settings:GetEstimatesEnabled("Experience") and not capped
+        local reputationEstimate = Settings:GetEstimatesEnabled("Reputation")
         local count = math.min(#order,mode == "full" and 4 or mode == "extended" and 2 or 1)
         local duration = mode ~= "focused" and Settings:Get("showDuration")
         local side = self.SideWidth
         local center = gauge and self.PrimaryWidth or Pixel(self.PrimaryWidth*0.85)
-        self.Estimate:SetSize(center,XS_HEIGHT)
+        self.ExperienceEstimate:SetSize(center,XS_HEIGHT)
+        self.ReputationEstimate:SetSize(center,XS_HEIGHT)
         local xp = PerHour.Modules.Experience.State
         self.Speedometer:SetRate(Settings:GetRate() == "minute" and xp.ElementPerMinute or xp.ElementPerHour,
             Settings:GetSpeedometerMaximum(Settings:GetRate()))
@@ -214,7 +205,8 @@ function Dashboard:RefreshDisplays()
         local leftHeight = #order >= 2 and DISPLAY_HEIGHTS[2]+(Settings:Get("showDuration") and STACK_GAP+XS_HEIGHT or 0) or 0
         local rightHeight = #order == 4 and DISPLAY_HEIGHTS[3]+STACK_GAP+DISPLAY_HEIGHTS[4]
             or #order >= 3 and DISPLAY_HEIGHTS[3] or 0
-        if estimate then top=math.max(top,DISPLAY_HEIGHTS[1]/2+2+self.Estimate:GetHeight()) end
+        if experienceEstimate then top=math.max(top,DISPLAY_HEIGHTS[1]/2+2+XS_HEIGHT) end
+        if reputationEstimate then bottom=bottom-2-XS_HEIGHT end
         if gauge then
             left,right = math.min(left,-gaugeWidth/2),math.max(right,gaugeWidth/2)
             top=math.max(top,DISPLAY_HEIGHTS[1]/2+16+self.SpeedometerArea:GetHeight())
@@ -247,9 +239,12 @@ function Dashboard:RefreshDisplays()
         self.Duration:ClearAllPoints(); self.Duration:SetPoint("BOTTOM",self.Displays[2],"TOP",0,STACK_GAP)
         self.SpeedometerArea:SetShown(gauge)
         self.SpeedometerArea:ClearAllPoints(); self.SpeedometerArea:SetPoint("BOTTOM",primary,"TOP",0,16)
-        self.Estimate:SetShown(estimate)
-        self.Estimate:ClearAllPoints(); self.Estimate:SetPoint("BOTTOM",primary,"TOP",0,2)
-        self.Estimate:SetReading(BaseModule:GetEstimate(PerHour.Modules[source]))
+        self.ExperienceEstimate:SetShown(experienceEstimate)
+        self.ExperienceEstimate:ClearAllPoints(); self.ExperienceEstimate:SetPoint("BOTTOM",primary,"TOP",0,2)
+        self.ExperienceEstimate:SetReading(BaseModule:GetEstimate(PerHour.Modules.Experience))
+        self.ReputationEstimate:SetShown(reputationEstimate)
+        self.ReputationEstimate:ClearAllPoints(); self.ReputationEstimate:SetPoint("TOP",primary,"BOTTOM",0,-2)
+        self.ReputationEstimate:SetReading(BaseModule:GetEstimate(PerHour.Modules.Reputation))
         self.Frame.Actions.primary:SetText(status.action)
         self.Frame.Actions.primary.Indicator:SetVertexColor(unpack(PerHour.Theme.trackerStatus[status.key]))
         self.Frame.Actions.primary:SetEnabled(not PerHour.Session.CheckingPlayed)
@@ -269,12 +264,36 @@ function Dashboard:Init()
             {key="settings",type="icon",texture="Interface\\Icons\\Trade_Engineering",tooltip=function() return "Settings" end,
                 onClick=function() PerHour.SettingsPanel:Show() end},
             {key="primary",type="status",text="Start",width=96,onClick=function() PerHour.Session:Toggle() end},
-            {key="sessions",type="icon",texture="Interface\\Icons\\INV_Misc_Note_05",tooltip=function() return "Sessions" end,
+            {key="sessions",tooltip=function() return "Sessions" end,
                 menu=function(_,root)
                     root:CreateButton("History",function() PerHour.SessionPanels:ShowHistory() end)
                     if PerHour.Session.Current then
-                        root:CreateButton("Details",function() PerHour.SessionPanels:ShowCurrent() end)
-                        root:CreateButton("Finish and Reset",function() PerHour.Session:Finish() end)
+                        root:CreateButton("Current Session",function() PerHour.SessionPanels:ShowCurrent() end)
+                        root:CreateDivider()
+                        local finish=root:CreateFrame()
+                        finish:SetData("Finish Session")
+                        finish:AddInitializer(function(container,description)
+                            -- Keep the normal panel action outside the menu's frame pool.
+                            -- Only its temporary container is reset/recycled by the menu.
+                            if not self.FinishMenuButton then
+                                self.FinishMenuButton=Components:CreateButton(self.Frame,"Finish Session")
+                            end
+                            local button=self.FinishMenuButton
+                            button:SetParent(container)
+                            button:ClearAllPoints(); button:SetPoint("CENTER",container,"CENTER",0,0)
+                            button:SetScript("OnClick",function(_,buttonName)
+                                description:Pick(MenuInputContext.MouseButton,buttonName)
+                            end)
+                            container:SetScript("OnHide",function()
+                                button:Hide(); button:SetParent(self.Frame)
+                            end)
+                            button:Show()
+                            return button:GetWidth(),button:GetHeight()
+                        end)
+                        finish:SetResponder(function()
+                            PerHour.Session:Finish()
+                            return MenuResponse.CloseAll
+                        end)
                     end
                 end},
         },
@@ -289,8 +308,10 @@ function Dashboard:Init()
     self.Duration = Display(frame.Content,DISPLAY_STYLES.extraSmall)
     self.Duration.TooltipTitle = "Duration"
     self:MeasureDisplays()
-    self.Estimate = Display(frame.Content,DISPLAY_STYLES.extraSmall)
-    self.Estimate.TooltipTitle = "Estimate"
+    self.ExperienceEstimate = Display(frame.Content,DISPLAY_STYLES.extraSmall)
+    self.ExperienceEstimate.TooltipTitle = "Experience estimate"
+    self.ReputationEstimate = Display(frame.Content,DISPLAY_STYLES.extraSmall)
+    self.ReputationEstimate.TooltipTitle = "Reputation estimate"
     self.SpeedometerArea = CreateFrame("Frame",nil,frame.Content)
     self.Speedometer = Components:CreateSpeedometerDisplay(self.SpeedometerArea)
     self.Speedometer:SetPoint("CENTER",self.SpeedometerArea,"CENTER",0,0)

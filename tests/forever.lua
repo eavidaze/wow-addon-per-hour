@@ -2,7 +2,7 @@
 local t = assert(loadfile("tests/forever-fixture.lua"))()
 local equal,near,event,tick=t.equal,t.near,t.event,t.tick
 local function fresh()
-    t.reply,t.played,t.characterID,t.characterName,t.realm=nil,nil,nil,nil,nil
+    t.reply,t.played,t.characterID,t.characterName,t.characterSurname,t.realm=nil,nil,nil,nil,nil,nil
     return t.fresh()
 end
 local function loot(id,count)
@@ -21,6 +21,7 @@ equal(PerHour.Modules.Gold.State.Element,0,"no capture before Start")
 equal(PerHour.Modules.Honor.State.Element,0,"honor before Start is excluded")
 local session=run()
 equal(session.Current.map,"Elwynn Forest","Start records its map")
+equal(session.Current.name,"Elwynn Forest - "..PerHour.Format:Date(session.Current.startedAt),"new session names identify the starting area and local date/time")
 equal(session.Current.startLevel,10,"Start records level")
 equal(session.Current.startXpPercent,10,"Start records XP percentage")
 tick(60)
@@ -50,13 +51,13 @@ equal(session.Current.paused,false,"X hides without pausing")
 SlashCmdList.PERHOUR("gold")
 equal(PerHour.Dashboard.Frame:IsShown(),true,"legacy metric command shows shared dashboard")
 equal(session.Current.paused,false,"command does not resume or reset")
-local record=session:Finish()
+local record=t.finish()
 equal(session.Current,nil,"Finish waits for next Start")
 equal(record.metrics.Experience.total,150,"archive preserves XP")
 equal(record.metrics.Gold.total,10001,"archive preserves copper")
 equal(#PerHour.Stores.Sessions:GetHistory(),1,"one combined session archived")
 equal(PerHour.Format:Amount("Gold",1),"0g 0s 1c","Details preserves single copper")
-equal(PerHour.Format:Amount("Gold",-1),"-0g 0s 1c","negative copper preserved")
+equal(PerHour.Format:Amount("Gold",-1),"- 0g 0s 1c","negative copper preserved")
 equal(PerHour.Stores.Sessions.ValidName("  Route  "),"Route","name trims spaces")
 equal(PerHour.Stores.Sessions.ValidName("   "),nil,"empty name rejected")
 
@@ -77,12 +78,13 @@ equal(session.Current.paused,false,"None does not pause other metrics")
 equal(rep.Available,false,"None has no reputation rate")
 near(session.Current.duration,70,"None still measures session duration")
 near(rep.Factions[72].duration+rep.Factions[47].duration,60,"None excluded from faction durations")
-record=session:Finish()
+record=t.finish()
 equal(record.reputation[72].total,130,"archive keeps all factions")
 equal(#record.segments,3,"archive preserves tracking segments")
 PerHour.SessionPanels:ShowHistory()
 PerHour.SessionPanels:ShowDetails(PerHour.Stores.Sessions:GetHistory()[1],false)
 equal(PerHour.SessionPanels.Details:IsShown(),true,"Details opens archived session")
+PerHour.SessionPanels.Details.Tabs.Buttons.Reputation:Click()
 local sawA,sawB=false,false
 for _,row in ipairs(PerHour.SessionPanels.Details.Rows) do
     sawA=sawA or row.id=="rep:72"; sawB=sawB or row.id=="rep:47"
@@ -105,7 +107,7 @@ fresh(); session=run()
 t.gold.items[901]={price=100,available=false}
 loot(901,2)
 equal(session:GetSnapshot(false).metrics.Gold.pending,true,"pending price visible in metric summary")
-record=session:Finish()
+record=t.finish()
 equal(record.metrics.Gold.incomplete,true,"Finish freezes unresolved result as incomplete")
 equal(record.metrics.Gold.total,0,"unknown prices excluded")
 equal(record.events[1].excluded,true,"unknown event is retained as excluded")
@@ -117,7 +119,7 @@ event("GET_ITEM_INFO_RECEIVED",901,true)
 equal(#PerHour.Stores.Sessions:GetHistory(),0,"late reply cannot recreate deleted session")
 
 fresh(); t.gold.items[902]={price=100000,spell=9902}; t.gold.bags[1]={id=902,count=1}
-session=run(); loot(902); record=session:Finish()
+session=run(); loot(902); record=t.finish()
 session:Start(); t.gold.items[902].price=120000
 event("UNIT_SPELLCAST_SENT","player","","use-old",9902)
 event("UNIT_SPELLCAST_SUCCEEDED","player","use-old",9902)
@@ -158,7 +160,7 @@ equal(PerHour.Dashboard:GetVisibleOrder()[1],"Gold","Gold moves up at maximum le
 equal(PerHour.Stores.Settings:GetOrder()[1],"Experience","maximum level preserves preferred order")
 
 fresh()
-for _=1,101 do run():Finish() end
+for _=1,101 do run(); t.finish() end
 local records=PerHour.Stores.Sessions:GetHistory()
 equal(#records,100,"history bounded to 100 summaries")
 equal(records[20].events ~= nil,true,"20 most recent keep details")
@@ -183,7 +185,7 @@ PerHour.SessionPanels:SaveName()
 equal(records[1].name,"Same name","open rename cannot edit deleted record")
 run()
 for _=1,1002 do event("CHAT_MSG_MONEY","You loot 1 Copper") end
-record=PerHour.Session:Finish()
+record=t.finish()
 equal(record.metrics.Gold.total,1002,"summary includes events outside consultable limit")
 equal(#record.events,1000,"consultable events bounded to 1000")
 equal(record.eventsLimited,true,"bounded event list has its own warning")
@@ -194,12 +196,21 @@ assert(loadfile("tests/stores.lua"))()(t,fresh)
 assert(loadfile("tests/performance.lua"))()(t,fresh)
 assert(loadfile("tests/gold-details.lua"))()(t,fresh)
 assert(loadfile("tests/revamp-edges.lua"))()(t,fresh)
+assert(loadfile("tests/metric-display.lua"))()(t,fresh)
 assert(loadfile("tests/speedometer.lua"))()(t,fresh)
 assert(loadfile("tests/session-indicator.lua"))()(t,fresh)
 assert(loadfile("tests/duration.lua"))()(t,fresh)
+assert(loadfile("tests/panel-windows.lua"))()(t,fresh)
+assert(loadfile("tests/session-lists.lua"))()(t,fresh)
+assert(loadfile("tests/details-view.lua"))()(t,fresh)
+assert(loadfile("tests/panel-actions.lua"))()(t,fresh)
+assert(loadfile("tests/finish-confirmation.lua"))()(t,fresh)
+assert(loadfile("tests/gold-groups.lua"))()(t,fresh)
+assert(loadfile("tests/table-layout.lua"))()(t,fresh)
+assert(loadfile("tests/comparison.lua"))()(t,fresh)
 local context={
     equal=equal,near=near,event=event,tick=tick,fixture=t.gold,copy=copy,
-    fresh=fresh,login=t.reload,playedTime=t.playedTime,click=function() PerHour.Session:Toggle() end,
+    fresh=fresh,login=t.reload,playedTime=t.playedTime,finish=t.finish,click=function() PerHour.Session:Toggle() end,
 }
 for _,file in ipairs({"gold.lua","gold-quest-deliveries.lua","pricing.lua","gold-pending.lua","gold-stock.lua"}) do
     assert(loadfile("tests/"..file))()(context)

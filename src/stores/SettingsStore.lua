@@ -1,6 +1,7 @@
 local Settings = {}
 PerHour.Stores.Settings = Settings
 local ORDER = { "Experience", "Gold", "Honor", "Reputation" }
+local ESTIMATE_KEYS = { Experience="showExperienceEstimates", Reputation="showReputationEstimates" }
 local function Position(value)
     local anchors = { TOPLEFT=true, TOP=true, TOPRIGHT=true, LEFT=true, CENTER=true,
         RIGHT=true, BOTTOMLEFT=true, BOTTOM=true, BOTTOMRIGHT=true }
@@ -18,8 +19,7 @@ function Settings:Init()
     if data.panelType ~= "focused" and data.panelType ~= "extended" then data.panelType = "full" end
     if type(data.shown) ~= "boolean" then data.shown = true end
     if type(data.showDuration) ~= "boolean" then data.showDuration = true end
-    data.showEstimates = data.showEstimates == true
-    if data.estimateSource ~= "Reputation" then data.estimateSource = "Experience" end
+    for _, key in pairs(ESTIMATE_KEYS) do data[key] = data[key] == true end
     data.speedometer = type(data.speedometer) == "table" and data.speedometer or {}
     data.speedometer.enabled = data.speedometer.enabled == true
     if not PerHour.SpeedometerScales:IsLevel(data.speedometer.level) then data.speedometer.level = 5 end
@@ -36,16 +36,20 @@ function Settings:Init()
 end
 function Settings:Get(key) return self.Data[key] end
 function Settings:Set(key, value)
-    assert(key == "panelType" or key == "shown" or key == "showDuration" or key == "estimateSource", "Unknown setting")
+    assert(key == "panelType" or key == "shown" or key == "showDuration", "Unknown setting")
     if key == "panelType" then assert(value == "focused" or value == "extended" or value == "full")
-    elseif key == "estimateSource" then assert(value == "Experience" or value == "Reputation")
     else assert(type(value) == "boolean") end
     self.Data[key] = value
 end
 function Settings:GetRate() return self.Data.rate end
 function Settings:SetRate(value) assert(value == "hour" or value == "minute"); self.Data.rate = value end
-function Settings:GetEstimatesEnabled() return self.Data.showEstimates end
-function Settings:SetEstimatesEnabled(value) assert(type(value) == "boolean"); self.Data.showEstimates = value end
+function Settings:GetEstimatesEnabled(source)
+    return self.Data[assert(ESTIMATE_KEYS[source], "Unknown estimate source")]
+end
+function Settings:SetEstimatesEnabled(source, value)
+    local key = assert(ESTIMATE_KEYS[source], "Unknown estimate source")
+    assert(type(value) == "boolean"); self.Data[key] = value
+end
 function Settings:GetMinimapAngle() return self.Data.minimapAngle end
 function Settings:SetMinimapAngle(value) assert(Utils:IsFiniteNumber(value)); self.Data.minimapAngle = value end
 function Settings:GetSpeedometerEnabled() return self.Data.speedometer.enabled end

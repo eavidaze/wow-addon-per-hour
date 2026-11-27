@@ -59,7 +59,7 @@
     }
     .ds-panel {
       position: relative; width: min(100%, var(--ds-width, 288px)); min-height: 6.75rem;
-      border: 3px solid #73543a; border-radius: .2rem; background: #78604b;
+      border: 3px solid #73543a; border-radius: .2rem; background: #262626;
       box-shadow: inset 0 0 0 1px #ad8969;
     }
     .ds-title, .ds-actions { position: absolute; left: 50%; }
@@ -105,6 +105,30 @@
     .ds-component-preview { width: var(--ds-main-width,120px); }
     .ds-speedometer { display: grid; justify-items: center; }
     .ds-speedometer svg { display: block; flex: none; overflow: visible; }
+    .ds-list-preview { width: 690px; min-width: 690px; table-layout: fixed; border-collapse: collapse;
+      color: #fff; background: transparent; font: 12px/1.2 "Segoe UI",sans-serif; }
+    .ds-list-preview th, .ds-list-preview td { box-sizing: border-box; border: 0;
+      border-bottom: 3px solid rgb(184 115 102 / 10%); padding: 0 8px; vertical-align: middle; }
+    .ds-list-preview th { height: 24px; color: #ffd100; font-weight: 400; }
+    .ds-list-preview td { height: 26px; }
+    .ds-list-preview .ds-list-number { text-align: right; white-space: nowrap; }
+    .ds-event-reading { display: flex; align-items: center; gap: 6px; height: 23px; white-space: nowrap; }
+    .ds-event-icon { display: inline-grid; place-items: center; width: 20px; height: 20px; color: #c9bd9d; }
+    .ds-list-preview .ds-expense { color: #ff1a1a; }
+    .ds-list-preview .ds-item-uncommon { color: #1eff00; }
+    .ds-list-preview.ds-history-list td { height: 28px; padding-left: 8px; padding-right: 0; vertical-align: top; line-height: 24px; }
+    .ds-session-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #fff; }
+    .ds-history-list td:last-child { padding-left: 0; }
+    .ds-list-actions { display: flex; align-items: center; height: 24px; gap: 6px; padding-left: 4px; white-space: nowrap; }
+    .ds-list-preview .ds-row-action, .demo .ds-list-preview button.ds-row-action { display: inline-grid; place-items: center;
+      box-sizing: border-box; width: 72px; height: 24px; margin: 0; padding: 0; border: 1px solid #8e6a40;
+      border-radius: 3px; background: #4a0d0c; color: #ffd100; font: 12px/1 "Segoe UI",sans-serif; }
+    .ds-list-preview .ds-session-open, .demo .ds-list-preview button.ds-session-open { display: flex; align-items: center;
+      gap: 4px; width: 100%; height: 24px; box-sizing: border-box; margin: 0; padding: 0; border: 0;
+      border-radius: 0; background: transparent; color: #ffd100; text-align: left; font: inherit; cursor: pointer; }
+    .ds-session-open .ds-session-name { flex: 1; min-width: 0; }
+    .ds-session-icon { flex: none; display: inline-grid; place-items: center; width: 18.5px; height: 18.5px; margin: 2.75px; font-size: 18.5px; line-height: 1; }
+    .ds-session-open:hover .ds-session-icon { background: rgb(255 209 0 / 15%); }
     .ds-duration-display[data-session-state="idle"] .ds-readout { color: #808080; }
     .ds-duration-display[data-session-state="running"] .ds-readout { color: #33ff33; }
     .ds-duration-display[data-session-state="paused"] .ds-readout { color: #ffcc00; }
@@ -117,11 +141,11 @@
     .ds-panel-area { display: grid; align-content: center; gap: var(--ds-stack-gap); min-width: 0; }
     .ds-panel-area--main { gap: 2px; }
     .ds-panel-area--main > .ds-speedometer { margin-bottom: 14px; }
-    .ds-panel-area--main:has(.ds-estimates:not([hidden])) > .ds-speedometer { margin-bottom: 1px; }
+    .ds-panel-area--main:has(.ds-estimates-xp:not([hidden])) > .ds-speedometer { margin-bottom: 1px; }
     .ds-panel.ds-panel--small { min-width: 180px; min-height: 0; padding: 28px 15px 34px;
       border: 0; background: transparent; box-shadow: none; }
     .ds-panel--small::before { content: ""; position: absolute; inset: 0 0 14px;
-      background: rgb(12 8 4 / 90%); border: 3px solid #73543a; border-radius: 2px;
+      background: #262626; border: 3px solid #73543a; border-radius: 2px;
       box-shadow: inset 0 0 0 1px #ad8969; pointer-events: none; }
     .ds-panel.ds-panel--small > .ds-title { top: 13px; transform: translateX(-50%); min-width: 0;
       margin: 0; padding: 0; border: 0; background: none; color: #b8a370; font: 400 10px/1 "Segoe UI",sans-serif; white-space: nowrap; }
@@ -191,21 +215,6 @@
     .ds-field-stepper input[type=range] { flex: 1 1 auto; width: 100%; min-width: 0; margin: 0; accent-color: #c8a34f; cursor: pointer; }
     .ds-field-stepper output { margin-inline-start: 4px; min-width: 7ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .ds-metric-row .ds-form-label { cursor: default; }
-    .ds-metric-handle {
-      display: flex; align-items: center; gap: .5rem; width: min(100%, 220px); min-height: 28px;
-      padding: .1rem .5rem; border: 1px solid #907048; border-radius: .2rem;
-      color: #ffe27e; background: #1f1711; text-align: left; cursor: grab; user-select: none; touch-action: none;
-    }
-    .ds-metric-grip {
-      width: 12px; height: 18px; flex: none; color: #c8a34f;
-      background: radial-gradient(circle, currentColor 1.25px, transparent 1.5px) 0 0 / 6px 6px;
-      pointer-events: none;
-    }
-    .ds-metric-handle:hover, .ds-metric-handle[aria-pressed=true], .ds-metric-row.is-drop-target .ds-metric-handle {
-      border-color: #ffd100; background: #3c2c17;
-    }
-    .ds-metric-handle[aria-pressed=true] { cursor: grabbing; }
-    .ds-metric-row.is-drop-target { background: rgb(255 216 78 / 18%); }
     .ds-metric-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     @media (max-width: 520px) {
       .ds-settings-panel { --ds-field-width: 62%; padding-inline: .6rem; }
@@ -246,23 +255,43 @@
     .demo button:focus-visible, .demo input:focus-visible { outline-color: #b2e5f3; }
     .demo h3 { font-size: 1.3rem; margin: .15rem 0 .65rem; }
     .demo .subline { color: var(--demo-muted); margin-bottom: .6rem; }
-    .demo .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); gap: .7rem; margin-block: .65rem; }
-    .demo dt { font-size: .85rem; }
-    .demo dd { margin: .1rem 0 0; font-variant-numeric: tabular-nums; }
-    .demo .metrics .ds-readout { white-space: normal; font-size: 1.08rem; }
-    .demo .metrics .ds-value { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
-    .demo .metrics .ds-unit { align-self: center; line-height: 1; }
-    .demo .ds-detail-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); gap: .6rem; }
-    .demo .ds-detail-group { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: .55rem; border-radius: .3rem; background: rgb(0 0 0 / 12%); }
-    .demo .ds-session-screen .ds-detail-group h4 { margin: 0; }
-    .demo .ds-detail-group .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; margin: .4rem 0 0; }
-    .demo .ds-detail-group .metrics .ds-readout { font-size: .82rem; }
-    .demo .ds-detail-group .metrics dd { min-height: 1.7rem; }
-    .demo #demo-detail-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr)); }
-    .demo .ds-detail-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .25rem .65rem; }
-    .demo .ds-session-screen .ds-detail-heading h4 { margin: 0; overflow-wrap: anywhere; }
+    .ds-properties { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 20px; margin: 0;
+      padding: 0 8px; box-sizing: border-box; }
+    .ds-property { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: 12px; align-items: start;
+      box-sizing: border-box; min-height: 24px; padding: 4px 0; }
+    .ds-property-wide { grid-column: 1 / -1; }
+    .ds-session-heading { display: grid; grid-template-columns: 104px minmax(0,1fr) 72px; gap: 12px;
+      min-height: 32px; align-items: start; padding: 8px 8px 4px; box-sizing: border-box;
+      color: #fff; font: 12px/1.4 "Segoe UI",sans-serif; overflow-wrap: anywhere; }
+    .ds-session-label { color: #ffd100; }
+    .ds-session-title { color: #ffd100; }
+    .ds-session-title[data-running="true"] { color: #33ff33; }
+    .ds-heading-action { text-align: center; color: #b8a370; font-size: 11px; }
+    .demo .ds-session-heading > button { box-sizing: border-box; width: 72px; height: 24px;
+      min-width: 0; padding: 0; margin-top: -5px; font-size: 12px; }
+    .ds-property dt { margin: 0; color: #b8a370; font: 10px/1.4 "Segoe UI",sans-serif; }
+    .ds-property dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap;
+      color: #fff; font: 12px/1.4 "Segoe UI",sans-serif; }
+    .ds-property .ds-value-expense { color: #ff1a1a; }
+    .ds-property .ds-value-gold { color: #ffd100; }
+    .ds-coin { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 3px 0 2px;
+      background: radial-gradient(circle at 30% 25%,#fff8,var(--coin-color) 55%,#0008); }
+    .ds-coin-gold { --coin-color: #d7b237; }
+    .ds-coin-silver { --coin-color: #a8a9ac; }
+    .ds-coin-copper { --coin-color: #b76b35; }
+    .ds-details-reference { box-sizing: border-box; width: 100%; max-width: 690px; color: #fff; background: transparent; }
+    .ds-details-reference h3 { color: #ffd100; font: 12px/1.4 "Segoe UI",sans-serif; margin: 12px 8px 4px; }
+    .ds-details-reference h3:first-child { margin-top: 0; }
+    .ds-details-grid { width: 100%; table-layout: fixed; color: #fff; background: transparent;
+      border-collapse: collapse; font: 12px/1.4 "Segoe UI",sans-serif; }
+    .ds-details-grid th, .ds-details-grid td, .demo .ds-details-grid th, .demo .ds-details-grid td { padding: 4px 6px; border: 0;
+      border-bottom: 3px solid rgb(184 115 102 / 10%); vertical-align: top; overflow-wrap: anywhere; }
+    .ds-details-grid th { color: #b8a370; font-weight: 400; }
+    .ds-details-grid .num { text-align: right; }
+    .demo .ds-details-grid td.num { white-space: normal; }
+    .demo .ds-session-screen.ds-details-window h4 { color: #ffd100; font-size: 12px; font-weight: 400; }
+    @media (max-width: 680px) { .ds-properties { grid-template-columns: minmax(0,1fr); } }
     .demo .ds-session-links { display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
-    .demo .ds-delete-link { color: #ffd3b1; }
     .demo .ds-edit-actions { display: flex; gap: .4rem; justify-content: flex-end; margin-top: .5rem; }
     .demo .sample { font-size: .86rem; color: var(--demo-muted); }
     .demo th, .demo td { border-color: var(--demo-border); padding-inline: .55rem; }
@@ -271,6 +300,7 @@
     .demo .item-link { border: 0; padding: 0; background: transparent; text-align: start; text-decoration: underline; text-underline-offset: .15em; }
     .demo input { accent-color: var(--demo-gold); }
     .demo .row-select { width: 1rem; height: 1rem; }
+    .demo .ds-history-list .row-select { display: block; width: 16px; height: 16px; margin: 4px 0; }
     .demo .announcement { margin: .5rem 0 0; color: #463021; text-align: center; }
     .demo .announcement:empty { display: none; }
     .demo-preview-tools { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin: .75rem 0; color: #635c51; font-size: .9rem; }
@@ -283,41 +313,69 @@
     }
     .demo .ds-session-screen:not([open]) { display: none; }
     .demo .ds-session-screen.is-front { z-index: 4; }
-    .demo .ds-details-window { inset: 7.5rem max(1rem, calc(50% - 38rem)) auto auto; }
+    .demo .ds-details-window { --ds-width: 760px; inset: 7.5rem max(1rem, calc(50% - 38rem)) auto auto; }
+    .demo .ds-finish-window { --ds-width: 480px; inset: 12rem 0 auto; margin-inline: auto; }
+    .demo .ds-session-screen.ds-finish-window[open] { z-index: 8; }
+    .demo .ds-details-window .ds-normal-actions > [hidden] { display: none; }
+    .ds-tabs { display: flex; gap: 5px; padding: 8px 8px 0; }
+    .ds-tabs [role="tab"], .ds-tabs .ds-tab-sample { box-sizing: border-box; display: inline-flex; align-items: end; justify-content: center;
+      min-width: 72px; height: 37px; padding: 0 20px 4px; border: 2px solid #66513a; border-bottom: 0;
+      border-radius: 5px 5px 0 0; color: #ffd100; background: #262626; font: 10px/1.4 "Segoe UI",sans-serif; }
+    .ds-tabs [aria-selected="true"] { color: #fff; padding-bottom: 6px; border-color: #8c7454; }
+    .ds-tabs [hidden] { display: none; }
+    .demo .ds-details-window[open] { display: flex; flex-direction: column; max-height: calc(100dvh - 10rem); }
+    .ds-details-fixed, .ds-details-window > .ds-tabs { flex: none; }
+    .ds-detail-tab-scroll, .ds-tab-box-reference { box-sizing: border-box; border: 2px solid #64523c;
+      border-radius: 5px; box-shadow: inset 0 0 0 1px #171513; padding: 8px; background: rgb(0 0 0 / 45%); }
+    .ds-detail-tab-scroll { min-height: 0; height: 287px; overflow: auto; overscroll-behavior: contain; }
+    .ds-detail-tab-scroll > [hidden] { display: none; }
+    .demo .ds-detail-tab-scroll thead, .demo .ds-window-content thead {
+      position: sticky; top: 0; z-index: 1; background: #33281d;
+    }
     .demo .ds-settings-window { --ds-width: 560px; inset: 6rem 0 auto; margin-inline: auto; padding: 0; border: 0; background: transparent; box-shadow: none; }
     .demo .ds-settings-window .ds-settings-panel { width: 100%; box-shadow: inset 0 0 0 1px #ad8969, 0 .35rem 1.15rem rgb(0 0 0 / 35%); }
     .demo .ds-settings-window .ds-settings-fields { max-height: max(5rem, calc(100dvh - 10rem)); overflow: auto; }
     .demo .ds-window-content { max-height: max(5rem, calc(100dvh - 13rem)); overflow: auto; }
     .demo .ds-session-screen .table-area { background: #1f1711; border: 1px solid var(--demo-border); margin-block: .8rem; }
+    .demo .ds-detail-tab-scroll .table-area, .demo .ds-window-content .table-area { overflow: visible; }
+    .demo .ds-detail-tab-scroll .table-area { margin-block: 0; }
     .demo .ds-session-screen h4 { margin: .9rem 0 .2rem; font-size: 1rem; color: #fff4e3; }
     .demo .ds-session-screen .sample { margin: .2rem 0; }
     .demo .ds-session-screen .ds-actions { width: min(calc(100% - 1rem), 17rem); }
     .demo .ds-session-screen .ds-action-primary { grid-column: 2; }
     .demo .ds-session-screen button.ds-action:not(.ds-action-primary) { width: 2rem; padding: 0; border: 3px solid #806044; border-radius: 50%; background: #14100c; }
-    .ds-panel .ds-panel-close {
+    .ds-panel .ds-panel-close, .ds-list-preview .ds-delete-session, .demo .ds-list-preview button.ds-delete-session {
       position: absolute; z-index: 1; top: -5px; right: -5px;
       display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
       border: 2px solid #a17a4d; border-radius: .2rem; background: linear-gradient(#671814, #330b09);
       box-shadow: inset 0 0 0 1px #30170c; color: #f3d68a; font: 700 1.25rem/1 system-ui, sans-serif;
       text-decoration: none; cursor: pointer;
     }
-    .ds-panel .ds-panel-close:hover { background: linear-gradient(#8b2420, #4a0d0c); color: #fff0b1; }
+    .ds-list-preview .ds-delete-session, .demo .ds-list-preview button.ds-delete-session { position: static; flex: none; }
+    .ds-panel .ds-panel-close:hover, .ds-list-preview .ds-delete-session:hover { background: linear-gradient(#8b2420, #4a0d0c); color: #fff0b1; }
     .demo .ds-session-screen .ds-rename-link { font-size: .8rem; }
     .demo .ds-rename-form { margin-block: .7rem; }
     .demo .ds-rename-form input { width: 100%; min-width: 0; padding: .25rem .4rem; color: #ffe27e; background: #1f1711; border: 1px solid #907048; border-radius: .2rem; }
     .demo h3.ds-title { margin: 0; font: inherit; font-weight: 600; }
     .demo .ds-action-primary { border: 3px solid #806044; border-radius: .65rem; background: #4a0d0c; color: #f3ddc4; padding: 0 .4rem; }
+    .ds-normal-button, .ds-panel:not(.ds-panel--small) .ds-actions .ds-action-primary,
+    .demo button.ds-normal-button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+      justify-self: center; width: max-content; min-width: 96px; height: 28px; min-height: 28px; padding: 0 16px;
+      border: 2px solid #806044; border-radius: 5px; background: #4a0d0c; color: #ffd100;
+      font: 12px/1 "Segoe UI",sans-serif; white-space: nowrap; text-decoration: none; }
+    .ds-action-samples { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .demo .ds-session-screen .ds-actions.ds-normal-actions { display: flex; justify-content: center; gap: 3px; width: max-content; }
     .dashboard-footer summary.ds-action, .demo button.ds-icon-button { width: 2rem; padding: 0; font-size: .95rem; cursor: pointer; }
     .demo button.ds-icon-button { border: 3px solid #806044; border-radius: 50%; background: #14100c; color: #f3ddc4; }
     .demo .ds-minimap-preview { display: flex; justify-content: flex-end; }
     .demo #demo-minimap { color: #ffd100; }
     .dashboard-footer summary::marker, .dashboard-footer summary::-webkit-details-marker { display: none; content: ""; }
-    .dashboard-session-menu { position: relative; }
-    .dashboard-session-menu > div {
+    .ds-action-menu { position: relative; }
+    .ds-action-menu > div {
       position: absolute; z-index: 1; bottom: calc(100% + .25rem); right: 0; min-width: max-content;
       display: grid; gap: .2rem; padding: .3rem; border: 1px solid var(--demo-border); border-radius: .25rem; background: #1f1711;
     }
-    .dashboard-session-menu button { text-align: start; }
+    .ds-action-menu button { text-align: start; }
 
     @media (max-width: 520px) {
       .doc-nav { align-items: flex-start; }
@@ -343,8 +401,11 @@
       <p>Referência consolidada do addon após os ajustes de 26 de novembro de 2026. A demonstração usa componentes web; o cliente mantém seus componentes e texturas nativos.</p>
       <nav class="section-nav" aria-label="Seções do Design System">
         <a href="#ds-panel-structure">Painel</a>
+        <a href="#ds-action-patterns">Botões e menus</a>
         <a href="#ds-display">Display</a>
         <a href="#ds-active-indicator">Active indicator</a>
+        <a href="#ds-lists">Listas</a>
+        <a href="#ds-details">Details</a>
         <a href="#ds-speedometer">Speedometer</a>
         <a href="#ds-estimates">Estimates</a>
         <a href="#ds-settings">Settings</a>
@@ -374,10 +435,23 @@
         <dt>Área de conteúdo</dt>
         <dd>O painel ganha largura por igual à esquerda e à direita. A placa e o rodapé ficam no mesmo eixo. O painel define a largura de cada área de conteúdo.</dd>
         <dt>Rodapé</dt>
-        <dd>A ação primária tem largura fixa de 96 px; as ações circulares medem 24 px, com 3 px entre elas e o botão. O painel reserva ao menos 8 px dentro de cada borda lateral para as ações. O losango mostra o estado atual: cinza antes de Start, verde durante a execução (Pause) e amarelo em pausa (Resume). Sessions usa INV_Misc_Note_05 no addon; o símbolo da demonstração é uma aproximação.</dd>
+        <dd>A ação primária tem largura fixa de 96 px; as ações circulares medem 24 px, com 3 px entre elas e o botão. O painel reserva ao menos 8 px dentro de cada borda lateral para as ações. O losango mostra o estado atual: cinza antes de Start, verde durante a execução (Pause) e amarelo em pausa (Resume). Sessions usa INV_Scroll_03 no addon; o símbolo da demonstração é uma aproximação.</dd>
         <dt>Fechar janela</dt>
         <dd>O X tem 24 px e segue o UIPanelCloseButton nativo. No tracker aparece somente ao passar o mouse pelo painel ou seus controles; ocultar o painel preserva a captura. As janelas de consulta mantêm seu fechamento normal.</dd>
+        <dt>Empilhamento de janelas</dt>
+        <dd>Cada painel usa os recursos nativos SetToplevel e SetFlattensRenderLayers: fundo, textos e controles compõem uma janela, sem intercalar os filhos de outra. Clicar traz a janela à frente. Settings, History, Details e Compare usam DIALOG; Rename e Delete preservam FULLSCREEN_DIALOG. A ordem visual no cliente precisa ser confirmada no teste em jogo.</dd>
+        <dt>Posição inicial</dt>
+        <dd>A primeira janela normal abre centralizada. As seguintes abrem em cascata, 32 px à direita e abaixo da última janela visível na mesma camada, limitadas à tela. A posição é definida somente na primeira abertura e pode ser ajustada por arraste; reabrir preserva esse ajuste durante a sessão. O tracker mantém sua própria posição. O tamanho das janelas normais se adapta à largura e à altura da tela.</dd>
       </dl>
+
+      <section aria-labelledby="ds-action-patterns">
+        <h2 id="ds-action-patterns">Botões e menus</h2>
+        <p>O botão normal usa 28 px de altura, largura mínima de 96 px e 32 px de espaço horizontal além do texto. Rename e Compare têm o mesmo tamanho; rótulos longos podem aumentar a largura. As ações ficam agrupadas e centralizadas no rodapé. Rename na lista de sessões e na ficha de Details compartilha o mesmo componente de 72 × 24 px. Na lista, há 6 px entre Rename e o X de exclusão.</p>
+        <figure class="ds-example"><div class="ds-action-samples" aria-label="Referência do botão normal">
+          <span class="ds-normal-button">Rename</span><span class="ds-normal-button">Compare</span><span class="ds-normal-button">Delete Session</span>
+        </div></figure>
+        <p>Ícones de ações com menu suspenso usam INV_Scroll_03, definido em Theme.icons.menu. Isso inclui Sessions no tracker e Announce em Details. O componente cria o DropdownButton nativo e aplica a textura pelo papel de menu. A ação direta de abrir uma sessão usa INV_Misc_Note_06. Os símbolos no HTML aproximam as texturas disponíveis no jogo.</p>
+      </section>
 
       <section aria-labelledby="ds-display">
         <h2 id="ds-display">Display</h2>
@@ -473,6 +547,77 @@
         <p>O movimento segue o <a href="https://github.com/mui/material-ui/blob/master/packages/mui-material/src/CircularProgress/CircularProgress.js">CircularProgress indeterminado do MUI</a>: giro linear contínuo e arco que cresce e encolhe com ease-in-out, em ciclos de 1,4 s. API nativa: <code>Components:CreateSessionIndicator(parent)</code> e <code>indicator:SetRunning(boolean)</code>. Os 84 quadros são reproduzidos por FlipBook nativo, sem OnUpdate; a animação para quando o componente fica oculto. O tracker não instancia esse componente. Licença em src/licenses/MaterialUI.txt.</p>
       </section>
 
+      <section aria-labelledby="ds-lists">
+        <h2 id="ds-lists">Listas</h2>
+        <p>Eventos e sessões têm componentes próprios. As linhas compartilham alinhamento vertical e o separador de cobre do DS: 3 px, com RGB 0.72 / 0.45 / 0.40 e 10% de opacidade. O conteúdo fica centralizado na área útil acima do separador. Resumos de Compare usam 52 px; cabeçalhos usam 24 px. Details usa os campos e grids descritos na seção própria.</p>
+        <h3>Resumos de Gold · 26 px</h3>
+        <p>A consulta de Gold usa resumos separados em Income e Expenses: uma linha por variante de item ou origem, com Last (última ocorrência), ícone nativo em meia escala, marcador de quest, Description com nome e raridade, Count e Total. Count soma unidades de item; para moedas e custos sem item, conta ocorrências. Dropped e Reward ficam em grupos separados. Income ordena pelo maior valor acumulado, Expenses pelo maior custo; empates usam a ocorrência mais recente. O nome não repete a quantidade como xN. Valores ficam à direita, com moedas nativas no addon e despesas em vermelho, sem sinal redundante. O agrupamento soma os valores registrados, sem recotação nem mudança nos totais da sessão. Preços mistos preservam suas origens; grupos com pendências mostram o subtotal conhecido com asterisco e explicação no tooltip, ou Pending/Not included · frozen quando nada foi resolvido. Variantes de item e entradas/saídas permanecem separadas. Fonte da cotação, valor unitário e composição ficam no tooltip do ícone; o nome é passivo. Pending e Not included · frozen permanecem explícitos.</p>
+        <figure class="ds-example">
+          <div class="table-area">
+            <table class="ds-list-preview" aria-label="Referência do resumo de Income">
+              <caption>Income</caption>
+              <colgroup><col style="width:80px"><col><col style="width:64px"><col style="width:184px"></colgroup>
+              <thead><tr><td colspan="3"></td><td class="ds-list-number">Sum: 3g 64s 8c</td></tr><tr><th scope="col">Last</th><th scope="col">Description</th><th scope="col" class="ds-list-number">Count</th><th scope="col" class="ds-list-number">Total</th></tr></thead>
+              <tbody>
+                <tr><td>10:42:35</td><td><span class="ds-event-reading"><span class="ds-event-icon">▣</span><span class="ds-item-uncommon">Uncommon item</span></span></td><td class="ds-list-number">3</td><td class="ds-list-number">2g 40s 0c</td></tr>
+                <tr><td>10:43:12</td><td><span class="ds-event-reading"><span class="ds-event-icon">▣</span><span>Dropped</span></span></td><td class="ds-list-number">5</td><td class="ds-list-number">1g 24s 8c</td></tr>
+              </tbody>
+            </table>
+            <table class="ds-list-preview" aria-label="Referência do resumo de Expenses">
+              <caption>Expenses</caption>
+              <colgroup><col style="width:80px"><col><col style="width:64px"><col style="width:184px"></colgroup>
+              <thead><tr><td colspan="3"></td><td class="ds-list-number">Sum: 0g 32s 5c</td></tr><tr><th scope="col">Last</th><th scope="col">Description</th><th scope="col" class="ds-list-number">Count</th><th scope="col" class="ds-list-number">Total</th></tr></thead>
+              <tbody><tr><td>10:41:02</td><td><span class="ds-event-reading"><span class="ds-event-icon">▣</span><span>Repair</span></span></td><td class="ds-list-number">1</td><td class="ds-list-number ds-expense">0g 32s 5c</td></tr></tbody>
+            </table>
+          </div>
+          <figcaption>Dados fictícios. Os símbolos e g/s/c aproximam ícones e moedas nativos; a renderização real é validada no WoW.</figcaption>
+        </figure>
+        <h3>Sessões · 28 px</h3>
+        <p>Cada sessão usa uma única linha, sem subtítulo, com o nome em branco seguindo o padrão dos valores. A imagem de Details usa 18,5 px, equivalente ao ItemButton de 37 px na escala de 50% dos eventos. Checkbox, slot do ícone de Details, Rename e X compartilham uma faixa de 24 px no topo da linha, com o mesmo centro vertical; os 3 px da divisória e 1 px restante ficam abaixo, evitando posições em meios pixels. Duration e Gold est. têm colunas alinhadas à direita; Gold est. mostra somente a maior unidade disponível (ouro, prata ou cobre), com o valor completo disponível em Details. A seleção para Compare fica à esquerda; a primeira coluna Session reúne o ícone INV_Misc_Note_06 e o título em uma única área clicável. Ícone e título abrem os mesmos Details e compartilham o destaque ao passar o mouse, sem tooltip de sessão. A coluna de ações contém somente Rename e o X nativo de Delete, que abre a confirmação existente. O símbolo de olho no HTML aproxima a textura nativa. Nomes iguais continuam independentes; o ícone e o título abrem exatamente a sessão daquela linha. Metadados completos ficam em Details. Novas sessões recebem o título padrão <code>Mount Hyjal - Nov 27, 2026 14:54</code>: área inicial, data e hora local, separados por hífen. Nomes existentes permanecem como estão, sem migração.</p>
+        <figure class="ds-example">
+          <div class="table-area">
+            <table class="ds-list-preview ds-history-list" aria-label="Referência da lista compacta de sessões">
+              <colgroup><col style="width:28px"><col style="width:378px"><col style="width:80px"><col style="width:86px"><col style="width:118px"></colgroup>
+              <thead><tr><th scope="col" aria-label="Select"></th><th scope="col">Session</th><th scope="col" class="ds-list-number">Duration</th><th scope="col" class="ds-list-number">Gold est.</th><th scope="col">Actions</th></tr></thead>
+              <tbody><tr><td>□</td><td><span class="ds-session-open"><span class="ds-session-icon" aria-hidden="true">👁</span><span class="ds-session-name">Herb route</span></span></td><td class="ds-list-number">45m</td><td class="ds-list-number">12<span class="ds-coin ds-coin-gold" aria-label="gold"></span></td><td><span class="ds-list-actions"><span class="ds-row-action">Rename</span><span class="ds-row-action ds-delete-session" title="Delete session">×</span></span></td></tr></tbody>
+            </table>
+          </div>
+        </figure>
+        <p>As listas continuam virtualizadas. Cada tipo recebe sua altura pelo ScrollBox nativo; apenas os controles necessários são criados nas linhas visíveis. Atualizações preservam o registro em consulta e a posição parcial dentro da linha. Trocar de sessão ou filtro de personagem volta ao topo.</p>
+      </section>
+
+      <section aria-labelledby="ds-details">
+        <h2 id="ds-details">Details</h2>
+        <p>A ficha permanece fixa no topo e agrupa dados relacionados: Session reúne nome e Rename; o nome indica o estado pela cor, verde enquanto está rodando e dourado quando está pausada ou concluída, sem prefixo de status; Character mostra o personagem e Level ocupa a segunda coluna com nível e XP inicial, como 42 (32% xp); Started mostra a data, a hora e o minuto e Duration ocupa a segunda coluna da mesma linha com a duração em horas, minutos e segundos. Experience, Honor e Gold usam duas colunas: taxa à esquerda e total à direita. Visited areas encerra o card, depois de todas as métricas, com o percurso visitado. Os valores de XP e honra são compactos; valores completos, avisos e causas ficam no tooltip. Experience aparece apenas para sessões iniciadas abaixo do nível 60; chegar ao limite depois não remove o XP registrado.</p>
+        <p>A antiga aba Gold vira duas abas no mesmo nível: Income e Expenses, ao lado de Reputation. Income é a aba inicial. Ambas apresentam Last / Description / Count / Total, sem subabas e com o MinimalTabTemplate nativo de Options. Total Gold mostra o valor líquido seguido de (inc - exp), alinhado à esquerda e em branco, seguindo o padrão dos demais valores e usando os mesmos ícones de moedas dos eventos. Reputation usa uma única grid Faction / Duration / Rate / Total, com uma linha por facção somando seus intervalos e uma linha No faction para o tempo sem acompanhamento. A facção atual fica verde enquanto roda e dourada na pausa; as demais usam branco. A taxa usa o tempo acompanhado por facção; captura parcial fica no tooltip. A ficha mantém fontes e tamanhos; a apresentação compacta não altera os cálculos.</p>
+        <figure class="ds-example" aria-label="Ficha da sessão com métricas agrupadas e tabela de eventos de Gold">
+          <div class="ds-details-reference">
+            <div class="ds-session-heading"><span class="ds-session-label">Session</span><span class="ds-session-title">Plaguelands quests</span><span class="ds-heading-action">Rename</span></div>
+            <dl class="ds-properties">
+              <div class="ds-property"><dt>Character</dt><dd>Player - Realm</dd></div><div class="ds-property"><dt>Level</dt><dd>55 (98% xp)</dd></div>
+              <div class="ds-property"><dt>Started</dt><dd>Nov 26, 2026 10:15</dd></div><div class="ds-property"><dt>Duration</dt><dd>45m 0s</dd></div>
+              <div class="ds-property"><dt>Experience / Hour</dt><dd>24k</dd></div><div class="ds-property"><dt>Total Experience</dt><dd>18k</dd></div>
+              <div class="ds-property"><dt>Honor / Hour</dt><dd>200</dd></div><div class="ds-property"><dt>Total Honor</dt><dd>150</dd></div>
+              <div class="ds-property"><dt>Gold / Hour</dt><dd>12<span class="ds-coin ds-coin-gold" aria-label="gold"></span></dd></div>
+              <div class="ds-property"><dt>Total Gold</dt><dd>9<span class="ds-coin ds-coin-gold" aria-label="gold"></span> (inc - exp)</dd></div>
+              <div class="ds-property ds-property-wide"><dt>Visited areas</dt><dd>Eastern Plaguelands • Western Plaguelands</dd></div>
+            </dl>
+            <div class="ds-tabs" aria-label="Referência das abas nativas">
+              <span class="ds-tab-sample" aria-current="true">Income</span><span class="ds-tab-sample">Expenses</span><span class="ds-tab-sample">Reputation</span>
+            </div>
+            <div class="ds-tab-box-reference">
+              <table class="ds-list-preview" aria-label="Referência do resumo de Income">
+                <colgroup><col style="width:80px"><col><col style="width:64px"><col style="width:184px"></colgroup>
+                <thead><tr><td colspan="3"></td><td class="ds-list-number">Sum: 8g 0s 0c</td></tr><tr><th scope="col">Last</th><th scope="col">Description</th><th scope="col" class="ds-list-number">Count</th><th scope="col" class="ds-list-number">Total</th></tr></thead>
+                <tbody><tr><td>10:23:21</td><td>Uncommon item</td><td class="ds-list-number">9</td><td class="ds-list-number">8g 0s 0c</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <figcaption>Referência com dados fictícios. O protótipo alterna entre Income, Expenses e Reputation, com rolagem apenas abaixo das abas.</figcaption>
+        </figure>
+        <p>O slot de conteúdo das abas usa a própria arte Options_InnerFrame da janela Options da Blizzard, conectada à base das tabs, envolvendo também a barra de rolagem e deixando 8 px de respiro interno. Somente os oito recortes externos da arte são desenhados, preservando a espessura dos cantos. O centro da arte é descartado. A área interna recebe preto a 45% de opacidade para aproximar o tom mais escuro da faixa interna da borda, sem alterar o fundo externo do panel. A moldura e o preenchimento ficam em uma camada abaixo do ScrollBox; a opacidade dos textos e controles permanece intacta. Somente as linhas de conteúdo têm rolagem virtualizada; os dados da sessão, as abas e os cabeçalhos permanecem fixos. History e Compare também mantêm seus cabeçalhos fixos. Income e Expenses têm Sum acima do cabeçalho Total, alinhado aos valores. A soma considera os valores conhecidos das linhas retidas; um asterisco indica pendências, exclusões ou o limite de 1.000 eventos, explicado no tooltip. Detalhes expirados mostram um traço no lugar da soma. Atualizações mantêm a aba selecionada e a posição de consulta; trocar de aba ou sessão começa o conteúdo no topo. O painel cresce para acomodar metadados longos e manter uma área útil de consulta, respeitando o ajuste à tela. O título tem 32 px; pares de chave e valor partem de 24 px, linhas de grid de 28 px e cabeçalhos de 24 px. A altura final é medida com as fontes nativas para acomodar os valores completos. Sessões finalizadas com preços não incluídos mostram Excluded prices e Incomplete · frozen; isso não é apresentado como cotação ainda em espera.</p>
+      </section>
+
       <section aria-labelledby="ds-speedometer">
         <h2 id="ds-speedometer">Speedometer</h2>
         <p>O velocímetro ocupa a largura do principal. Somente arco, marcas e agulha mudam de geometria; os cinco números permanecem em 10 px, sem reticências e com suas caixas inteiramente fora do arco, a 6 px dele. Os cinco traços principais foram encurtados de 7 para 5 unidades; os menores continuam em 3. O addon usa texturas de 512 px com cobertura analítica das bordas, amostragem linear e rotação nativa, sem reduzir e ampliar uma imagem intermediária. O SVG abaixo aproxima essa geometria; não valida a renderização dentro do WoW.</p>
@@ -491,7 +636,7 @@
 
       <section aria-labelledby="ds-estimates">
         <h2 id="ds-estimates">Estimates</h2>
-        <p>A estimativa usa um display XS acima do display grande, com a mesma largura do principal e fonte de 10 px. A frase inteira fica centralizada em <code>value</code>, como na duração, e mantém o dourado padrão dos displays. A pausa mostra Paused, sem manter uma previsão ativa. As regras de cálculo e disponibilidade estão em <a href="#regras-das-estimativas">Regras das estimativas</a>.</p>
+        <p>As estimativas usam displays XS com a mesma largura do principal e fonte de 10 px. Experience aparece acima do Primary, entre ele e o speedometer; Reputation aparece abaixo do Primary. Os dois podem aparecer juntos. A frase inteira fica centralizada em <code>value</code>, como na duração, e mantém o dourado padrão dos displays. A pausa mostra Paused, sem manter uma previsão ativa. As regras de cálculo e disponibilidade estão em <a href="#regras-das-estimativas">Regras das estimativas</a>.</p>
         <figure class="ds-example">
           <div class="ds-stage ds-component-stage">
             <div class="ds-component-preview">
@@ -535,22 +680,6 @@
                     <button type="button" data-step="1" aria-label="Next rate">▶</button>
                   </div>
                 </div>
-                <div class="ds-form-row">
-                  <label class="ds-form-label" for="ds-show-estimates" id="ds-show-estimates-label">Show estimates</label>
-                  <div class="ds-field-group" role="group" aria-labelledby="ds-show-estimates-label">
-                    <div class="ds-form-field ds-field-check">
-                      <input form="ds-config" type="checkbox" name="showEstimates" id="ds-show-estimates" aria-controls="ds-estimate-source-field ds-composition-estimates">
-                    </div>
-                    <div class="ds-form-field ds-field-stepper" id="ds-estimate-source-field" hidden>
-                      <button type="button" data-step="-1" aria-label="Previous estimate source">◀</button>
-                      <select form="ds-config" name="estimateSource" id="ds-estimate-source" aria-label="Estimate source">
-                        <option value="xp">Experience</option>
-                        <option value="rep">Reputation</option>
-                      </select>
-                      <button type="button" data-step="1" aria-label="Next estimate source">▶</button>
-                    </div>
-                  </div>
-                </div>
               </fieldset>
               <fieldset class="ds-form-section" id="ds-metric-settings">
                 <legend>Metrics</legend>
@@ -561,7 +690,6 @@
                   </div>
                 </div>
                 <span class="ds-metric-status" id="ds-metric-status" role="status"></span>
-                <span class="ds-metric-status" id="ds-metric-help">Drag to swap metrics, or select a metric and then select its destination.</span>
               </fieldset>
               <fieldset class="ds-form-section">
                 <legend>Experience</legend>
@@ -577,6 +705,12 @@
                       <button type="button" data-step="1" aria-label="Increase maximum">▶</button>
                       <output id="ds-speedometer-maximum" for="ds-speedometer-level ds-settings-rate">50k/h</output>
                     </div>
+                  </div>
+                </div>
+                <div class="ds-form-row">
+                  <label class="ds-form-label" for="ds-show-xp-estimates">Show estimates</label>
+                  <div class="ds-form-field ds-field-check">
+                    <input form="ds-config" type="checkbox" name="showExperienceEstimates" id="ds-show-xp-estimates" aria-controls="ds-composition-xp-estimates">
                   </div>
                 </div>
               </fieldset>
@@ -595,14 +729,20 @@
                     <button type="button" data-step="1" aria-label="Next faction">▶</button>
                   </div>
                 </div>
+                <div class="ds-form-row">
+                  <label class="ds-form-label" for="ds-show-rep-estimates">Show estimates</label>
+                  <div class="ds-form-field ds-field-check">
+                    <input form="ds-config" type="checkbox" name="showReputationEstimates" id="ds-show-rep-estimates" aria-controls="ds-composition-rep-estimates">
+                  </div>
+                </div>
               </fieldset>
             </div>
           </div>
         </div>
         <p><strong>Focused</strong> mostra só a métrica principal. <strong>Extended</strong> acrescenta a secundária e a duração quando marcada. <strong>Full</strong> inclui também as duas terciárias e é o padrão.</p>
-        <p id="ds-metric-instructions">Arraste uma métrica pelo grip e solte sobre outra posição para trocar as duas de lugar. Você também pode selecionar uma métrica e depois a posição de destino.</p>
+        <p id="ds-metric-instructions">Use o seletor de cada posição ou suas setas para trocar as métricas de lugar.</p>
         <p><strong>Show duration</strong> mostra o tempo da sessão acima do secundário em Extended e Full. Focused não mostra duração; sessões curtas seguem as mesmas regras, sem forçar sua exibição. A duração permanece consultável em Session Details e Compare. <strong>Tracked faction</strong> escolhe qual reputação será capturada a partir da troca. Os trechos anteriores permanecem na sessão; None suspende a captura de reputação e oculta seu display, inclusive antes de Start. A ordem preferida é preservada. Ao selecionar uma facção, uma leitura vazia já mostra zero e a unidade; o terciário restante fica centralizado verticalmente.</p>
-        <p><strong>Show estimates</strong> permite escolher Experience ou Reputation. <strong>Show speedometer</strong> sempre usa Experience. Quando ativados, ambos aparecem nos três tipos de painel, qualquer que seja a métrica principal.</p>
+        <p><strong>Show estimates</strong> é o último campo de Experience e de Reputation, com checkboxes independentes. As duas estimativas podem aparecer juntas nos três tipos de painel, qualquer que seja a métrica principal. <strong>Show speedometer</strong> sempre usa Experience. No nível máximo, a estimativa de XP e o velocímetro ficam ocultos; a estimativa de reputação continua disponível.</p>
         <h3>Componentes do formulário</h3>
         <dl class="ds-rules">
           <dt>Seção</dt>
@@ -613,8 +753,6 @@
           <dd>Controle na coluna da direita, com 300 px de referência e linhas de 32 px no addon. O checkbox usa <code>SettingsCheckboxTemplate</code>, e o seletor de taxa usa <code>SettingsDropdownWithButtonsTemplate</code>.</dd>
           <dt>Field group</dt>
           <dd>Dois ou mais campos lado a lado na mesma coluna, sob um único rótulo e com 8 px entre os campos. Em <em>Show speedometer</em>, o checkbox ocupa 32 px e o slider ocupa a largura restante. O slider usa <code>MinimalSliderWithSteppersTemplate</code> e só aparece quando o velocímetro está marcado.</dd>
-          <dt>Drag handle</dt>
-          <dd>Grip na coluna de campos. Durante o arraste, a linha de destino fica destacada. Ao soltar, as métricas trocam de posição e a Composição é atualizada.</dd>
         </dl>
       </section>
 
@@ -633,8 +771,9 @@
                 </div>
                 <div class="ds-panel-area ds-panel-area--main">
                   <div class="ds-speedometer" id="ds-composition-speedometer" hidden></div>
-                  <div class="ds-display ds-display-xs ds-estimates" id="ds-composition-estimates" data-value="Level 53 in 1h 19m" hidden></div>
+                  <div class="ds-display ds-display-xs ds-estimates ds-estimates-xp" id="ds-composition-xp-estimates" data-value="Level 53 in 1h 19m" hidden></div>
                   <div class="ds-display ds-display-lg" data-slot="primary" data-unit="xp/h"></div>
+                  <div class="ds-display ds-display-xs ds-estimates" id="ds-composition-rep-estimates" data-value="No estimate available" hidden></div>
                 </div>
                 <div class="ds-panel-area" id="ds-composition-tertiaries">
                   <div class="ds-display ds-display-sm" data-slot="tertiaryUpper" data-unit="hon/h"></div>
@@ -644,7 +783,7 @@
               <div class="ds-actions">
                 <span class="ds-action">⚙</span>
                 <span class="ds-action ds-action-primary">Start</span>
-                <span class="ds-action" title="INV_Misc_Note_05 no addon">▤</span>
+                <span class="ds-action" title="INV_Scroll_03 no addon">▤</span>
               </div>
             </div>
           </div>
@@ -695,7 +834,7 @@ Reset encerra e apaga a sessão do tracker. O <a href="gold-tracking.md">detalha
 já registra entradas e saídas da sessão corrente. O revamp estende a consulta
 para sessões finalizadas e reúne as métricas do mesmo período.</p>
     <h2 id="prototipo">Protótipo interativo</h2>
-    <p>Clique em <strong>Start</strong> para iniciar. O menu <strong>Sessions</strong> abre <strong>History</strong> e <strong>Details</strong> e contém <strong>Finish and Reset</strong>. A engrenagem abre <strong>Settings</strong>. No minimapa, o clique esquerdo mostra ou oculta Ao vivo e o direito abre Settings. O X apenas oculta Ao vivo; a sessão continua no mesmo estado.</p>
+    <p>Clique em <strong>Start</strong> para iniciar. O menu <strong>Sessions</strong> abre <strong>History</strong> e <strong>Current Session</strong>, que mostra a ficha de detalhes da sessão atual. <strong>Finish Session</strong> encerra o menu, separado por um divisor, e também aparece no footer da ficha atual, rodando ou pausada. Os dois acessos compartilham a confirmação antes de salvar e finalizar; cancelar ou fechar mantém a sessão. A engrenagem abre <strong>Settings</strong>. No minimapa, o clique esquerdo mostra ou oculta Ao vivo e o direito abre Settings. O X apenas oculta Ao vivo; a sessão continua no mesmo estado.</p>
     <p>Para demonstrar a reputação por facção, simule 30 minutos, troque Tracked faction em Settings e simule novamente. Session Details preserva cada facção com seu tempo acompanhado, total e taxa. A simulação avança em blocos fictícios; não reproduz eventos do jogo nem salva as alterações após recarregar a página.</p>
     <div class="demo-preview-tools" id="demo-preview-tools" hidden>
       <label lang="en"><input type="checkbox" id="demo-max-level"> Simulate a max-level character</label>
@@ -718,12 +857,13 @@ para sessões finalizadas e reúne as métricas do mesmo período.</p>
             <footer class="ds-actions dashboard-footer">
               <button type="button" class="ds-action ds-icon-button" id="demo-settings" aria-label="Settings" aria-haspopup="dialog" title="Settings"><span aria-hidden="true">⚙</span></button>
               <button type="button" id="demo-primary-action" class="ds-action ds-action-primary">Start</button>
-              <details class="dashboard-session-menu" id="demo-session-menu">
-                <summary class="ds-action" aria-label="Sessions" title="Sessions · INV_Misc_Note_05 no addon"><span aria-hidden="true">▤</span></summary>
+              <details class="ds-action-menu" id="demo-session-menu">
+                <summary class="ds-action" aria-label="Sessions" data-texture="INV_Scroll_03" title="Sessions · INV_Scroll_03 no addon"><span aria-hidden="true">▤</span></summary>
                 <div>
                   <button type="button" id="demo-history" aria-haspopup="dialog">History</button>
-                  <button type="button" id="demo-details" aria-haspopup="dialog" disabled>Details</button>
-                  <button type="button" id="demo-finish" disabled>Finish and Reset</button>
+                  <button type="button" id="demo-details" aria-haspopup="dialog" disabled>Current Session</button>
+                  <hr>
+                  <button type="button" class="ds-action ds-action-primary ds-normal-button" id="demo-finish" disabled>Finish Session</button>
                 </div>
               </details>
             </footer>
@@ -737,8 +877,9 @@ para sessões finalizadas e reúne as métricas do mesmo período.</p>
             <div class="ds-window-content">
               <p class="subline">Current character</p>
               <div class="table-area">
-                <table aria-label="Completed sessions">
-                  <thead><tr><th scope="col">Select</th><th scope="col">Session</th><th scope="col">Time</th><th scope="col">Gold est.</th></tr></thead>
+                <table class="ds-list-preview ds-history-list" aria-label="Completed sessions">
+                  <colgroup><col style="width:28px"><col style="width:378px"><col style="width:80px"><col style="width:86px"><col style="width:118px"></colgroup>
+                  <thead><tr><th scope="col" aria-label="Select"></th><th scope="col">Session</th><th scope="col" class="ds-list-number">Duration</th><th scope="col" class="ds-list-number">Gold est.</th><th scope="col">Actions</th></tr></thead>
                   <tbody id="demo-history-rows"></tbody>
                 </table>
               </div>
@@ -795,12 +936,11 @@ para sessões finalizadas e reúne as métricas do mesmo período.</p>
         <dialog class="ds-panel ds-settings-panel ds-session-screen ds-details-window" id="demo-details-window" aria-labelledby="demo-details-title">
           <h3 class="ds-title" id="demo-details-title" tabindex="-1">Session Details</h3>
           <button type="button" class="ds-panel-close" id="demo-detail-close" aria-label="Close Details" title="Close Details">×</button>
-          <div class="ds-window-content">
-            <div class="ds-detail-heading">
-              <h4 id="demo-details-name"></h4>
-              <button type="button" class="item-link" id="demo-detail-rename" aria-controls="demo-detail-rename-form" aria-expanded="false">Rename</button>
+          <div class="ds-details-fixed">
+            <div class="ds-session-heading"><span class="ds-session-label">Session</span><span id="demo-details-name"></span>
+              <button type="button" id="demo-detail-rename" aria-controls="demo-detail-rename-form" aria-expanded="false">Rename</button>
             </div>
-            <p class="subline" id="demo-details-context"></p>
+            <dl class="ds-properties" id="demo-session-properties"></dl>
             <form class="ds-rename-form" id="demo-detail-rename-form" hidden>
               <div class="ds-form-row">
                 <label class="ds-form-label" for="demo-detail-rename-name">Session name</label>
@@ -813,37 +953,56 @@ para sessões finalizadas e reúne as métricas do mesmo período.</p>
                 <button type="submit">Save Name</button>
               </div>
             </form>
-            <div class="ds-detail-groups" id="demo-detail-groups"></div>
-            <h4>Reputation by faction</h4>
-            <p class="subline">Rates use each faction's tracked time, excluding pauses and time tracking other factions.</p>
-            <p class="subline" id="demo-reputation-context"></p>
-            <div class="table-area">
-              <table aria-label="Reputation by faction">
-                <thead><tr><th scope="col">Faction</th><th scope="col">Tracked time</th><th scope="col">Total</th><th scope="col">Rate</th><th scope="col">Status</th></tr></thead>
-                <tbody id="demo-reputation-rows"></tbody>
-              </table>
-            </div>
-            <details id="demo-reputation-segments" hidden>
-              <summary>Tracking segments</summary>
-              <p class="subline">Intervals refer to measured session time; pauses are excluded.</p>
-              <div class="table-area">
-                <table aria-label="Reputation tracking segments">
-                  <thead><tr><th scope="col">Faction</th><th scope="col">Session interval</th><th scope="col">Total</th></tr></thead>
-                  <tbody id="demo-reputation-segment-rows"></tbody>
-                </table>
-              </div>
-            </details>
-            <h4>Gold</h4>
-            <dl class="metrics" id="demo-detail-metrics"></dl>
-            <h4>Gold Events</h4>
+          </div>
+          <div class="ds-tabs" id="demo-details-tabs" role="tablist" aria-label="Session metrics">
+            <button type="button" role="tab" id="demo-tab-income" data-detail-tab="income" aria-controls="demo-tabpanel-income" aria-selected="true" tabindex="0">Income</button>
+            <button type="button" role="tab" id="demo-tab-expenses" data-detail-tab="expenses" aria-controls="demo-tabpanel-expenses" aria-selected="false" tabindex="-1">Expenses</button>
+            <button type="button" role="tab" id="demo-tab-rep" data-detail-tab="rep" aria-controls="demo-tabpanel-rep" aria-selected="false" tabindex="-1">Reputation</button>
+          </div>
+          <div class="ds-detail-tab-scroll" id="demo-detail-tab-scroll">
+            <section id="demo-tabpanel-income" role="tabpanel" aria-labelledby="demo-tab-income" tabindex="0">
             <div class="table-area" id="demo-detail-events">
-              <table aria-label="Gold Events">
-                <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Source</th><th scope="col">Amount</th></tr></thead>
+              <table class="ds-list-preview" aria-label="Income summary">
+                <colgroup><col style="width:80px"><col><col style="width:64px"><col style="width:184px"></colgroup>
+                <thead><tr><td colspan="3"></td><td class="ds-list-number" id="demo-income-sum"></td></tr><tr><th scope="col">Last</th><th scope="col">Description</th><th scope="col" class="ds-list-number">Count</th><th scope="col" class="ds-list-number">Total</th></tr></thead>
                 <tbody id="demo-event-rows"></tbody>
               </table>
             </div>
-            <p class="subline" id="demo-detail-note" hidden>No events recorded yet.</p>
+            <dl class="ds-properties" id="demo-detail-note" hidden></dl>
+            </section>
+            <section id="demo-tabpanel-expenses" role="tabpanel" aria-labelledby="demo-tab-expenses" tabindex="0" hidden>
+            <div class="table-area" id="demo-detail-expenses">
+              <table class="ds-list-preview" aria-label="Expenses summary">
+                <colgroup><col style="width:80px"><col><col style="width:64px"><col style="width:184px"></colgroup>
+                <thead><tr><td colspan="3"></td><td class="ds-list-number ds-expense" id="demo-expenses-sum"></td></tr><tr><th scope="col">Last</th><th scope="col">Description</th><th scope="col" class="ds-list-number">Count</th><th scope="col" class="ds-list-number">Total</th></tr></thead>
+                <tbody id="demo-expense-rows"></tbody>
+              </table>
+            </div>
+            <dl class="ds-properties" id="demo-expense-note" hidden></dl>
+            </section>
+            <section id="demo-tabpanel-rep" role="tabpanel" aria-labelledby="demo-tab-rep" tabindex="0" hidden>
+            <div class="table-area" id="demo-reputation-table">
+              <table class="ds-details-grid" aria-label="Reputation by faction">
+                <colgroup><col style="width:41%"><col style="width:16%"><col style="width:21.5%"><col style="width:21.5%"></colgroup>
+                <thead><tr><th scope="col">Faction</th><th scope="col" class="num">Duration</th><th scope="col" class="num">Rate</th><th scope="col" class="num">Total</th></tr></thead>
+                <tbody id="demo-reputation-rows"></tbody>
+              </table>
+            </div>
+            </section>
           </div>
+          <footer class="ds-actions ds-normal-actions">
+            <button type="button" class="ds-action ds-action-primary ds-normal-button" id="demo-detail-finish">Finish Session</button>
+          </footer>
+        </dialog>
+        <dialog class="ds-panel ds-settings-panel ds-session-screen ds-finish-window" id="demo-finish-window" aria-labelledby="demo-finish-title">
+          <h3 class="ds-title" id="demo-finish-title" tabindex="-1">Finish Session</h3>
+          <button type="button" class="ds-panel-close" id="demo-finish-close" aria-label="Cancel finishing" title="Cancel">×</button>
+          <p>Finish this session and save it to History?</p>
+          <p id="demo-finish-name"></p>
+          <footer class="ds-actions ds-normal-actions">
+            <button type="button" class="ds-action ds-action-primary ds-normal-button" id="demo-finish-confirm">Finish Session</button>
+            <button type="button" class="ds-action ds-normal-button" id="demo-finish-cancel">Cancel</button>
+          </footer>
         </dialog>
         <p id="demo-announcement" class="sample announcement" role="status"></p>
       </div>
@@ -946,7 +1105,7 @@ distinguir conceitos de jogo, dados registrados e elementos da interface.</p>
 <td>Interromper e continuar o registro de novos ganhos e o relógio da mesma sessão. Os resultados acumulados permanecem disponíveis durante a pausa.</td>
 </tr>
 <tr>
-<th scope="row"><strong>Finish and Reset</strong></th>
+<th scope="row"><strong>Finish Session</strong></th>
 <td>Controle da sessão</td>
 <td>Encerrar a medição e guardar o resultado no Histórico. Excluir é a ação separada que remove uma sessão guardada.</td>
 </tr>
@@ -958,7 +1117,7 @@ distinguir conceitos de jogo, dados registrados e elementos da interface.</p>
 <tr>
 <th scope="row"><strong>Preço pendente</strong></th>
 <td>Condição de um evento</td>
-<td>Um item já foi registrado e sua cotação ainda está por resolver. Pode ser resolvido na sessão de origem enquanto ela estiver aberta, inclusive pausada. Após Finish and Reset, permanece sem valor considerado e não pode alterar o resultado arquivado.</td>
+<td>Um item já foi registrado e sua cotação ainda está por resolver. Pode ser resolvido na sessão de origem enquanto ela estiver aberta, inclusive pausada. Após Finish Session, permanece sem valor considerado e não pode alterar o resultado arquivado.</td>
 </tr>
 <tr>
 <th scope="row"><strong>Ao vivo</strong></th>
@@ -1001,18 +1160,18 @@ distinguir conceitos de jogo, dados registrados e elementos da interface.</p>
 <ol>
 <li><strong>Começar a medir.</strong> O jogador clica em Start. O Per Hour registra o mapa e a hora de início e mede todas as métricas pelo mesmo relógio.</li>
 <li><strong>Pausar ou retomar.</strong> A ação central controla a sessão em andamento. A duração medida exclui as pausas.</li>
-<li><strong>Finish and Reset.</strong> A ação no menu Sessions arquiva o resultado em History e zera a leitura do painel para um novo Start.</li>
+<li><strong>Finish Session.</strong> A ação no menu Sessions e no footer de Details abre a mesma confirmação. Confirmar arquiva o resultado em History e zera a leitura do painel para um novo Start; Cancelar ou fechar preserva a sessão no estado atual.</li>
 <li><strong>Consultar e comparar.</strong> No Histórico, o jogador abre resultados anteriores,
 renomeia sessões e seleciona duas para comparar. Excluir é uma ação separada
 de finalizar. O Histórico começa pelo personagem atual.</li>
 </ol>
-<p>Há uma sessão em captura por personagem. Start e Finish and Reset delimitam o período. Um mesmo ganho pertence a uma única sessão. Mudanças de zona podem acrescentar contexto à sessão em andamento. History e Details mostram o mapa de início.</p>
+<p>Há uma sessão em captura por personagem. Start e Finish Session delimitam o período. Um mesmo ganho pertence a uma única sessão. Mudanças de zona podem acrescentar contexto à sessão em andamento. History e Details mostram o mapa de início.</p>
 <p><strong>Nome livre por sessão:</strong> Start sugere um nome baseado no mapa de início, sem exigir cadastro ou escolha de atividade. O jogador pode renomear a sessão em Details ou History. Nomes repetidos são permitidos e não agrupam ou vinculam sessões: cada registro mantém sua identidade, seus limites e seus resultados. O mapa de início indica onde a medição começou, não todo o percurso.</p>
-<p>Finish and Reset pode finalizar qualquer sessão iniciada, inclusive sem ganhos ou com duração zero, seguindo o comportamento já demonstrado no protótipo. Não há um limite mínimo especial para arquivar; a taxa com duração zero permanece indisponível, e Delete permite remover o registro depois.</p>
+<p>Finish Session pode finalizar qualquer sessão iniciada, inclusive sem ganhos ou com duração zero, seguindo o comportamento já demonstrado no protótipo. Não há um limite mínimo especial para arquivar; a taxa com duração zero permanece indisponível, e Delete permite remover o registro depois.</p>
 <h2 id="interface-e-configuracoes">Interface e configurações</h2>
 <p>A interface no jogo deve reutilizar os componentes nativos do WoW Forever
-que o Per Hour já usa. A moldura translúcida usa <code>DialogBorderTranslucentTemplate</code>,
-a placa de título usa <code>DialogHeaderTemplate</code> e o botão do rodapé usa
+que o Per Hour já usa. A moldura usa <code>DialogBorderTranslucentTemplate</code> com seu fundo translúcido oculto. Todos os panels usam o fundo cinza nativo de Options, <code>FlatPanelBackgroundTemplate</code>, que aplica <code>PANEL_BACKGROUND_COLOR</code> sem tintas ou alpha adicionais. As abas usam <code>MinimalTabTemplate</code> e o grupo de seleção nativo. O HTML aproxima o fundo em cinza opaco; a aparência final é a do cliente. Confira os <a href="https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Settings_Shared/Mainline/Blizzard_SettingsPanelTemplates.xml">templates de Options</a> e as <a href="https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Settings_Shared/Blizzard_SettingsPanel.xml">abas de Options</a>.
+A placa de título usa <code>DialogHeaderTemplate</code> e o botão do rodapé usa
 <code>SharedGoldRedButtonSmallTemplate</code>. O conteúdo reaproveita o mostrador e o
 ponteiro do velocímetro do próprio addon. No navegador, o protótipo representa
 esse estilo com HTML e dados fictícios.</p>
@@ -1042,7 +1201,7 @@ o Histórico e a comparação usando dados fictícios.</p>
 <p>Se a sessão foi finalizada com preços ou evidências ainda desconhecidos, o Gold em Session Details e History indica <strong>resultado incompleto, congelado ao finalizar</strong>. Os registros conhecidos sem valor resolvido ficam identificados como não incluídos no cálculo, sem tratá-los como preço zero. Receber esses dados depois não altera os totais ou as taxas arquivados.</p>
 <p><strong>Detalhes não disponíveis:</strong> sessões fora das 20 finalizadas mais recentes mantêm seus resumos e podem ser abertas em Session Details, com indicação de que os eventos e trechos detalhados não estão mais disponíveis. Cada uma das 20 sessões recentes oferece até 1.000 eventos consultáveis, mantendo os mais recentes. Se a lista foi limitada, a tela informa que ela não explica sozinha todo o resultado. Resumos de XP, honra, Gold e reputação por facção não são recalculados a partir da lista restante.</p>
 <h3 id="marcar-atividade-e-configuracoes">Configurações</h3>
-<p>A engrenagem e o clique direito no ícone de minimapa abrem a janela de <strong>Settings</strong>. O clique esquerdo no minimapa alterna a visibilidade de Ao vivo. A janela de Settings reúne os modos Focused, Extended e Full, o arraste de métricas e os controles de taxa, duração, estimativa, velocímetro e facção.</p>
+<p>A engrenagem e o clique direito no ícone de minimapa abrem a janela de <strong>Settings</strong>. O clique esquerdo no minimapa alterna a visibilidade de Ao vivo. A janela de Settings reúne os modos Focused, Extended e Full, os seletores de métricas com setas e os controles de taxa, duração, estimativas, velocímetro e facção.</p>
 <p><strong>Visibilidade independente da sessão:</strong> o X de Ao vivo apenas oculta o painel. Ocultar ou mostrar não inicia, pausa, retoma, finaliza ou reseta a sessão. O launcher de broker usa as mesmas ações do minimapa, inclusive se o ícone estiver oculto. <code>/perhour</code> continua abrindo Settings; os comandos existentes <code>/perhour xp|gold|honor|rep</code> passam a mostrar e elevar o painel unificado, sem mudar sua composição ou a sessão. <code>/perhour help</code> explica os controles disponíveis.</p>
 <p>O painel unificado conserva uma preferência de visibilidade e posição por personagem, com arraste e limites de tela seguindo os componentes existentes. Os controles de Announce por métrica preservam o comportamento atual ao serem adaptados à interface unificada; essa adaptação técnica não muda o cálculo nem autoriza envio automático de mensagens.</p>
 <h3 id="idioma-e-formatacao">Idioma e formatação</h3>
@@ -1063,7 +1222,7 @@ o Histórico e a comparação usando dados fictícios.</p>
 </tbody>
 </table></div>
 <p>Os avisos são combináveis: Gold pode apresentar captura parcial e cotação pendente ao mesmo tempo. Resolver uma cotação remove somente a pendência correspondente enquanto a sessão estiver aberta; não apaga o aviso de captura parcial. Ao finalizar com pendências, o resultado passa a indicar incompleto e congelado. Comparações mantêm os avisos junto às métricas e não convertem indisponível em zero. <strong>Detalhes não disponíveis</strong> ou uma lista limitada pela retenção descrevem apenas a disponibilidade do diário; não tornam a captura parcial nem os totais incompletos.</p>
-<p><strong>Limites compartilhados:</strong> Start, Pause, Resume e Finish and Reset controlam todas as métricas juntas. Ganhos ocorridos durante a pausa ficam fora da sessão. Ao retomar, as referências de XP e reputação são atualizadas antes de aceitar novos ganhos, para não incorporar progresso da pausa. Preços e evidências tardias só podem completar eventos da sessão de origem enquanto ela estiver aberta; Finish congela os resultados conforme a <a href="#gap-gold-finalizacao">decisão sobre pendências do Gold</a>.</p>
+<p><strong>Limites compartilhados:</strong> Start, Pause, Resume e Finish Session controlam todas as métricas juntas. Ganhos ocorridos durante a pausa ficam fora da sessão. Ao retomar, as referências de XP e reputação são atualizadas antes de aceitar novos ganhos, para não incorporar progresso da pausa. Preços e evidências tardias só podem completar eventos da sessão de origem enquanto ela estiver aberta; Finish congela os resultados conforme a <a href="#gap-gold-finalizacao">decisão sobre pendências do Gold</a>.</p>
 <p><strong>Reputação por trechos:</strong> trocar a facção encerra seu trecho de acompanhamento e inicia outro na mesma sessão, preservando XP, Gold, honra e os resultados anteriores de reputação. Selecionar None interrompe apenas a captura de reputação; selecionar uma facção novamente inicia outro trecho. As mudanças pelo painel nativo do jogo seguem a mesma regra. Cada facção acumula apenas seus ganhos observados e seu tempo acompanhado, excluindo pausas e o tempo dedicado às demais facções. Repetir a mesma seleção não abre outro trecho. Ao selecionar ou retomar uma facção, uma nova referência impede contar ganhos ocorridos enquanto ela não era acompanhada. O tempo da sessão continua compartilhado; o tempo por facção é um recorte desse período. Captura simultânea de todas as facções permanece fora da primeira entrega.</p>
 <div class="table-area"><table>
 <thead>
@@ -1100,7 +1259,7 @@ o Histórico e a comparação usando dados fictícios.</p>
 </tbody>
 </table></div>
 <p>A duração em Ao vivo respeita o modo de painel e Show duration: Focused não a mostra; Extended e Full a mostram apenas quando a opção estiver habilitada. Não há exceção por duração curta da sessão. Session Details e Compare sempre mostram a duração medida para dar contexto às taxas. A comparação distingue ausência de ganho, captura parcial e resultado congelado com valores não resolvidos. Um preço resolvido depois da coleta entra na sessão de origem e conserva a fonte da cotação apenas enquanto essa sessão estiver aberta, inclusive pausada. Os preços já resolvidos permanecem no valor registrado.</p>
-<p><strong>Gold congelado ao finalizar:</strong> Finish and Reset arquiva imediatamente o resultado com os valores e evidências disponíveis naquele momento. Não aguarda preços ou confirmações faltantes e não aceita atualizações posteriores dos totais ou taxas. Pendências conhecidas ficam sinalizadas como não incluídas, com resultado incompleto; valores desconhecidos não são registrados como zero. Isso se aplica tanto a receitas quanto a despesas, de modo que o saldo pode estar acima ou abaixo do rendimento que seria apurado com todos os dados. Respostas tardias não alteram a sessão finalizada, não são transferidas para a próxima sessão e não recriam sessões excluídas. Movimentos de carteira, como compras e vendas, podem ganhar uma visão própria em uma fase posterior.</p>
+<p><strong>Gold congelado ao finalizar:</strong> Após a confirmação, Finish Session arquiva imediatamente o resultado com os valores e evidências disponíveis naquele momento. Não aguarda preços ou confirmações faltantes e não aceita atualizações posteriores dos totais ou taxas. Pendências conhecidas ficam sinalizadas como não incluídas, com resultado incompleto; valores desconhecidos não são registrados como zero. Isso se aplica tanto a receitas quanto a despesas, de modo que o saldo pode estar acima ou abaixo do rendimento que seria apurado com todos os dados. Respostas tardias não alteram a sessão finalizada, não são transferidas para a próxima sessão e não recriam sessões excluídas. Movimentos de carteira, como compras e vendas, podem ganhar uma visão própria em uma fase posterior.</p>
 <p><strong>Estoque valorizado independente por sessão:</strong> uma despesa usa os valores de aquisição registrados na própria sessão, alocados por FIFO. Quantidades sem aquisição disponível nessa sessão, incluindo itens coletados em sessões anteriores, recebem uma nova cotação no consumo ou na entrega à quest. A sessão atual não consulta preços ou lotes do Histórico. Por exemplo, um item avaliado em 10 g na sessão A e consumido na sessão B com cotação de 12 g gera uma despesa estimada de 12 g em B; A permanece congelada. Excluir A ou expirar seus detalhes não afeta B. Se a nova cotação ficar pendente, vale a regra de congelamento ao finalizar. As exclusões atuais de vendas, compras, trade, correio, banco e reparos da guilda continuam conforme <a href="gold-tracking.md">Gold tracking</a>; o cálculo representa valor estimado, não preço efetivamente pago.</p>
 <h3 id="regras-das-estimativas">Regras das estimativas</h3>
 <p><strong>Média da sessão:</strong> calcular o progresso restante até o objetivo dividido pela taxa média não arredondada. XP usa o ganho acumulado e a duração medida da sessão; reputação usa o ganho acumulado e a soma dos tempos acompanhados da facção selecionada, incluindo todos os seus trechos. O tempo sem ganhos durante acompanhamento válido conta na média; pausas e tempo dedicado a outras facções não contam no tempo dessa facção. Trocar a unidade entre hora e minuto não muda a previsão.</p>
@@ -1124,7 +1283,7 @@ ganhos. A sessão controla o relógio e a atribuição de eventos. O painel
 consulta esses dados para exibir taxas, e o Histórico consulta os resultados
 guardados. Isso permite reutilizar a captura atual e o registro detalhado do
 Gold sem exigir um diário ilimitado de todos os eventos de todos os módulos.</p>
-<p><strong>Logout normal:</strong> preserva a sessão corrente pausada, com seus totais e sua duração medida. No próximo login, o jogador escolhe Resume para continuar a mesma sessão ou Finish and Reset para arquivá-la. O login não retoma a medição automaticamente e o logout não envia a sessão ao Histórico. Sem sessão corrente, o painel continua aguardando Start.</p>
+<p><strong>Logout normal:</strong> preserva a sessão corrente pausada, com seus totais e sua duração medida. No próximo login, o jogador escolhe Resume para continuar a mesma sessão ou Finish Session para arquivá-la. O login não retoma a medição automaticamente e o logout não envia a sessão ao Histórico. Sem sessão corrente, o painel continua aguardando Start.</p>
 <p><strong>Reload:</strong> preserva a mesma sessão e, após verificar a continuidade, restaura seu estado anterior: em execução ou pausada. Enquanto a verificação estiver pendente, a captura fica suspensa. Falha ou timeout da verificação exige revisão do jogador; uma resposta tardia não retoma a medição automaticamente.</p>
 <p><strong>Desconexão ou fechamento abrupto:</strong> recupera os dados disponíveis até o último salvamento e mantém a sessão pausada. Quando houver dúvida sobre a continuidade, exige revisão antes de retomar; uma lacuna identificada marca a captura como parcial. A verificação é aproximada e não garante detectar toda perda. Tempo offline, verificação e espera pelo Resume ficam fora da duração medida. Os mecanismos atuais e seus limites estão em <a href="session-continuity.md">Continuidade de sessões</a>.</p>
 <div class="table-area"><table aria-label="Transições aprovadas do ciclo de vida da sessão">
@@ -1133,7 +1292,7 @@ Gold sem exigir um diário ilimitado de todos os eventos de todos os módulos.</
 <tr><th scope="row">Sem sessão</th><td>Start</td><td>Cria uma sessão em execução, com novos totais e relógio.</td></tr>
 <tr><th scope="row">Em execução</th><td>Pause</td><td>Pausa a mesma sessão; preserva totais e duração medida.</td></tr>
 <tr><th scope="row">Pausada</th><td>Resume, após resolver eventual revisão</td><td>Retoma a mesma sessão, sem incluir o intervalo pausado.</td></tr>
-<tr><th scope="row">Em execução ou pausada</th><td>Finish and Reset</td><td>Finaliza e arquiva a sessão; o painel aguarda um novo Start.</td></tr>
+<tr><th scope="row">Em execução ou pausada</th><td>Finish Session</td><td>Pede confirmação; ao confirmar, finaliza e arquiva a sessão, e o painel aguarda um novo Start.</td></tr>
 <tr><th scope="row">Sessão corrente no logout normal</th><td>Sair e entrar novamente</td><td>Preserva a sessão pausada, sem arquivar ou retomar automaticamente.</td></tr>
 <tr><th scope="row">Sessão corrente no reload</th><td>Verificação de continuidade bem-sucedida</td><td>Restaura a mesma sessão no estado anterior ao reload, excluindo o intervalo de carregamento e verificação.</td></tr>
 <tr><th scope="row">Recuperação após interrupção</th><td>Restaurar os dados disponíveis</td><td>Mantém a sessão pausada; exige revisão se houver dúvida e indica captura parcial quando identificar uma lacuna.</td></tr>
@@ -1187,11 +1346,11 @@ Conferir também painel oculto e transição de zona.</li>
 <li>Conferir estimativas antes de Start, antes e depois de 1 minuto medido, durante Pause e após Resume, com progresso inválido e taxa zero/negativa. Validar o cálculo com a média não arredondada, arredondamento para cima e invariância ao alternar hora/minuto. Para reputação A → B → A, usar os ganhos e tempos acumulados de A, sem o período de B.</li>
 <li>Ao subir de nível ou patamar, atualizar o objetivo sem resetar a sessão; no limite, indicar o objetivo máximo atingido. Em sessões finalizadas, não mostrar previsão baseada no progresso atual do personagem.</li>
 <li>Ganhar 12.000 XP em 30 minutos, atingir o nível máximo e continuar a sessão por mais 30 minutos: preservar 12.000 XP e mostrar 12.000 XP/h em Details e Compare, mantendo a captura das demais métricas. Uma sessão iniciada no máximo não recebe XP fictício e usa a mesma fórmula de taxa: ganho observado dividido pela duração medida; duração zero continua com taxa indisponível.</li>
-<li>Conferir ganhos imediatamente antes e depois de Start, Pause, Resume e Finish and Reset. Ganhos ocorridos durante a pausa não entram nos totais após Resume; atualizar as referências de XP e reputação ao retomar, sem apagar os ganhos anteriores.</li>
+<li>Conferir ganhos imediatamente antes e depois de Start, Pause, Resume e Finish Session. Ganhos ocorridos durante a pausa não entram nos totais após Resume; atualizar as referências de XP e reputação ao retomar, sem apagar os ganhos anteriores.</li>
 <li>Acompanhar A → B → A, inclusive trocando pelo painel nativo do jogo, sem resetar a sessão ou as demais métricas. Em Session Details, conferir uma linha por facção e seus trechos: soma dos ganhos e dos tempos de A, resultados separados de B e taxas baseadas no tempo de cada facção. Ganhos durante a pausa ou enquanto outra facção era acompanhada não entram retroativamente.</li>
 <li>Selecionar None durante a sessão e depois outra facção: XP, Gold, honra e relógio continuam, os trechos anteriores permanecem e Details informa o tempo sem facção. Uma facção selecionada sem tempo acompanhado exibe taxa indisponível. Conferir os mesmos dados ao reabrir a sessão no Histórico.</li>
 <li>Executar reload com a sessão em execução e pausada; após verificar a continuidade, restaurar o estado anterior sem somar o intervalo de carregamento ou verificação. Falha ou timeout mantém a sessão suspensa para revisão, mesmo após resposta tardia.</li>
-<li>Sair normalmente com a sessão em execução e pausada; no próximo login, encontrar a mesma sessão pausada, com totais preservados e sem entrada nova no Histórico. Resume continua a sessão e Finish and Reset a arquiva. Confirmar que o tempo offline e a espera pelo Resume não entram na duração.</li>
+<li>Sair normalmente com a sessão em execução e pausada; no próximo login, encontrar a mesma sessão pausada, com totais preservados e sem entrada nova no Histórico. Resume continua a sessão e Finish Session a arquiva. Confirmar que o tempo offline e a espera pelo Resume não entram na duração.</li>
 <li>Reabrir uma sessão finalizada, conferir os totais e abrir o detalhe do Gold.
 Verificar que os valores permanecem congelados após Finish, inclusive após reload e logout/login.</li>
 <li>Resolver um preço pendente durante a sessão aberta, inclusive pausada, e conferir sua atribuição à sessão de origem. Em outro caso, finalizar com preço ou evidência ainda desconhecidos: arquivar imediatamente, excluir o valor não resolvido do cálculo e indicar resultado incompleto. A resposta posterior não altera os totais ou taxas da sessão A, não entra na sessão B e não recria A após Delete.</li>
@@ -1221,7 +1380,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
 <li>Antes de Start e ao selecionar uma facção sem ganhos, mostrar zero e a unidade. Reputação sem facção fica oculta, preservando a preferência de ordem; um único terciário fica centralizado verticalmente.</li>
 <li>Principal com largura preservada para o speedometer e reduzida a 85% quando ele não está visível; SM e MD com a mesma largura, reduzida proporcionalmente à fonte do MD. Larguras medidas uma vez e compactadas a 84,7% da referência. Painel dimensionado pelas colunas, com 10 px entre os itens laterais e 5 px entre colunas.</li>
 <li>Focused, Extended e Full reservam a mesma altura da composição atual. O X do tracker aparece somente no mouse over. Rodapé com botão de 96 px, ações circulares de 24 px, separação de 3 px e respiro interno lateral mínimo de 8 px.</li>
-<li>Losango cinza em Start, verde durante execução (Pause) e amarelo durante pausa (Resume). O atlas nativo fica dessaturado antes de receber a cor. Sessions usa INV_Misc_Note_05.</li>
+<li>Losango cinza em Start, verde durante execução (Pause) e amarelo durante pausa (Resume). O atlas nativo fica dessaturado antes de receber a cor. Sessions usa INV_Scroll_03.</li>
 <li>Estimate em XS acima do principal e com sua largura. Speedometer com largura do principal e números fixos de 10 px, fora do arco e sem truncamento. Somente a geometria é redimensionada; a textura usa cobertura analítica na resolução final para preservar nitidez. Os cinco traços principais medem 5 unidades; os menores, 3.</li>
 </ul>
 <p>A aparência do HTML é aproximada. As evidências do usuário orientaram os ajustes; esta página não substitui a validação de renderização, persistência e eventos dentro do WoW. O roteiro completo continua em <a href="panels.md">panels.md</a>.</p>
@@ -1302,7 +1461,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         </li>
         <li id="gap-layout-acessibilidade"><strong>Resolvido na especificação · Fontes fixas, abreviação e overflow sem corte.</strong>
           <p><strong>Decisão aprovada:</strong> preservar o tamanho de fonte de cada display, abreviar números e permitir que textos longos ultrapassem o slot sem reticências, conforme os ajustes posteriores à implementação. Tooltip e Details mantêm o conteúdo completo. Details pode quebrar linhas para apresentar valores completos. Nenhum ajuste altera dados ou cálculos, e não há redução automática de fonte.</p>
-          <p>O protótipo permite overflow nos displays, oferece tooltips com a leitura completa e permite quebra de linha nos valores de Details. Identificar métricas e estados de forma acessível, preservar a alternativa ao arraste e validar teclado, zoom e roteamento de mouse permanecem tarefas de implementação e validação; a conferência visual no cliente continua pendente.</p>
+          <p>O protótipo permite overflow nos displays, oferece tooltips com a leitura completa e permite quebra de linha nos valores de Details. Identificar métricas e estados de forma acessível, usar seletores com setas e validar teclado, zoom e roteamento de mouse permanecem tarefas de implementação e validação; a conferência visual no cliente continua pendente.</p>
         </li>
         <li id="gap-compatibilidade"><strong>Resolvido na especificação · Início sem importar dados antigos.</strong>
           <p><strong>Decisão aprovada:</strong> o revamp começa sem sessões ou Histórico importados e com configurações padrão, sem reaproveitar sessões, posições ou preferências do modelo anterior. Não há conversão dos quatro trackers em uma sessão unificada nem criação de registros legados.</p>
@@ -1314,7 +1473,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       <p>Estes quatro achados técnicos não integram a fila de decisões. O addon implementa eventos próprios por sessão e vistas sincronizadas; os testes exercitam as fronteiras com os módulos reais. O simulador HTML mantém seus recortes de referência, e a aparência e o roteamento nativos aguardam validação no jogo.</p>
       <ul>
         <li id="gap-eventos-ficticios"><strong>Coerência dos eventos fictícios de Gold.</strong>
-          <p><code>renderDetails()</code> gera as mesmas três linhas — Quest reward, Repair e Herbs gathered — para qualquer sessão com duração positiva. A sessão inicial “Herb route” também recebe uma Quest reward sem uma lista de eventos própria. Fonte TSM e horários são constantes. Isso limita a conferência da demonstração; não comprova um defeito na captura real do addon.</p>
+          <p><code>renderDetails()</code> gera grupos ilustrativos de Dropped, Reward, item e Repair, com quantidades fictícias, para qualquer sessão com duração positiva. A sessão inicial “Herb route” também recebe uma Quest reward sem uma lista de eventos própria. Fonte TSM e horários são constantes. Isso limita a conferência da demonstração; não comprova um defeito na captura real do addon.</p>
           <p><strong>Tarefa técnica:</strong> usar exemplos com eventos próprios e totais coerentes, indicando que os dados são fictícios. Incluir cenários sem ganhos, apenas com despesas e com pendências quando necessários à validação dos requisitos aprovados.</p>
         </li>
         <li id="gap-simulacao"><strong>Limites de cobertura do simulador.</strong>
@@ -1332,7 +1491,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       </ul>
 
       <h3 id="revisao-validacao">Cobertura de validação</h3>
-      <p>A última execução do addon passou em 785 verificações simuladas com Lua 5.1; este número não é uma contagem de testes do HTML. Os itens abaixo orientam a cobertura e a conferência complementar no cliente; não representam resultados de testes dentro do jogo.</p>
+      <p>A última execução do addon passou em 957 verificações simuladas com Lua 5.1; este número não é uma contagem de testes do HTML. Os itens abaixo orientam a cobertura e a conferência complementar no cliente; não representam resultados de testes dentro do jogo.</p>
       <ul>
         <li>Executar os critérios dos requisitos aprovados e registrar seus resultados observáveis, distinguindo comportamento implementado, demonstração e funcionalidade futura.</li>
         <li>Cobrir honra e reputação além de XP/Gold, eventos nas fronteiras de pausa e finalização, falta de facção e ganho sem painel visível.</li>
@@ -1346,12 +1505,11 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
   </main>
   <template id="ds-metric-field-template">
     <div class="ds-form-row ds-metric-row">
-      <span class="ds-form-label"></span>
-      <div class="ds-form-field">
-        <button class="ds-metric-handle" type="button" aria-pressed="false" aria-describedby="ds-metric-help">
-          <span class="ds-metric-grip" aria-hidden="true"></span>
-          <span class="ds-metric-name"></span>
-        </button>
+      <label class="ds-form-label"></label>
+      <div class="ds-form-field ds-field-stepper">
+        <button type="button" data-step="-1">◀</button>
+        <select class="ds-metric-select"></select>
+        <button type="button" data-step="1">▶</button>
       </div>
     </div>
   </template>
@@ -1381,15 +1539,14 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       const metricStatus = document.getElementById("ds-metric-status");
       const panelTypeSelect = document.getElementById("ds-panel-type");
       const rateSelect = document.getElementById("ds-settings-rate");
-      const estimateSourceSelect = document.getElementById("ds-estimate-source");
-      const estimateSourceField = document.getElementById("ds-estimate-source-field");
       const factionSelect = document.getElementById("ds-reputation-faction");
       const speedometerLevelInput = document.getElementById("ds-speedometer-level");
       const speedometerScaleField = document.getElementById("ds-speedometer-scale");
       const speedometerMaximum = document.getElementById("ds-speedometer-maximum");
       const speedometer = document.getElementById("ds-composition-speedometer");
       const duration = document.getElementById("ds-composition-duration");
-      const estimates = document.getElementById("ds-composition-estimates");
+      const xpEstimates = document.getElementById("ds-composition-xp-estimates");
+      const repEstimates = document.getElementById("ds-composition-rep-estimates");
       const secondaryArea = document.getElementById("ds-composition-secondary");
       const tertiaryArea = document.getElementById("ds-composition-tertiaries");
       const rateDisplays = preview.querySelectorAll("[data-slot]");
@@ -1412,10 +1569,6 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       const metricSlots = { primary: "xp", secondary: "gold", tertiaryUpper: "honor", tertiaryLower: "rep" };
       const metricRows = {};
       let maxLevel = false;
-      let pickedSlot = null;
-      let dropTarget = null;
-      let metricDrag = null;
-      let suppressMetricClick = false;
       let sharedPanelSettings;
       let refreshSessionPreview;
       // Match the ten levels in src/model/SpeedometerScales.lua.
@@ -1505,14 +1658,15 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       }
 
       function fitTracker(panel, settings, eligible) {
-        const {layout,components,panelType,estimateSource}=settings;
+        const {layout,components,panelType}=settings;
         const count=Math.min(eligible.length,panelType==="focused"?1:panelType==="extended"?2:4);
         const leftHeight=eligible.length>=2?layout.mediumHeight+(components.duration?layout.xsHeight+settings.verticalGapPx:0):0;
         const rightHeight=eligible.length===4?2*layout.smallHeight+settings.verticalGapPx:eligible.length>=3?layout.smallHeight:0;
-        const estimateVisible=components.estimates && !(maxLevel && estimateSource==="xp");
+        const xpEstimateVisible=components.experienceEstimates && !maxLevel;
         const gaugeVisible=components.speedometer && !maxLevel;
         const gaugeHeight=Number(panel.querySelector(".ds-speedometer")?.dataset.height||0);
-        const mainHeight=layout.largeHeight+Math.max(estimateVisible?layout.xsHeight+2:0,gaugeVisible?gaugeHeight+16:0);
+        const mainHeight=layout.largeHeight+Math.max(xpEstimateVisible?layout.xsHeight+2:0,gaugeVisible?gaugeHeight+16:0)
+          +(components.reputationEstimates?layout.xsHeight+2:0);
         panel.dataset.columns=count;
         panel.style.width=Math.max(180,layout.mainWidth+(count>=2?layout.sideWidth+settings.displayGapPx:0)
           +(count>=3?layout.sideWidth+settings.displayGapPx:0)+30)+"px";
@@ -1546,7 +1700,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
       }
 
       function updateSettingsPreview(settings) {
-        const {panelType,rate,estimateSource,speedometerLevel,reputationFaction,metricSlots,components,layout}=settings;
+        const {panelType,rate,speedometerLevel,reputationFaction,metricSlots,components,layout}=settings;
         const suffix=rate==="minute"?"/m":"/h";
         const reputation=factions[reputationFaction];
         preview.dataset.panelType=panelType;
@@ -1554,9 +1708,10 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         const eligible=Object.values(active);
         secondaryArea.hidden=panelType==="focused" || eligible.length<2;
         tertiaryArea.hidden=panelType!=="full" || eligible.length<3;
-        for (const [slot,{row,metricName}] of Object.entries(metricRows)) {
-          const metric=metrics[configured[slot]];
-          row.hidden=!metric; metricName.textContent=metric?.label??"";
+        for (const [slot,{row,select}] of Object.entries(metricRows)) {
+          row.hidden=!configured[slot];
+          select.replaceChildren(...Object.values(configured).map(key => new Option(metrics[key].label,key)));
+          select.value=configured[slot]??"";
         }
         for (const display of rateDisplays) {
           const key=active[display.dataset.slot]; display.hidden=!key;
@@ -1571,10 +1726,12 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         setDurationStatus(duration,"running");
         speedometer.hidden=!components.speedometer || maxLevel;
         speedometerScaleField.hidden=!components.speedometer;
-        estimateSourceField.hidden=!components.estimates;
-        estimates.hidden=!components.estimates || maxLevel && estimateSource==="xp";
-        estimates.querySelector(".ds-value").textContent=(estimateSource==="rep"?reputation:metrics.xp).estimate;
-        estimates.title=estimates.querySelector(".ds-value").textContent;
+        xpEstimates.hidden=!components.experienceEstimates || maxLevel;
+        repEstimates.hidden=!components.reputationEstimates;
+        for (const [display,message] of [[xpEstimates,metrics.xp.estimate],[repEstimates,reputation.estimate]]) {
+          display.querySelector(".ds-value").textContent=message;
+          display.title=message;
+        }
         const maximum=speedometerMaxima[rate][speedometerLevel-1];
         speedometerMaximum.value=compactRate(maximum)+suffix;
         speedometerLevelInput.setAttribute("aria-valuetext",speedometerMaximum.value);
@@ -1606,10 +1763,12 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         if (!valid) return;
         const read=name=>configForm.elements.namedItem(name).valueAsNumber;
         const settings={
-          panelType:panelTypeSelect.value,rate:rateSelect.value,estimateSource:estimateSourceSelect.value,
+          panelType:panelTypeSelect.value,rate:rateSelect.value,
           speedometerLevel:speedometerLevelInput.valueAsNumber,reputationFaction:factionSelect.value,metricSlots:{...metricSlots},
           components:{speedometer:configForm.elements.namedItem("showSpeedometer").checked,
-            estimates:configForm.elements.namedItem("showEstimates").checked,duration:configForm.elements.namedItem("showDuration").checked},
+            experienceEstimates:configForm.elements.namedItem("showExperienceEstimates").checked,
+            reputationEstimates:configForm.elements.namedItem("showReputationEstimates").checked,
+            duration:configForm.elements.namedItem("showDuration").checked},
           displayGapPx:read("displayGapPx"),verticalGapPx:read("verticalGapPx"),widthFactorPercent:read("widthFactorPercent"),
           largeHeightPx:read("largeHeightPx"),
           heightPercentOfLarge:{medium:read("mediumPercent"),small:read("smallPercent"),extraSmall:read("extraSmallPercent")},
@@ -1664,28 +1823,16 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         const row = metricTemplate.content.firstElementChild.cloneNode(true);
         row.dataset.metricSlot = slot;
         const label = row.querySelector(".ds-form-label");
-        const handle = row.querySelector(".ds-metric-handle");
-        const metricName = row.querySelector(".ds-metric-name");
+        const select = row.querySelector(".ds-metric-select");
         label.id = "ds-slot-" + slot;
         label.textContent = name;
-        metricName.id = "ds-metric-name-" + slot;
-        metricName.textContent = metrics[metricSlots[slot]].label;
-        handle.setAttribute("aria-labelledby", `${metricName.id} ${label.id}`);
-        metricRows[slot] = { row, handle, metricName };
+        select.id = "ds-metric-select-" + slot;
+        label.htmlFor = select.id;
+        const [previous,next] = row.querySelectorAll("button");
+        previous.setAttribute("aria-label", "Previous metric for " + name);
+        next.setAttribute("aria-label", "Next metric for " + name);
+        metricRows[slot] = { row, select };
         durationRow.before(row);
-      }
-
-      function highlightDrop(row) {
-        if (row === dropTarget) return;
-        dropTarget?.classList.remove("is-drop-target");
-        dropTarget = row;
-        dropTarget?.classList.add("is-drop-target");
-      }
-
-      function pickMetric(slot) {
-        if (pickedSlot) metricRows[pickedSlot].handle.setAttribute("aria-pressed", "false");
-        pickedSlot = slot;
-        if (pickedSlot) metricRows[pickedSlot].handle.setAttribute("aria-pressed", "true");
       }
 
       function swapMetrics(source, destination) {
@@ -1700,71 +1847,12 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         updateDesignSystem();
       }
 
-      metricSettings.addEventListener("click", (event) => {
-        if (!event.target.closest(".ds-metric-handle")) return;
-        if (suppressMetricClick && event.detail > 0) return;
-        const slot = event.target.closest(".ds-metric-row").dataset.metricSlot;
-        if (pickedSlot) {
-          if (pickedSlot !== slot) swapMetrics(pickedSlot, slot);
-          else metricStatus.textContent = "Selection canceled.";
-          pickMetric(null);
-        } else {
-          pickMetric(slot);
-          metricStatus.textContent = `${metricRows[slot].metricName.textContent} selected. Choose a destination.`;
-        }
-      });
-      metricSettings.addEventListener("keydown", (event) => {
-        if (event.key !== "Escape" || !pickedSlot) return;
-        cancelMetricDrag();
-        pickMetric(null);
-        metricStatus.textContent = "Selection canceled.";
-      });
-
-      function getDropTarget(event) {
-        const row = document.elementFromPoint(event.clientX, event.clientY)?.closest(".ds-metric-row");
-        return row && row.dataset.metricSlot !== metricDrag.slot ? row : null;
-      }
-
-      function cancelMetricDrag() {
-        if (!metricDrag) return;
-        if (metricDrag.moved) {
-          suppressMetricClick = true;
-          pickMetric(null);
-          highlightDrop(null);
-        }
-        metricDrag = null;
-      }
-
-      metricSettings.addEventListener("pointerdown", (event) => {
-        const handle = event.target.closest(".ds-metric-handle");
-        if (!handle || event.button !== 0 || !event.isPrimary) return;
-        suppressMetricClick = false;
-        metricDrag = {
-          id: event.pointerId,
-          slot: handle.closest(".ds-metric-row").dataset.metricSlot,
-          x: event.clientX,
-          y: event.clientY,
-          moved: false,
-        };
-        handle.setPointerCapture(event.pointerId);
-      });
-      metricSettings.addEventListener("pointermove", (event) => {
-        if (metricDrag?.id !== event.pointerId) return;
-        if (!metricDrag.moved) {
-          if (Math.hypot(event.clientX - metricDrag.x, event.clientY - metricDrag.y) < 6) return;
-          metricDrag.moved = true;
-          pickMetric(metricDrag.slot);
-        }
-        highlightDrop(getDropTarget(event));
-      });
-      metricSettings.addEventListener("pointerup", (event) => {
-        if (metricDrag?.id !== event.pointerId) return;
-        const destination = metricDrag.moved && getDropTarget(event);
-        if (destination) swapMetrics(metricDrag.slot, destination.dataset.metricSlot);
-        cancelMetricDrag();
-      });
-      metricSettings.addEventListener("lostpointercapture", (event) => {
-        if (metricDrag?.id === event.pointerId) cancelMetricDrag();
+      metricSettings.addEventListener("input", (event) => {
+        if (!event.target.matches(".ds-metric-select")) return;
+        const source = event.target.closest(".ds-metric-row").dataset.metricSlot;
+        const destination = Object.entries(configuredMetricSlots(metricSlots))
+          .find(([,metric]) => metric === event.target.value)?.[0];
+        if (destination && destination !== source) swapMetrics(source,destination);
       });
       document.addEventListener("input", (event) => {
         if (event.target.form === configForm) updateDesignSystem();
@@ -1821,6 +1909,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         const historyWindow = get("history-window");
         const detailsWindow = get("details-window");
         const settingsWindow = get("settings-window");
+        const finishWindow = get("finish-window");
         const historyViews = [...historyWindow.querySelectorAll("[data-view]")];
         const sessionMenu = get("session-menu");
         const sessionMenuTrigger = sessionMenu.querySelector("summary");
@@ -1842,8 +1931,10 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         let paused = false;
         let unit = "h";
         let detailsSession = current;
+        let detailsTab = "income";
         let sessionToRename;
         let sessionToDelete;
+        let sessionToFinish;
         const selected = new Set();
         const sessions = [
           makeSession({ name: "Plaguelands quests", map: exampleMap, date: startDate.format(new Date(2026, 10, 23, 10, 15)), startLevel: 51, startXpPercent: 78, reputationFaction: "thorium-brotherhood", minutes: 45, xp: 31500, coins: 3, items: 8, expenses: 2,
@@ -1914,12 +2005,6 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
           return node;
         }
 
-        function metricCard(label, value, suffix) {
-          const card = element("div");
-          card.append(element("dt", label), display("sm", value, suffix, "dd"));
-          return card;
-        }
-
         function display(size, value, suffix, tag = "div") {
           const slot = element(tag);
           slot.className = "ds-display ds-display-" + size;
@@ -1955,7 +2040,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
 
         function renderLive() {
           const settings = sharedPanelSettings;
-          const { panelType, panelWidthPx, components, rate, speedometerLevel, estimateSource, reputationFaction } = settings;
+          const { panelType, panelWidthPx, components, rate, speedometerLevel, reputationFaction } = settings;
           unit = rate === "minute" ? "m" : "h";
           get("live-panel").dataset.panelType = panelType;
           get("live-panel").style.setProperty("--ds-width", panelWidthPx + "px");
@@ -1986,18 +2071,21 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
             drawSpeedometer(gauge,Math.round(settings.layout.gaugeWidth*settings.speedometerWidthPercent/100),maximum,(sampleRate(current,"xp")??0)/maximum);
             center.append(gauge);
           }
-          if (components.estimates && !(maxLevel && estimateSource === "xp")) {
+          function estimateFor(source) {
             let message = !current ? "Not started" : paused ? "Paused" : "Estimating…";
-            if (current && !paused && estimateSource === "rep" && reputationFaction === "none") message = factions.none.estimate;
+            if (current && !paused && source === "rep" && reputationFaction === "none") message = factions.none.estimate;
             else if (current?.minutes && !paused) {
-              if (estimateSource === "xp") message = "Level 53 in 1h 19m";
+              if (source === "xp") message = "Level 53 in 1h 19m";
               else if (current.reputationFaction === reputationFaction && reputationSummary(current).some(entry => entry.faction === reputationFaction && entry.minutes >= 1)) message = factions[reputationFaction].estimate;
             }
             const estimate = display("xs", message);
             estimate.classList.add("ds-estimates");
-            center.append(estimate);
+            if (source === "xp") estimate.classList.add("ds-estimates-xp");
+            return estimate;
           }
+          if (components.experienceEstimates && !maxLevel) center.append(estimateFor("xp"));
           center.append(instrument(primary,"lg",settings));
+          if (components.reputationEstimates) center.append(estimateFor("rep"));
           right.replaceChildren(...(right.hidden ? [] : tertiaries.map((key) => instrument(key, "sm", settings))));
           fitTracker(get("live-panel"),settings,Object.values(visibleMetricSlots(settings.metricSlots,reputationFaction)));
         }
@@ -2007,9 +2095,41 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
           get("selection").textContent = selected.size === 2 ? "2 sessions selected." : "Select two sessions to compare.";
         }
 
+        function moneyText(gold) {
+          const copper=Math.round(Math.abs(gold)*10000);
+          return (gold<0?"−":"")+Math.floor(copper/10000)+"g "+Math.floor(copper/100)%100+"s "+copper%100+"c";
+        }
+
+        function moneyCoins(gold,largestOnly=false) {
+          const copper=Math.round(Math.abs(gold)*10000),result=element("span");
+          result.setAttribute("aria-label",moneyText(gold));
+          if (gold<0) result.append("- ");
+          const parts=[[Math.floor(copper/10000),"gold"],[Math.floor(copper/100)%100,"silver"],[copper%100,"copper"]];
+          for (const [amount,type] of parts) {
+            if (!amount && (type!=="copper" || copper!==0)) continue;
+            const coin=element("span"); coin.className="ds-coin ds-coin-"+type; coin.setAttribute("aria-hidden","true");
+            result.append(String(amount),coin);
+            if (largestOnly) break;
+          }
+          return result;
+        }
+
+        function compactDetails(value,decimals) {
+          const magnitude=Math.abs(value),scale=magnitude>=1e6?1e6:magnitude>=1e3?1e3:1;
+          return number.format(Math.sign(value)*Math.floor(magnitude/scale*10**decimals)/10**decimals)+(scale===1e6?"M":scale===1e3?"k":"");
+        }
+
+        function measuredDuration(minutes) {
+          const seconds=Math.floor(minutes*60),hours=Math.floor(seconds/3600),mins=Math.floor(seconds/60)%60;
+          return (hours?hours+"h ":"")+(hours||mins?mins+"m ":"")+seconds%60+"s";
+        }
+
         function renderHistory() {
           get("history-rows").replaceChildren(...sessions.map((session) => {
-            const row = dataRow([undefined, undefined, session.minutes + " min", total(session, "gold")], [2, 3]);
+            const row = dataRow([undefined, undefined, formatDuration(session.minutes), moneyText(session.gold),undefined], [2, 3]);
+            row.cells[2].classList.add("ds-list-number"); row.cells[3].classList.add("ds-list-number");
+            row.cells[3].replaceChildren(moneyCoins(session.gold,true));
+            if (session.gold<0) row.cells[3].classList.add("ds-expense");
             const check = element("input");
             check.type = "checkbox";
             check.className = "row-select";
@@ -2025,16 +2145,20 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
               else selected.delete(session);
               renderSelection();
             });
-            const link = element("button", sessionTitle(session));
+            const name = element("span",session.name);
+            name.className="ds-session-name";
+            const link = element("button");
             link.type = "button";
-            link.className = "item-link";
+            link.className = "ds-session-open";
+            const icon=element("span","👁"); icon.className="ds-session-icon"; icon.setAttribute("aria-hidden","true");
+            link.append(icon,name);
+            link.dataset.texture="INV_Misc_Note_06";
+            link.setAttribute("aria-label","Session Details: "+session.name);
             link.setAttribute("aria-haspopup", "dialog");
             link.addEventListener("click", () => openDetails(session, link));
-            const date = element("div", sessionContext(session));
-            date.className = "sample";
             const rename = element("button", "Rename");
             rename.type = "button";
-            rename.className = "item-link ds-rename-link";
+            rename.className = "ds-row-action ds-rename-link";
             rename.setAttribute("aria-label", "Rename " + session.name);
             rename.addEventListener("click", () => {
               sessionToRename = session;
@@ -2042,9 +2166,10 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
               get("rename-name").value = session.name;
               showHistory("rename");
             });
-            const remove = element("button", "Delete");
+            const remove = element("button", "×");
             remove.type = "button";
-            remove.className = "item-link ds-rename-link ds-delete-link";
+            remove.className = "ds-row-action ds-delete-session";
+            remove.title="Delete session";
             remove.setAttribute("aria-label", "Delete " + session.name);
             remove.addEventListener("click", () => {
               sessionToDelete = session;
@@ -2052,15 +2177,16 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
               showHistory("delete");
             });
             const actions = element("div");
-            actions.className = "ds-session-links";
+            actions.className = "ds-list-actions";
             actions.append(rename, remove);
             row.cells[0].append(check);
-            row.cells[1].append(link, date, actions);
+            row.cells[1].append(link);
+            row.cells[4].append(actions);
             return row;
           }));
           if (!sessions.length) {
             const row = dataRow(["No saved sessions."]);
-            row.cells[0].colSpan = 4;
+            row.cells[0].colSpan = 5;
             get("history-rows").append(row);
           }
           renderSelection();
@@ -2074,63 +2200,115 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
             .map((session) => dataRow([session.name, session.minutes + " min", rate(session, "xp"), rate(session, "gold")], [1, 2, 3])));
         }
 
-        function renderDetails() {
-          const session = detailsSession;
-          get("details-name").textContent = sessionTitle(session);
-          get("details-context").textContent = sessionContext(session) + " · " + session.minutes + " min";
-          get("detail-groups").replaceChildren(...["xp", "honor"].map((key) => {
-            const metric = metrics[key];
-            const group = element("section");
-            group.className = "ds-detail-group";
-            const heading = element("h4", metric.label);
-            const readouts = element("dl");
-            readouts.className = "metrics";
-            const measuredRate = sampleRate(session, key);
-            readouts.append(
-              metricCard("Total", number.format(session[key]), metric.unit),
-              metricCard("Rate", measuredRate === null ? "—" : number.format(measuredRate), measuredRate === null ? "" : metric.unit + "/" + unit));
-            group.append(heading, readouts);
-            return group;
-          }));
-          const summaries = reputationSummary(session);
-          const isCurrent = session === current;
-          const untrackedMinutes = session.minutes - summaries.reduce((sum, entry) => sum + entry.minutes, 0);
-          const status = !isCurrent ? "Saved session."
-            : paused ? "Session paused."
-            : session.reputationFaction === "none" ? "No faction currently tracked."
-            : "Currently tracking " + factions[session.reputationFaction].label + ".";
-          get("reputation-context").textContent = status + " Time without a tracked faction: " + untrackedMinutes + " min.";
-          get("reputation-rows").replaceChildren(...summaries.map((entry) => {
-            const measuredRate = entry.minutes ? number.format(entry.total * factor() / entry.minutes) + " rep/" + unit : "—";
-            const active = isCurrent && session.reputationFaction === entry.faction;
-            const state = !isCurrent ? "Saved" : active ? (paused ? "Paused" : "Tracking") : "Previously tracked";
-            return dataRow([factions[entry.faction].label, entry.minutes + " min", number.format(entry.total) + " rep", measuredRate, state], [1, 2, 3]);
-          }));
-          if (!summaries.length) {
-            const row = dataRow(["No faction tracked in this session."]);
-            row.cells[0].colSpan = 5;
-            get("reputation-rows").append(row);
-          }
-          get("reputation-segments").hidden = session.reputationSegments.length < 2;
-          get("reputation-segment-rows").replaceChildren(...session.reputationSegments.map((segment) =>
-            dataRow([factions[segment.faction].label,
-              segment.startMinute + "–" + (segment.startMinute + segment.minutes) + " min",
-              number.format(segment.total) + " rep"], [1, 2])));
-          const goldRate = sampleRate(session, "gold");
-          get("detail-metrics").replaceChildren(
-            metricCard("Coins", number.format(session.coins), "g"),
-            metricCard("Estimated items", number.format(session.items), "g"),
-            metricCard("Expenses", number.format(-session.expenses || 0), "g"),
-            metricCard("Estimated net", number.format(session.gold), "g"),
-            metricCard("Rate", goldRate === null ? "—" : number.format(goldRate), goldRate === null ? "" : "g/" + unit));
-          get("detail-events").hidden = session.minutes === 0;
-          get("detail-note").hidden = session.minutes > 0;
-          get("event-rows").replaceChildren(...(session.minutes ? [
-            dataRow(["28:12", "Quest reward", "Coins", "+" + number.format(session.coins) + " g"], [3]),
-            dataRow(["18:45", "Repair", "Recorded cost", "−" + number.format(session.expenses) + " g"], [3]),
-            dataRow(["08:21", "Herbs gathered", "TSM", "+" + number.format(session.items) + " g"], [3]),
-          ] : []));
+        function goldEventRow(time,name,gold,direction,source,quality,count=1) {
+          const row=dataRow([time,undefined,number.format(count),moneyText(Math.abs(gold))],[2,3]);
+          row.cells[3].replaceChildren(moneyCoins(Math.abs(gold)));
+          row.cells[2].classList.add("ds-list-number"); row.cells[3].classList.add("ds-list-number");
+          const reading=element("span"); reading.className="ds-event-reading";
+          if (direction<0) row.cells[3].classList.add("ds-expense");
+          const icon=element("span","▣"); icon.className="ds-event-icon"; icon.title=source;
+          const label=element("span",name); if (quality) label.className=quality;
+          reading.append(icon,label); row.cells[1].append(reading);
+          return row;
         }
+
+        function renderProperties(target,fields) {
+          target.replaceChildren(...fields.map(field=>{
+            const pair=element("div"); pair.className="ds-property";
+            if (field.wide) pair.classList.add("ds-property-wide");
+            const key=element("dt",field.key),value=element("dd",String(field.value??"—"));
+            if (field.id) value.id="demo-"+field.id;
+            if (field.tone) value.className="ds-value-"+field.tone;
+            if (field.content) value.replaceChildren(field.content);
+            if (field.tooltip) pair.title=field.tooltip;
+            pair.append(key,value); return pair;
+          }));
+        }
+
+        function renderDetails() {
+          const session=detailsSession,isCurrent=session===current;
+          get("detail-finish").hidden=!isCurrent;
+          get("details-name").textContent=session.name;
+          get("details-name").className="ds-session-title";
+          get("details-name").dataset.running=String(isCurrent&&!paused);
+          const metricFields=[];
+          for (const key of ["xp","honor","gold"]) {
+            if (key==="xp" && (session.startLevel>=60 || session.startXpPercent===null)) continue;
+            const measuredRate=sampleRate(session,key),label=metrics[key].label;
+            const tooltip="Rate: "+(measuredRate===null?"—":(key==="gold"?moneyText(measuredRate):number.format(measuredRate))+"/"+unit)+"\nTotal: "+(key==="gold"?moneyText(session.gold):number.format(session[key]));
+            metricFields.push({key:label+" / "+(unit==="h"?"Hour":"Minute"),value:measuredRate===null?"—":compactDetails(measuredRate,1),content:key==="gold"&&measuredRate!==null?moneyCoins(measuredRate):undefined,tooltip});
+            let content;
+            if (key==="gold") {
+              content=moneyCoins(session.gold);
+              content.append(" (inc - exp)");
+            }
+            metricFields.push({key:"Total "+label,value:compactDetails(session[key],0),content,tooltip});
+          }
+          renderProperties(get("session-properties"),[
+            {key:"Character",value:"Current character"},
+            {key:"Level",value:(session.startLevel||"Unavailable")+" ("+(session.startXpPercent===null?"Max level":session.startXpPercent+"% xp")+")"},
+            {key:"Started",value:session.date},
+            {key:"Duration",value:measuredDuration(session.minutes)},
+            ...metricFields,
+            {key:"Visited areas",value:(session.zones?.length?session.zones.join(" • "):session.map),wide:true},
+          ]);
+          selectDetailsTab(detailsTab,false);
+          const summaries=reputationSummary(session).sort((a,b)=>factions[a.faction].label.localeCompare(factions[b.faction].label));
+          const untrackedMinutes=Math.max(0,session.minutes-summaries.reduce((sum,entry)=>sum+entry.minutes,0));
+          const factionRows=summaries.map(entry=>{
+            const measuredRate=entry.minutes?number.format(entry.total*factor()/entry.minutes)+"/"+unit:"—";
+            const active=isCurrent&&session.reputationFaction===entry.faction;
+            const row=dataRow([factions[entry.faction].label,measuredDuration(entry.minutes),measuredRate,number.format(entry.total)],[1,2,3]);
+            row.title="Rate uses only the time tracked for this faction.";
+            if (active) {row.cells[0].className="ds-session-title";row.cells[0].dataset.running=String(!paused);}
+            return row;
+          });
+          if (untrackedMinutes>0 || !summaries.length) factionRows.push(dataRow(["No faction",measuredDuration(untrackedMinutes),"—","—"],[1,2,3]));
+          get("reputation-rows").replaceChildren(...factionRows);
+          const sampleIncome=session.minutes?[
+            {last:"10:42:30",name:"Dropped",value:session.coins*.6,count:Math.max(1,Math.round(session.minutes/5)),source:"Looted coins"},
+            {last:"10:43:12",name:"Reward",value:session.coins*.4,count:Math.max(1,Math.round(session.minutes/15)),source:"Quest rewards"},
+            {last:"10:23:21",name:"Uncommon item",value:session.items,count:Math.max(3,Math.round(session.minutes/15)*3),source:"TSM (DBMarket)",quality:"ds-item-uncommon"},
+          ]:[];
+          const sampleExpenses=session.minutes?[{last:"10:33:45",name:"Repair",value:session.expenses,
+            count:Math.max(1,Math.round(session.minutes/20)),source:"Recorded costs"}]:[];
+          for (const [items,table,note,target,direction] of [[sampleIncome,"detail-events","detail-note","event-rows",1],
+            [sampleExpenses,"detail-expenses","expense-note","expense-rows",-1]]) {
+            const visible=items.filter(entry=>entry.value!==0).sort((a,b)=>b.value-a.value||b.last.localeCompare(a.last)||a.name.localeCompare(b.name));
+            get(table).hidden=false;
+            const sum=get(direction>0?"income-sum":"expenses-sum");
+            sum.replaceChildren("Sum: ",moneyCoins(visible.reduce((total,entry)=>total+Math.abs(entry.value),0)));
+            sum.title="Sum of recorded values shown in this table.";
+            get(note).hidden=visible.length>0;
+            renderProperties(get(note),[{key:"Events",value:direction>0?"No income recorded":"No expenses recorded",wide:true}]);
+            get(target).replaceChildren(...visible.map(entry=>goldEventRow(entry.last,entry.name,entry.value,direction,entry.source,entry.quality,entry.count)));
+          }
+        }
+
+        function selectDetailsTab(key,resetScroll=true) {
+          detailsTab=key;
+          for (const button of get("details-tabs").querySelectorAll("[role=tab]")) {
+            const selected=button.dataset.detailTab===key;
+            button.setAttribute("aria-selected",String(selected));
+            button.tabIndex=selected?0:-1;
+            get("tabpanel-"+button.dataset.detailTab).hidden=!selected;
+          }
+          if (resetScroll) get("detail-tab-scroll").scrollTop=0;
+        }
+        get("details-tabs").addEventListener("click",event=>{
+          const button=event.target.closest("[role=tab]");
+          if (button && !button.hidden) selectDetailsTab(button.dataset.detailTab);
+        });
+        get("details-tabs").addEventListener("keydown",event=>{
+          const keys=["ArrowLeft","ArrowRight","Home","End"];
+          if (!keys.includes(event.key)) return;
+          const buttons=[...get("details-tabs").querySelectorAll("[role=tab]")].filter(button=>!button.hidden);
+          const index=buttons.indexOf(document.activeElement);
+          if (index<0) return;
+          event.preventDefault();
+          const next=event.key==="Home"?0:event.key==="End"?buttons.length-1:(index+(event.key==="ArrowRight"?1:-1)+buttons.length)%buttons.length;
+          selectDetailsTab(buttons[next].dataset.detailTab); buttons[next].focus();
+        });
 
         function setDetailsRename(open) {
           const form = get("detail-rename-form");
@@ -2174,7 +2352,15 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
           if (historyWindow.open) heading.focus({ preventScroll: true });
         }
 
+        function requestFinish(opener) {
+          if (!current) return;
+          sessionToFinish=current;
+          get("finish-name").textContent=current.name;
+          openWindow(finishWindow,opener);
+        }
+
         function openDetails(session, opener) {
+          if (detailsSession !== session) { detailsTab="income"; get("detail-tab-scroll").scrollTop=0; }
           detailsSession = session;
           setDetailsRename(false);
           renderDetails();
@@ -2186,7 +2372,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
           openWindow(settingsWindow, opener);
         }
 
-        for (const dialog of [historyWindow, detailsWindow, settingsWindow]) {
+        for (const dialog of [historyWindow, detailsWindow, settingsWindow, finishWindow]) {
           dialog.addEventListener("pointerdown", () => raiseWindow(dialog));
           dialog.addEventListener("focusin", () => raiseWindow(dialog));
           dialog.addEventListener("keydown", (event) => {
@@ -2195,6 +2381,7 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
             dialog.close();
           });
           dialog.addEventListener("close", () => {
+            if (dialog === finishWindow) sessionToFinish=null;
             if (dialog === settingsWindow && !dialog.open) settingsPreview.append(settingsPanel);
             const opener = windowOpeners.get(dialog);
             const target = opener?.getClientRects().length ? opener
@@ -2214,14 +2401,20 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         });
         get("history-close").addEventListener("click", () => historyWindow.close());
         get("detail-close").addEventListener("click", () => detailsWindow.close());
+        get("finish-close").addEventListener("click", () => finishWindow.close());
+        get("finish-cancel").addEventListener("click", () => finishWindow.close());
+        get("detail-finish").addEventListener("click", () => {
+          if (detailsSession===current) requestFinish(get("detail-finish"));
+        });
         get("primary-action").addEventListener("click", () => {
           if (current) {
             paused = !paused;
             get("announcement").textContent = paused ? "Session paused." : "Session resumed.";
           } else {
             const startedAt = new Date();
+            const startedText=startDate.format(startedAt).replace(/, (\d{2}:\d{2})$/," $1");
             current = makeSession({
-              name: "Session in " + exampleMap, map: exampleMap, startedAt, date: startDate.format(startedAt),
+              name: exampleMap+" - "+startedText, map: exampleMap, startedAt, date: startedText,
               startLevel: maxLevel ? 60 : 52, startXpPercent: maxLevel ? null : 42,
               reputationFaction: "none",
             });
@@ -2238,8 +2431,13 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
           if (detailsWindow.open && detailsSession === current) renderDetails();
           get("announcement").textContent = "Added 30 minutes of sample gameplay.";
         });
-        get("finish").addEventListener("click", () => {
-          sessions.unshift(current);
+        get("finish").addEventListener("click", () => requestFinish(sessionMenuTrigger));
+        get("finish-confirm").addEventListener("click", () => {
+          const target=sessionToFinish;
+          sessionToFinish=null;
+          finishWindow.close();
+          if (!target || current!==target) return;
+          sessions.unshift(target);
           current = null;
           paused = false;
           sessionMenu.open = false;
@@ -2321,7 +2519,6 @@ os fluxos que dependem da ordem real dos eventos e do salvamento do cliente.</li
         });
         get("max-level").addEventListener("change", (event) => {
           maxLevel = event.target.checked;
-          pickMetric(null);
           updateDesignSystem();
           get("announcement").textContent = maxLevel ? "Max level reached. Other metrics moved up."
             : "Experience returned to its preferred position.";

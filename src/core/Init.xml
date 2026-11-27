@@ -2,6 +2,8 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <Script file="Theme.lua" />
     <Script file="Components.lua" />
+    <Script file="Tabs.lua" />
+    <Script file="PanelWindows.lua" />
     <Script file="Speedometer.lua" />
     <Script file="SessionIndicator.lua" />
     <Script file="Form.lua" />
@@ -10,6 +12,12 @@
     <Script file="Capture.lua" />
     <Script file="Dashboard.lua" />
     <Script file="SettingsPanel.lua" />
+    <Script file="GoldGroups.lua" />
+    <Script file="SessionRows.lua" />
+    <Script file="DetailsView.lua" />
+    <Script file="ComparisonView.lua" />
+    <Script file="SessionList.lua" />
+    <Script file="DetailsPanel.lua" />
     <Script file="SessionPanels.lua" />
     <Script file="MinimapButton.lua" />
     <Script file="CommandLine.lua" />

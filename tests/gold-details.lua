@@ -7,7 +7,7 @@ return function(t,fresh)
     equal(panels.Details.TitleText:GetText(),"Session Details","one Details window covers all metrics")
     equal(panels.Details.ScrollBox.template,"WowScrollBoxList","Details uses native virtualized list")
     equal(panels.Details:GetScript("OnUpdate"),nil,"Details has no per-frame update")
-    local record=PerHour.Session:Finish(); t.tick(0)
+    local record=t.finish(); t.tick(0)
     equal(panels.CurrentDetails,false,"Finish converts open Details to the archived session")
     equal(panels.Details:IsShown(),true,"archived Details remains visible")
     equal(panels.Details.Notice:GetText():find("Finished ",1,true) ~= nil,true,"archived Details identifies its finished state")
@@ -15,8 +15,8 @@ return function(t,fresh)
     equal(saved.metrics.Gold.total,1,"copper remains in archived summary")
     PerHour.Stores.Settings:SetRate("minute"); panels:RefreshDetails()
     local found=false
-    for _,row in ipairs(panels.Details.Rows) do
-        if row.id=="Gold" then found=row.left:find("/m",1,true) ~= nil end
+    for _,row in ipairs(panels.Details.SessionRows) do
+        if row.id=="metric:Gold / Minute" then found=true end
     end
     equal(found,true,"Details follows shared /m unit")
     panels:ShowDelete(saved)

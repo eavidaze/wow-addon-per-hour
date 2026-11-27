@@ -20,14 +20,24 @@ function Store:Init()
     self.InvalidHistory = false
 end
 function Store:BindCharacter()
-    local name, realm = UnitName("player") or "Unknown", GetRealmName() or "Unknown"
+    -- Forever returns first name and surname, rather than a realm, from UnitName.
+    local name, surname = UnitName("player")
+    name = name or "Unknown"
+    local realm = GetRealmName() or "Unknown"
     local id = UnitGUID("player") or (realm .. ":" .. name)
     self.Character = id
     local entry = self.Account.characters[id]
     if type(entry) ~= "table" then entry = {}; self.Account.characters[id] = entry end
-    entry.name, entry.realm = name, realm
+    entry.name = type(surname) == "string" and surname ~= "" and name .. " " .. surname or name
+    entry.realm = realm
     if type(entry.sessions) ~= "table" then entry.sessions = {} end
     return id
+end
+function Store:CharacterLabel(owner)
+    if type(owner) ~= "table" then return "Current character" end
+    local name = tostring(owner.name)
+    local realm = type(owner.realm) == "string" and owner.realm:match("%S") and owner.realm
+    return realm and name .. " - " .. realm or name
 end
 function Store:IsRecord(record)
     if type(record) ~= "table" or type(record.id) ~= "string" or type(record.name) ~= "string"
@@ -87,7 +97,7 @@ function Store:GetCharacters()
     local result = {}
     for id, owner in pairs(self.Account.characters) do
         if type(owner) == "table" then
-            result[#result+1] = { value=id, label=tostring(owner.name) .. " - " .. tostring(owner.realm) }
+            result[#result+1] = { value=id, label=self:CharacterLabel(owner) }
         end
     end
     table.sort(result, function(a,b) return a.label < b.label end)

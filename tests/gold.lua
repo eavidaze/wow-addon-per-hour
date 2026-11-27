@@ -253,7 +253,7 @@ return function(test)
     gold = PerHour.Modules.Gold
     equal(gold.State.HasPaused, true, "manually paused Gold restores paused")
     equal(#gold.State.History, count, "paused restore retains journal")
-    PerHour.Session:Finish()
+    test.finish()
     equal(#gold.State.History, 0, "Reset clears journal and pending prices")
     equal(PerHourRevampSession.current, nil, "Reset clears saved Gold session")
     event("GET_ITEM_INFO_RECEIVED", 203, true)

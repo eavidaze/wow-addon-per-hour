@@ -87,10 +87,24 @@ These bounds do not remove current data necessary for FIFO or pending prices.
 Expired details never change the frozen totals.
 
 Session Details combines Gold with XP, honor and every tracked reputation faction.
-The Gold rows show coins, item estimates, expenses, net and rate. Event rows show
-local event time, source, item/quantity, signed copper value and quote origin.
-Native item and quest icons expose their standard tooltips; valuation parts remain
-inspectable. Rendering never calls market providers.
+The card shows estimated net total followed by (inc - exp), plus the rate, with
+numeric composition in its tooltip.
+Income and Expenses split the former Gold tab. Their rows group retained journal
+entries by item variant and direction, or non-item source (Dropped/Reward coins,
+repairs and transport). Last shows the latest occurrence; Count sums item units
+or counts non-item occurrences. Income is sorted by highest accumulated known
+value; Expenses by largest cost. Grouping sums recorded amounts and preserves
+pending/excluded flags, source quotes and quest identities. It does not alter
+the journal, FIFO, frozen summaries or prices, and requires no migration. Native
+item tooltips and single-quest tooltips remain available; multi-quest groups show
+their quest count. Rendering never calls market providers.
+
+Both grids pin Sum above the Total column and keep column headers fixed while
+only body rows scroll. Sum includes known retained values in that tab, so it may
+differ from the full session totals. An asterisk identifies unresolved/excluded
+prices or the latest-1,000-events limit; the tooltip explains why. Expired detail
+shows a dash rather than a fabricated zero. Item/source icons and quest markers
+remain; direction arrows are redundant with the Income/Expenses tabs and omitted.
 
 ## Validation
 

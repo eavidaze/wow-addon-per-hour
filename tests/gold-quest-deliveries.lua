@@ -43,16 +43,19 @@ return function(test)
 
     local details = PerHour.SessionPanels
     details:ShowCurrent()
-    details.Details.ScrollBox:ScrollToOffset(#details.Details.Rows * 64)
+    details.Details.Tabs.Buttons.Expenses:Click()
+    details.Details.ScrollBox:ScrollToOffset(details.Details.ScrollBox:GetDerivedScrollRange())
     local row
     details.Details.ScrollBox:ForEachFrame(function(candidate)
         if candidate.Data.event and candidate.Data.event.source == "quest_turnin" then row = candidate end
     end)
     assert(row, "delivery must appear in Session Details")
-    equal(row.Left:GetText(), "Item 801 x10", "Details shows delivered item and quantity")
+    row=row.Body
+    equal(row.Name:GetText(), "Item 801", "Details shows the delivered item name")
+    equal(row.Count:GetText(), "10", "Details shows delivered quantity in Count")
     equal(row.Quest:IsShown(), true, "delivery exposes the native quest marker")
-    equal(row.Right:GetText():find("-0g 2s 0c",1,true) ~= nil, true, "delivery preserves its negative copper value")
-    equal(table.concat(row.Right.textColor, ","), table.concat(PerHour.Theme.red.text, ","), "expense keeps outgoing DS color")
+    equal(row.Value:GetText(), "0g 2s 0c", "delivery shows the full copper value without a redundant sign")
+    equal(table.concat(row.Value.textColor, ","), table.concat(PerHour.Theme.red.text, ","), "expense keeps outgoing DS color")
     row.Icon.scripts.OnEnter(row.Icon)
     equal(GameTooltip.hyperlink, fixture.link(801), "item icon opens the native item tooltip")
     row.Quest.scripts.OnEnter(row.Quest)
@@ -156,7 +159,7 @@ return function(test)
         progress(3006, { { id = 801, quantity = 10 } })
         if boundary == "cancel" then event("QUEST_FINISHED"); tick(3); event("QUEST_ITEM_UPDATE")
         elseif boundary == "pause" then click(gold); click(gold)
-        elseif boundary == "reset" then PerHour.Session:Finish(); click(gold)
+        elseif boundary == "reset" then test.finish(); click(gold)
         elseif boundary == "world" then event("PLAYER_ENTERING_WORLD")
         elseif boundary == "external" then event("MAIL_SHOW"); event("MAIL_CLOSED") end
         event("QUEST_TURNED_IN", boundary == "wrong quest" and 9999 or 3006, 0, 0)

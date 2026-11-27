@@ -21,18 +21,18 @@ estimated net gold** in one dashboard.
 
 - **One session:** Start, Pause and Resume all metrics together. Finish freezes the result in History.
 - **Your layout:** Full, Extended or Focused; reorder metrics, choose /h or /m, and move or hide the dashboard.
-- **Milestones:** optional estimates for your next level or reputation standing, plus an XP gauge with ten scales.
+- **Milestones:** independently show estimates for your next level and reputation standing, plus an XP gauge with ten scales.
 - **Reputation by faction:** change the watched faction during a session. Each faction keeps its totals, tracked time and rates.
-- **Session Details:** review all metrics, Gold income and expenses, and item/quest tooltips with recorded price sources.
-- **History and Compare:** name your sessions, consult other characters and compare two saved results across all metrics.
+- **Session Details:** review all metrics, grouped Gold Income and Expenses with separate sums, and item/quest tooltips with recorded price sources.
+- **History and Compare:** name your sessions, consult other characters and compare hourly XP, Gold, honor and tracked factions across two saved results.
 - **Clear capture status:** unavailable, partial, pending and frozen incomplete values remain visible.
 
 #### Start tracking
 
 1. Left-click the minimap clock to show the dashboard and press **Start**.
 2. Right-click the clock, or type `/perhour`, for **Settings**.
-3. Use **Sessions > Details**, or click a readout, to review the current session.
-4. Choose **Sessions > Finish and Reset** to save the result. Open **History** to
+3. Use **Sessions > Current Session**, or click a readout, to review the current session.
+4. Choose **Finish Session** in Sessions or current Details, keep or edit the suggested title, and confirm to save the result. Open **History** to
    rename, delete or compare saved sessions.
 
 Use `/perhour xp`, `/perhour gold`, `/perhour honor` or `/perhour rep` to show the

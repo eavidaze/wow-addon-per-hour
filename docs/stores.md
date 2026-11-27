@@ -12,6 +12,13 @@ pre-revamp tracker sessions or settings.
 Only SettingsStore.lua and SessionStore.lua access these globals. Account history
 uses player GUIDs, with realm/name fallback, so same-named characters on different
 realms remain separate. History can inspect one character or all characters.
+On Forever, both values returned by UnitName("player") are name components:
+first name and surname. BindCharacter stores their space-separated full name in
+the existing name field; realm comes independently from GetRealmName(). GUIDs
+and the existing fallback keys are unchanged. Normal login/Start binding refreshes
+the current character's name; no migration scans or rewrites archived records.
+History and Details share the same label, omitting the realm separator when the
+client supplies an empty realm. See the [observed Forever API behavior](https://github.com/ATTWoWAddon/AllTheThings/issues/2630).
 
 ## Responsibilities
 
@@ -26,7 +33,7 @@ realms remain separate. History can inspect one character or all characters.
 | core/MetricFormat.lua | Shared full/compact amounts, rates, flags, dates and fixed-font ellipsis. |
 | core/Dashboard.lua | Focused/Extended/Full layout and session controls. |
 | core/SettingsPanel.lua | Native form fields, metric swapping and faction selector. |
-| core/SessionPanels.lua | Virtualized History, Details, comparison, Rename and Delete confirmation. |
+| core/SessionPanels.lua | History, Details and comparison coordination, Rename, Delete and Finish confirmation. |
 | core/Bootstrap.lua | Initialize stores, module state, capture frames and views once. |
 
 Modules keep capture state in State and the event frame in View.

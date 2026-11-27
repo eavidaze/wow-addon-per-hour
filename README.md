@@ -17,12 +17,12 @@ imported. The revamp starts with its own defaults and empty history.
 
 - Left-click the minimap clock to show/hide Per Hour; right-click opens Settings.
 - Start / Pause / Resume controls every metric together. Hidden panels keep capturing.
-- Sessions > Finish and Reset saves the result to History and waits for another Start.
-- Sessions > Details explains all metrics, reputation by faction and Gold events.
+- Finish Session in Sessions or current Details lets you edit the title, confirms saving to History and waits for another Start.
+- Sessions > Current Session opens metrics, reputation by faction and grouped Gold Income/Expenses.
 - History opens saved sessions, supports Rename and confirmed Delete, and compares two
   selected sessions with all metrics. Its character selector can show other characters.
 - Settings controls Focused / Extended / Full, metric order, /h or /m, duration,
-  estimates, XP speedometer and watched faction. Drag metric grips to swap or use selectors.
+  separate XP/reputation estimates, XP speedometer and watched faction. Use metric selectors or arrows to reorder.
 - Changing faction preserves earlier results. None stops only reputation capture.
 - Reload restores the verified state; normal logout returns to a paused session.
 - /perhour opens Settings; /perhour xp|gold|honor|rep shows the shared panel.

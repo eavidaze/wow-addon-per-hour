@@ -1,6 +1,6 @@
 local Session = { InWorld=false, Restored=false, CheckingPlayed=false, Sampling=false, LoginAt=GetTime() }
 PerHour.Session = Session
-local Store = PerHour.Stores.Sessions
+local Store,Format = PerHour.Stores.Sessions,PerHour.Format
 local function Now() return GetServerTime() end
 local function Map()
     local id = C_Map and C_Map.GetBestMapForUnit("player")
@@ -90,10 +90,11 @@ function Session:Start()
     Store.Data.sequence = (tonumber(Store.Data.sequence) or 0) + 1
     local map, mapID = Map()
     local level, maximum, xp = UnitLevel("player"), UnitXPMax("player"), UnitXP("player")
+    local startedAt = Now()
     self.Current = {
-        id=Store.Character .. ":" .. Now() .. ":" .. Store.Data.sequence,
-        name="Session in " .. map, map=map, mapID=mapID, zones={map},
-        startedAt=Now(), duration=0, paused=false,
+        id=Store.Character .. ":" .. startedAt .. ":" .. Store.Data.sequence,
+        name=map .. " - " .. Format:Date(startedAt), map=map, mapID=mapID, zones={map},
+        startedAt=startedAt, duration=0, paused=false,
         character=Store.Character, startLevel=Utils:IsFiniteNumber(level) and level or 0,
         startXpPercent=Utils:IsFiniteNumber(maximum) and maximum > 0 and Utils:IsFiniteNumber(xp) and xp >= 0 and xp <= maximum
             and math.floor(xp / maximum * 100) or nil,
@@ -189,8 +190,13 @@ function Session:Save()
     if self.PlayedAtLogin then checkpoint.playedAtSave = self.PlayedAtLogin + GetTime() - self.LoginAt end
     Store:SaveCurrent(checkpoint)
 end
-function Session:Finish()
+function Session:Finish(confirmedID)
     if not self.Current then return false end
+    if confirmedID == nil then
+        PerHour.SessionPanels:ShowFinish(self:GetSnapshot(false))
+        return false
+    end
+    if confirmedID ~= self.Current.id then return false end
     if self.CheckingPlayed then
         -- Finish never waits for a verification/price reply to archive preserved data.
         self.CheckingPlayed = false

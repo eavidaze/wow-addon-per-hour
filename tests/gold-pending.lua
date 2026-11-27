@@ -106,7 +106,7 @@ return function(test)
     saved = pendingSave(false)
     test.login(saved, 0, { autoReply = false })
     gold = PerHour.Modules.Gold
-    PerHour.Session:Finish()
+    test.finish()
     fixture.items[901].available = true
     event("TIME_PLAYED_MSG", test.playedTime(), 0)
     event("ITEM_DATA_LOAD_RESULT", 901, true)
@@ -184,7 +184,7 @@ return function(test)
 
     gold = fresh(true)
     confirm(gold, 5009, 10)
-    PerHour.Session:Finish()
+    test.finish()
     click(gold)
     fixture.bags = {}
     event("BAG_UPDATE_DELAYED")
