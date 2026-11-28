@@ -13,6 +13,17 @@ return function(t,fresh)
     local panels,view,renderers=PerHour.SessionPanels,PerHour.DetailsView,PerHour.SessionRows
     panels:ShowCurrent()
     local details=panels.Details
+    equal(details.TitleText:GetText(),"Session","the session window uses the shorter title")
+    local windowWidth,windowHeight,windowScale=details:GetWidth(),details:GetHeight(),details:GetScale()
+    local resized=0
+    details:HookScript("OnSizeChanged",function() resized=resized+1 end)
+    for _,key in ipairs({"Reputation","Expenses","Income","Reputation","Income"}) do
+        details.Tabs.Buttons[key]:Click()
+        equal(details:GetWidth(),windowWidth,"switching to "..key.." preserves the window width")
+        equal(details:GetHeight(),windowHeight,"switching to "..key.." preserves the window height")
+        equal(details:GetScale(),windowScale,"switching to "..key.." preserves the window scale")
+    end
+    equal(resized,0,"switching tabs never triggers a panel resize")
     local rows=details.Rows
     local sessionRows=details.SessionRows
     local function byID(data,id)

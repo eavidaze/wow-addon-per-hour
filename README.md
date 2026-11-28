@@ -17,7 +17,7 @@ imported. The revamp starts with its own defaults and empty history.
 
 - Left-click the minimap clock to show/hide Per Hour; right-click opens Settings.
 - Start / Pause / Resume controls every metric together. Hidden panels keep capturing.
-- Finish Session in Sessions or current Details lets you edit the title, confirms saving to History and waits for another Start.
+- Finish Session in Sessions or the current Session window lets you edit the title, confirms saving to History and waits for another Start.
 - Sessions > Current Session opens metrics, reputation by faction and grouped Gold Income/Expenses.
 - History opens saved sessions, supports Rename and confirmed Delete, and compares two
   selected sessions with all metrics. Its character selector can show other characters.
@@ -26,7 +26,7 @@ imported. The revamp starts with its own defaults and empty history.
 - Changing faction preserves earlier results. None stops only reputation capture.
 - Reload restores the verified state; normal logout returns to a paused session.
 - /perhour opens Settings; /perhour xp|gold|honor|rep shows the shared panel.
-- Details > Announce shares a live metric only after selecting a chat channel.
+- Session > Announce shares a live metric only after selecting a chat channel.
 
 History keeps 100 summaries per character and details of the latest 20 sessions,
 up to 1,000 consultable events each. Finish freezes unresolved Gold as incomplete.

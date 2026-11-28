@@ -23,7 +23,7 @@ estimated net gold** in one dashboard.
 - **Your layout:** Full, Extended or Focused; reorder metrics, choose /h or /m, and move or hide the dashboard.
 - **Milestones:** independently show estimates for your next level and reputation standing, plus an XP gauge with ten scales.
 - **Reputation by faction:** change the watched faction during a session. Each faction keeps its totals, tracked time and rates.
-- **Session Details:** review all metrics, grouped Gold Income and Expenses with separate sums, and item/quest tooltips with recorded price sources.
+- **Session:** review all metrics, grouped Gold Income and Expenses with separate sums, and item/quest tooltips with recorded price sources.
 - **History and Compare:** name your sessions, consult other characters and compare hourly XP, Gold, honor and tracked factions across two saved results.
 - **Clear capture status:** unavailable, partial, pending and frozen incomplete values remain visible.
 
@@ -32,7 +32,7 @@ estimated net gold** in one dashboard.
 1. Left-click the minimap clock to show the dashboard and press **Start**.
 2. Right-click the clock, or type `/perhour`, for **Settings**.
 3. Use **Sessions > Current Session**, or click a readout, to review the current session.
-4. Choose **Finish Session** in Sessions or current Details, keep or edit the suggested title, and confirm to save the result. Open **History** to
+4. Choose **Finish Session** in Sessions or the current Session window, keep or edit the suggested title, and confirm to save the result. Open **History** to
    rename, delete or compare saved sessions.
 
 Use `/perhour xp`, `/perhour gold`, `/perhour honor` or `/perhour rep` to show the
@@ -54,7 +54,7 @@ vendor-sale receipts are excluded. Gold is estimated farming value.
 Finish excludes unresolved Gold values and freezes the archived result. History
 retains **100 summaries per character**, details for the latest **20**, and up to
 **1,000 consultable Gold events** per session. These display limits do not truncate
-active accounting. Announce in live Details shares a selected metric to the chat
+active accounting. Announce in the current Session window shares a selected metric to the chat
 channel you choose.
 
 The revamp starts with fresh preferences and history; earlier tracker data is not
