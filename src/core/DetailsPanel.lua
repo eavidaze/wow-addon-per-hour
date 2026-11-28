@@ -40,9 +40,11 @@ function Components:UpdateDetailsPanel(panel,record,current,owner)
     end
     local inset=height+8+panel.Tabs:GetHeight()
     local metricRows=View:BuildMetricRows(record,current,panel.Tabs.SelectedKey)
-    local headers=self:GetSessionListHeaderHeight(metricRows)
-    -- Grow for wrapped metadata, retaining a useful tab viewport; PanelWindows fits the screen.
-    panel:SetHeight(math.max(600,panel.ContentInsets.top+panel.ContentInsets.bottom+inset+34+16+headers+240))
+    -- Reserve the largest tab header (Gold Sum + columns) for every tab.
+    -- Only changes to the summary card can affect window size, never tab selection.
+    local headers=Rows.Extents.goldSum+Rows.Extents.header
+    local height=math.max(600,panel.ContentInsets.top+panel.ContentInsets.bottom+inset+34+16+headers+240)
+    if panel:GetHeight() ~= height then panel:SetHeight(height) end
     self:LayoutSessionList(panel,{parent=panel.TabBox,left=8,top=8,right=-22,bottom=8,
         height=panel:GetHeight()-panel.ContentInsets.top-panel.ContentInsets.bottom-inset-34-16})
     self:SetSessionListRows(panel,metricRows,record.id..":"..panel.Tabs.SelectedKey)

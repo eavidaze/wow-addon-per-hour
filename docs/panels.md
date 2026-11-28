@@ -41,7 +41,7 @@ PanelWindows.lua owns placement and fitting, without per-frame polling or new se
 | Start / Pause / Resume | Control the shared session. |
 | Sessions > Finish Session, or current Details footer | Confirm, freeze and save result, then wait for Start. |
 | Sessions > History | Browse saved summaries. |
-| Sessions > Details, or click a readout | Open current Session Details. |
+| Sessions > Current Session, or click a readout | Open the current Session window. |
 | /perhour | Open Settings, including with an organizer-hidden minimap icon. |
 | /perhour xp, gold, honor, rep | Show the same dashboard without changing its order or session. |
 | /perhour help | Explain supported commands. |
@@ -208,7 +208,7 @@ Details texture is centered inside its 24 px slot, matching the half-scale item
 icons (the native ItemButton is 37 px). The 3 px divider
 and remaining 1 px sit below that band, avoiding a half-pixel center in 25 px content.
 
-Session Details pins one grouped card at the top. Its heading shows only the name
+The Session window pins one grouped card at the top. Its heading shows only the name
 beside Session and Rename. The name is green while running and gold when paused
 or finished; verification/review states also use gold rather than implying active
 capture. Refreshes reset the color when status or the displayed record changes.
@@ -289,7 +289,9 @@ Card fields span the width and wrap; the heading reserves space for Rename so
 long names cannot overlap the action. Fields start at 24 px, table rows at 28 px
 and the heading uses 32 px. Native font metrics determine taller
 rows for wrapped text. The card stays outside the ScrollBox; its frame pool grows with wrapped
-fields. The window grows when necessary to retain at least 240 px of tab content,
+fields. Window sizing always reserves the largest tab header (Gold Sum plus
+columns), so switching Income/Expenses/Reputation never resizes or rescales the
+panel. Wrapped summary metadata can grow the window to retain at least 240 px of tab content,
 then follows the standard screen fitting. Key/value fields
 have no separators; only grids and lists use the copper row divider.
 Frozen unresolved quotes are labeled Excluded prices, not Pending prices.

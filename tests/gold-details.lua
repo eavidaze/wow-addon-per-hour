@@ -4,7 +4,7 @@ return function(t,fresh)
     t.event("CHAT_MSG_MONEY","You loot 1 Copper")
     PerHour.SessionPanels:ShowCurrent()
     local panels=PerHour.SessionPanels
-    equal(panels.Details.TitleText:GetText(),"Session Details","one Details window covers all metrics")
+    equal(panels.Details.TitleText:GetText(),"Session","one Session window covers all metrics")
     equal(panels.Details.ScrollBox.template,"WowScrollBoxList","Details uses native virtualized list")
     equal(panels.Details:GetScript("OnUpdate"),nil,"Details has no per-frame update")
     local record=t.finish(); t.tick(0)

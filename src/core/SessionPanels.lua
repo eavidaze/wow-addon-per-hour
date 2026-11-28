@@ -166,7 +166,7 @@ function Panels:ShowDetails(record,current)
     if not self:Exists(record,current) then return end
     self.Record,self.CurrentDetails,self.DetailID=record,current,record.id
     if not self.Details then
-        self.Details=self:CreateWindow("PerHourSessionDetails","Session Details",{context=false})
+        self.Details=self:CreateWindow("PerHourSessionDetails","Session",{context=false})
         Components:SetupDetailsPanel(self.Details,self)
         self.Details:RegisterEvent("GET_ITEM_INFO_RECEIVED")
         self.Details:RegisterEvent("ITEM_DATA_LOAD_RESULT")
