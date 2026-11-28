@@ -89,7 +89,7 @@ end
 
 local function Refresh()
     BaseModule:UpdateRates(Module)
-    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
+    if PerHour.SessionPanels then PerHour.SessionPanels:Invalidate() end
 end
 
 local function ResolveEntry(entry)
@@ -112,7 +112,10 @@ end
 
 local function Record(source, amount, itemLink, quantity, direction, questID)
     local state = Module.State
+    local current = PerHour.Session.Current
+    current.eventSequence = (current.eventSequence or 0) + 1
     local entry = {
+        id = current.id .. ":" .. current.eventSequence,
         elapsed = state.Time + math.max(0, GetTime() - state.UpdatedAt),
         timestamp = GetServerTime(),
         source = source, amount = amount, direction = direction or (amount < 0 and -1 or 1),
@@ -207,7 +210,7 @@ local function AssociateQuestItem(receipt)
     if matches == 1 then
         local entry = receipt.entry or match.entry
         entry.questID = receipt.questID or match.questID
-        if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
+        if PerHour.SessionPanels then PerHour.SessionPanels:Invalidate() end
         for index, candidate in ipairs(pending) do
             if candidate == match then table.remove(pending, index); break end
         end
@@ -391,10 +394,10 @@ Module.CustomReset = function()
     Module.State.ExternalContexts, Module.State.IgnorePushedUntil = {}, 0
     Module.State.QuestItems = {}
     Module.State.QuestDelivery, Module.State.QuestDeliveries, Module.State.QuestDeliveryCounts = nil, {}, {}
-    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
+    if PerHour.SessionPanels then PerHour.SessionPanels:Invalidate() end
 end
 
-Module.CustomShowDetails = function() PerHour.GoldDetailsPanel:Show() end
+Module.CustomShowDetails = function() PerHour.SessionPanels:ShowCurrent() end
 
 Module.CustomStart = ResetRuntime
 local function ResumeRuntime()
@@ -480,7 +483,7 @@ Module.CustomRestoreSession = function(context)
         end
     end
     -- Cache settlement and new requests start only after session verification.
-    if PerHour.GoldDetailsPanel then PerHour.GoldDetailsPanel:Invalidate() end
+    if PerHour.SessionPanels then PerHour.SessionPanels:Invalidate() end
     return true
 end
 

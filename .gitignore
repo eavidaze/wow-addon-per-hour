@@ -1,6 +1,9 @@
 # Compiled Lua sources
 luac.out
 
+# Optional local Lua 5.1 development runtime; never part of the addon.
+dist/runtime/
+
 # luarocks build files
 *.src.rock
 *.zip

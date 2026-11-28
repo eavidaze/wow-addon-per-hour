@@ -1,23 +1,16 @@
-local Module = {
-    Name = "Reputation",
-    TagName = "reputation",
-    ShortName = "Rep",
-    RegisteredEvents = { "UPDATE_FACTION" },
-}
+local Module = { Name="Reputation", TagName="reputation", ShortName="rep", RegisteredEvents={"UPDATE_FACTION"} }
 PerHour.Modules.Reputation = Module
-
-local MISSING_FACTION_GRACE_SECONDS = 10
-
+local STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+function Module:HasTrackedFaction()
+    local data = C_Reputation.GetWatchedFactionData()
+    return data ~= nil and Utils:IsFiniteNumber(data.factionID) and data.factionID > 0
+end
 local function GetWatchedFaction()
     local data = C_Reputation.GetWatchedFactionData()
     if data and not (issecretvalue and (issecretvalue(data.name) or issecretvalue(data.factionID)))
-        and Utils:IsReadableNumber(data.currentStanding) then
-        return data
-    end
+        and Utils:IsFiniteNumber(data.currentStanding) and Utils:IsFiniteNumber(data.factionID) then return data end
+    return nil, data ~= nil
 end
-
-local STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
-
 Module.CustomGetEstimateGoal = function()
     local data = GetWatchedFaction()
     if not data or not Utils:IsFiniteNumber(data.factionID) or data.factionID <= 0
@@ -41,7 +34,6 @@ Module.CustomGetEstimateGoal = function()
     return STANDINGS[reaction + 1], data.nextReactionThreshold - data.currentStanding
 end
 
--- Expand only while reading so collapsed and inactive groups remain selectable.
 function Module:GetTrackableFactions()
     local options, seen, expanded = {}, {}, {}
     local index = 1
@@ -67,84 +59,94 @@ function Module:GetTrackableFactions()
     return options
 end
 
+
 Module.CustomReset = function()
-    Module.State.LastReputationName = ""
-    Module.State.LastFactionID = nil
-    Module.State.LastReputationValue = nil
-    Module.State.MissingFactionTime = 0
+    local state = Module.State
+    state.Factions, state.Segments = {}, {}
+    state.LastFactionID, state.LastReputationValue, state.CurrentSegment = nil, nil, nil
+    state.LastReputationName, state.FactionTime, state.Available = "", 0, false
 end
-
-local function Snapshot(data)
-    Module.State.LastReputationName = data.name
-    Module.State.LastFactionID = data.factionID
-    Module.State.LastReputationValue = data.currentStanding
-    Module.State.MissingFactionTime = 0
-end
-
-Module.CustomGetContext = function()
-    return Module.State.LastReputationName ~= "" and Module.State.LastReputationName or "No active session"
-end
-
-Module.CustomSaveSession = function()
-    return { factionID = Module.State.LastFactionID, name = Module.State.LastReputationName }
-end
-
-Module.CustomRestoreSession = function(context)
-    if type(context) ~= "table" or type(context.factionID) ~= "number" or type(context.name) ~= "string" then
-        return false
-    end
-    Module.State.LastFactionID = context.factionID
-    Module.State.LastReputationName = context.name
-end
-
-Module.CustomStart = function()
-    local data = GetWatchedFaction()
-    if not data then
-        Utils:AddonMessage("Select a watched reputation before starting the tracker.")
-        return false
-    end
-    Snapshot(data)
-    return true
-end
-
-Module.CustomOnUpdate = function(self, elapsed)
-    local data = GetWatchedFaction()
-    if not data then
-        -- The watched faction can temporarily disappear during a loading screen.
-        Module.State.MissingFactionTime = Module.State.MissingFactionTime + elapsed
-        if Module.State.MissingFactionTime >= MISSING_FACTION_GRACE_SECONDS then
-            Utils:AddonMessage("Select a watched reputation before starting the tracker.")
-            BaseModule:ResetModule(Module)
+local function SetFaction(data)
+    local state = Module.State
+    local id = data and data.factionID
+    if id ~= state.LastFactionID then
+        state.LastFactionID, state.CurrentSegment = id, nil
+        if id then
+            state.Factions[id] = state.Factions[id] or { id=id, name=data.name, total=0, duration=0 }
+            local segment = { id=id, name=data.name, start=PerHour.Session.Current.duration, duration=0, total=0 }
+            state.Segments[#state.Segments+1] = segment
+            state.CurrentSegment = segment
         end
-        return
+        state.LastReputationValue = nil
     end
-
-    if Module.State.LastFactionID and Module.State.LastFactionID ~= data.factionID then
-        Utils:AddonMessage("Watched reputation changed; reputation tracker reset.")
-        BaseModule:ResetModule(Module)
-        return
+    state.Available = data ~= nil
+    state.LastReputationName = data and data.name or ""
+    local summary = id and state.Factions[id]
+    state.Element, state.FactionTime = summary and summary.total or 0, summary and summary.duration or 0
+    state.Partial = summary and summary.partial == true or false
+    state.Time = state.FactionTime
+end
+function Module:AccumulateTime(delta)
+    local state = self.State
+    local summary = state.LastFactionID and state.Factions[state.LastFactionID]
+    if summary and state.Available and state.HasStarted then
+        summary.duration = summary.duration + delta
+        if state.CurrentSegment then state.CurrentSegment.duration = state.CurrentSegment.duration + delta end
+        state.FactionTime = summary.duration
     end
-
-    if Module.State.LastReputationValue ~= nil and not Module.State.HasPaused then
-        Module.State.Element = Module.State.Element + data.currentStanding - Module.State.LastReputationValue
-    end
-    Snapshot(data)
+end
+Module.CustomStart = function()
+    local data,unavailable = GetWatchedFaction()
+    if unavailable then Module.State.LastReputationValue=nil; return false end
+    SetFaction(data)
+    Module.State.LastReputationValue = data and data.currentStanding
     return true
 end
-
-Module.CustomOnEvent = function(self, event)
-    if event ~= "UPDATE_FACTION" then return end
-    Module.CustomOnUpdate(self, 0)
-end
-
-Module.CustomStartedMessage = function()
-    return " ["..Module.State.LastReputationName.."] monitoring started."
-end
-
-Module.CustomFormatAnnouncement = function(total, duration, perHour)
-    local message = string.format("%s rep/h - %s (%s rep total)", perHour, duration, total)
-    if Module.State.LastReputationName ~= "" then
-        message = message .. " - " .. Module.State.LastReputationName
+Module.CustomOnUpdate = function()
+    local state = Module.State
+    local data,unavailable = GetWatchedFaction()
+    if unavailable then state.LastReputationValue=nil; return false end
+    SetFaction(data)
+    if not data then return true end
+    local summary = state.Factions[data.factionID]
+    if state.LastReputationValue and not state.HasPaused and not state.PendingRestore then
+        local gained = data.currentStanding - state.LastReputationValue
+        summary.total = summary.total + gained
+        if state.CurrentSegment then state.CurrentSegment.total = state.CurrentSegment.total + gained end
     end
-    return message
+    state.LastReputationValue = data.currentStanding
+    state.Element, state.FactionTime, state.Time = summary.total, summary.duration, summary.duration
+    return true
+end
+Module.CustomOnEvent = function(_, event)
+    if event == "UPDATE_FACTION" then return Module.CustomOnUpdate() end
+end
+Module.CustomSaveSession = function()
+    return { factions=Module.State.Factions, segments=Module.State.Segments, factionID=Module.State.LastFactionID }
+end
+Module.CustomRestoreSession = function(context)
+    if type(context) ~= "table" or type(context.factions) ~= "table" or type(context.segments) ~= "table" then return false end
+    for id, faction in pairs(context.factions) do
+        if not Utils:IsFiniteNumber(id) or id <= 0 or type(faction) ~= "table"
+            or type(faction.name) ~= "string" or not Utils:IsFiniteNumber(faction.total)
+            or not Utils:IsFiniteNumber(faction.duration) or faction.duration < 0 then return false end
+    end
+    for _, segment in ipairs(context.segments) do
+        if type(segment) ~= "table" or not context.factions[segment.id]
+            or not Utils:IsFiniteNumber(segment.start) or segment.start < 0
+            or not Utils:IsFiniteNumber(segment.duration) or segment.duration < 0
+            or not Utils:IsFiniteNumber(segment.total) then return false end
+    end
+    local state = Module.State
+    state.Factions, state.Segments, state.LastFactionID = context.factions, context.segments, context.factionID
+    local summary = state.LastFactionID and state.Factions[state.LastFactionID]
+    state.LastReputationName = summary and summary.name or ""
+    state.FactionTime = summary and summary.duration or 0
+    local last = state.Segments[#state.Segments]
+    state.CurrentSegment = last and last.id == state.LastFactionID and last or nil
+    return true
+end
+Module.CustomGetContext = function() return Module.State.LastReputationName ~= "" and Module.State.LastReputationName or "No tracked faction" end
+Module.CustomFormatAnnouncement = function(total,duration,perHour)
+    return string.format("%s rep/h - %s (%s rep total) - %s", perHour,duration,total,Module.State.LastReputationName)
 end

@@ -1,0 +1,121 @@
+return function(t,fresh)
+    fresh()
+    local equal,near=t.equal,t.near
+    local session,panels,store=PerHour.Session,PerHour.SessionPanels,PerHour.Stores.Sessions
+    equal(session:Finish(),false,"Finish is harmless without a current session")
+    equal(panels.FinishDialog,nil,"idle Finish does not open a confirmation")
+    session:Start(); t.tick(60); panels:ShowCurrent()
+    local details=panels.Details
+    local current=session.Current
+    equal(details.Actions.finish:GetText(),"Finish Session","Details exposes the shared Finish action")
+    equal(details.Actions.finish:IsShown(),true,"running Details shows Finish in the footer")
+    details.Actions.finish:Click()
+    local dialog=panels.FinishDialog
+    equal(dialog:IsShown(),true,"the footer opens a confirmation")
+    equal(dialog:GetFrameStrata(),"FULLSCREEN_DIALOG","Finish uses the same higher layer as Delete")
+    equal(dialog:IsToplevel(),true,"Finish retains native dialog stacking")
+    equal(panels.FinishTarget,current.id,"confirmation identifies the exact current session")
+    equal(session.Current,current,"opening confirmation does not finish the session")
+    equal(#store:GetHistory(),0,"opening confirmation does not archive anything")
+    local suggested=current.name
+    equal(panels.FinishNameInput:GetText(),suggested,"Finish prefills the existing area/date/time suggestion")
+    panels.FinishNameInput:SetText("Discard this draft")
+    t.tick(5)
+    equal(session.Current.duration,65,"a running session continues while confirmation is open")
+    dialog.Actions.cancel:Click()
+    equal(session.Current.paused,false,"Cancel preserves the running state")
+    equal(panels.FinishTarget,nil,"Cancel clears the pending confirmation")
+    equal(current.name,suggested,"Cancel discards the edited title")
+    details.Actions.finish:Click(); dialog.CloseButton:Click()
+    equal(session.Current,current,"closing the confirmation also preserves the session")
+    equal(panels.FinishTarget,nil,"the X clears the pending confirmation")
+    session:Rename("My route")
+    details.Actions.finish:Click()
+    equal(panels.FinishNameInput:GetText(),"My route","Finish preserves a title already chosen through Rename")
+    panels.FinishNameInput:SetText("Escape draft")
+    panels.FinishNameInput:GetScript("OnEscapePressed")()
+    equal(current.name,"My route","Escape discards the draft without renaming")
+    equal(panels.FinishTarget,nil,"Escape clears the pending confirmation")
+
+    session:Pause(); panels:RefreshDetails()
+    equal(details.Actions.finish:IsShown(),true,"paused Details also shows Finish")
+    local menu=PerHour.Dashboard.Frame.Actions.sessions
+    menu:SetMenuOpen(true)
+    local finish
+    for _,item in ipairs(menu.menuDescription.items) do if item.data == "Finish Session" then finish=item end end
+    assert(finish,"the Sessions menu must offer Finish Session")
+    finish.callback()
+    equal(panels.FinishDialog,dialog,"the menu and footer reuse one confirmation")
+    equal(dialog:IsShown(),true,"the menu also requires confirmation")
+    equal(#store:GetHistory(),0,"the menu never finishes immediately")
+    dialog.Actions.cancel:Click()
+    equal(session.Current.paused,true,"Cancel preserves the paused state")
+    menu:SetMenuOpen(false)
+
+    -- The public lifecycle method itself requires confirmation, covering every caller.
+    session:Finish()
+    equal(dialog:IsShown(),true,"a direct Finish request cannot bypass confirmation")
+    panels.FinishNameInput:SetText("   ")
+    dialog.Actions.finish:Click()
+    equal(session.Current,current,"an empty title cannot finish the session")
+    equal(current.name,"My route","invalid Finish input does not change the current title")
+    equal(dialog.Error:IsShown(),true,"invalid input displays an error in the dialog")
+    equal(#store:GetHistory(),0,"an invalid title cannot archive a session")
+    panels.FinishNameInput:SetText(string.rep("a",81))
+    panels.FinishNameInput:GetScript("OnEnterPressed")()
+    equal(session.Current,current,"Enter applies the same title length limit as Rename")
+    panels.FinishNameInput:SetText("  Evening dungeon run  ")
+    panels.FinishNameInput:GetScript("OnEnterPressed")(); t.tick(0)
+    equal(session.Current,nil,"confirming finishes the session")
+    equal(#store:GetHistory(),1,"confirmation archives exactly one result")
+    equal(store:GetHistory()[1].name,"Evening dungeon run","Finish saves the trimmed title to History")
+    equal(panels.CurrentDetails,false,"open current Details becomes archived Details")
+    equal(details.Actions.finish:IsShown(),false,"archived Details hides Finish")
+    near(select(4,details.Actions.announce:GetPoint()),(details.ActionBar:GetWidth()-details.Actions.announce:GetWidth())/2,
+        "the remaining footer action stays centered without a hidden-button gap")
+    dialog.Actions.finish:Click()
+    equal(#store:GetHistory(),1,"repeating an old confirmation cannot archive twice")
+
+    local archived=store:GetHistory()[1]
+    panels:ShowRename(archived,false)
+    equal(panels.NameInput:GetText(),archived.name,"Rename prefills the title saved by Finish")
+    panels.NameInput:SetText(" "); panels.RenameDialog.Actions.save:Click()
+    equal(panels.RenameDialog:IsShown(),true,"Rename also keeps invalid input open for correction")
+    equal(panels.RenameDialog.Error:IsShown(),true,"Rename shares the inline title validation")
+    equal(archived.name,"Evening dungeon run","invalid Rename preserves the saved title")
+    local limitName=string.rep("é",80)
+    panels.NameInput:SetText("  "..limitName.."  ")
+    panels.NameInput:GetScript("OnEnterPressed")()
+    equal(archived.name,limitName,"Rename shares whitespace trimming and the 80-character Unicode limit")
+    equal(panels.RenameDialog:IsShown(),false,"Enter saves a valid Rename")
+    session:Start(); local nextID=session.Current.id
+    panels:ShowDetails(archived,false)
+    equal(details.Actions.finish:IsShown(),false,"an archived view never offers to finish another live session")
+    details.Actions.finish:Click()
+    equal(dialog:IsShown(),false,"a stale archived footer callback cannot open Finish")
+    equal(session:Finish(current.id),false,"a stale confirmed ID cannot finish a new session")
+    equal(session.Current.id,nextID,"the new session survives an old confirmation")
+    panels:ShowCurrent()
+    equal(details.Actions.finish:IsShown(),true,"switching back to current Details restores Finish")
+    details.Actions.finish:Click()
+    local pending=panels.FinishTarget
+    t.finish()
+    equal(dialog:IsShown(),false,"a completed target closes its outstanding confirmation")
+    session:Start(); nextID=session.Current.id
+    dialog.Actions.finish:Click()
+    equal(session.Current.id,nextID,"a reused dialog cannot finish a replacement session")
+    equal(session:Finish(pending),false,"an old target remains invalid after another Start")
+
+    fresh(); session,panels=PerHour.Session,PerHour.SessionPanels
+    session:Start(); t.tick(10)
+    local checkpoint=t.copy(PerHourRevampSession)
+    t.reload(checkpoint,0,{autoReply=false})
+    session,panels=PerHour.Session,PerHour.SessionPanels
+    equal(session.CheckingPlayed,true,"the fixture is awaiting continuity verification")
+    session:Finish()
+    equal(session.CheckingPlayed,true,"requesting Finish does not bypass continuity before confirmation")
+    panels.FinishDialog.Actions.finish:Click()
+    equal(session.Current,nil,"a verified confirmation can finish during continuity checking")
+    equal(PerHour.Stores.Sessions:GetHistory()[1].metrics.Experience.partial,true,
+        "finishing during verification preserves the partial-data warning")
+end

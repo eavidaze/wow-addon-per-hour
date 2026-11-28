@@ -1,120 +1,76 @@
-# Persistent stores
+# Session architecture and persistent stores
 
-Only `src/stores/SettingsStore.lua` and `src/stores/SessionStore.lua` access
-SavedVariables directly. `per-hour.toc` retains legacy account preferences
-in `PerHourAccount_Settings`, character display and layout preferences in
-`PerHourCharacter_Settings` and character sessions in `PerHourCharacter_Values`.
+The revamp starts in new SavedVariables. It never imports or rewrites the
+pre-revamp tracker sessions or settings.
 
-`core/Bootstrap.lua` handles the addon's `ADDON_LOADED` once. It initializes both
-stores, binds module access, creates tracking panels and initializes the module
-menu and minimap position. Creating panels resets runtime state while preserving
-saved sessions. Panel positions and sessions restore on the first
-`PLAYER_ENTERING_WORLD`. Until then, showing panels does not adjust or save their
-positions using temporary loading-screen dimensions. All saved anchors are
-applied before collision resolution begins.
+| SavedVariable | Scope | Contents |
+| --- | --- | --- |
+| PerHourRevampSettings | Character | Version 1 display preferences, order, visibility, position, minimap angle. |
+| PerHourRevampSession | Character | Version 1 current checkpoint, sequence and recoverable invalid data. |
+| PerHourRevampHistory | Account | Version 1 character directory and independently retained archived sessions. |
 
-## Module runtime
+Only SettingsStore.lua and SessionStore.lua access these globals. Account history
+uses player GUIDs, with realm/name fallback, so same-named characters on different
+realms remain separate. History can inspect one character or all characters.
+On Forever, both values returned by UnitName("player") are name components:
+first name and surname. BindCharacter stores their space-separated full name in
+the existing name field; realm comes independently from GetRealmName(). GUIDs
+and the existing fallback keys are unchanged. Normal login/Start binding refreshes
+the current character's name; no migration scans or rewrites archived records.
+History and Details share the same label, omitting the realm separator when the
+client supplies an empty realm. See the [observed Forever API behavior](https://github.com/ATTWoWAddon/AllTheThings/issues/2630).
 
-Each module keeps its identity (`Name`, `TagName`, `ShortName`), registered events
-and custom hooks at the root. Bootstrap creates separate `State` and `View`
-tables for each module before building panels:
+## Responsibilities
 
-| Member | Responsibility |
+| File | Responsibility |
 | --- | --- |
-| `module.State` | Runtime totals, duration, rates, running/paused flags, restore status and module-specific progression baselines or faction context. |
-| `module.View` | Panel, rate text, buttons, indicators and the independent hidden tracker frame. |
-| `module.Settings` | Scoped access to the module's character visibility and layout preferences. |
-| `module.Store` | Scoped access to the module's saved character session. |
+| core/Session.lua | One clock, shared lifecycle, checkpoints, continuity verification, snapshots and finalization. |
+| core/Capture.lua | Per-module event frames and one running-session sampling timer. |
+| modules/*.lua | Interpret native XP, currency, faction and farming events; Gold owns session-local FIFO accounting. |
+| modules/BaseModule.lua | Common lifecycle status, estimates, rates and explicit announcements. |
+| pricing/*.lua | Quote selection and recorded valuation parts; independent of presentation. |
+| stores/*.lua | Validate/save preferences, checkpoints and bounded history. |
+| core/MetricFormat.lua | Shared full/compact amounts, rates, flags, dates and fixed-font ellipsis. |
+| core/Dashboard.lua | Focused/Extended/Full layout and session controls. |
+| core/SettingsPanel.lua | Native form fields, metric swapping and faction selector. |
+| core/SessionPanels.lua | History, Details and comparison coordination, Rename, Delete and Finish confirmation. |
+| core/Bootstrap.lua | Initialize stores, module state, capture frames and views once. |
 
-Tracking and session code read and update `State`; rendering reads it and updates
-controls in `View`. The tracker frame stays independent of panel visibility, so
-hiding a panel does not stop progress. No frames or controls belong in `State`.
+Modules keep capture state in State and the event frame in View.
+They do not own a session clock, independent session store or independent window.
+The session mirrors authoritative duration into each metric; Reputation uses the
+sum of its selected faction's measured intervals for its rate and estimate.
 
-`BaseModule:ResetModule` updates the existing state table and calls the module's
-custom reset for its progression baselines. It preserves the view and both table
-identities, so callbacks keep valid references. A user reset clears that module's
-saved session; the initial panel reset preserves sessions awaiting restoration.
+A checkpoint contains a summary record, full module capture contexts and a
+played-time reference. The full active Gold ledger is retained for FIFO and pending
+prices even when the visible journal is capped. Checkpoints are copied at explicit
+lifecycle/save boundaries; normal timer ticks do not deep-copy the ledger.
 
-Session saving explicitly selects totals, duration, pause/review flags and custom
-context from runtime state. Neither container is persisted directly, and the
-existing version 2 save layout is unchanged. Runtime values and controls are
-accessed through their respective containers; there are no root-level aliases.
+## Frozen records and retention
 
-## Settings
+Finish samples the boundary once, creates a detached summary and event snapshot,
+then resets capture state for the next Start. Late callbacks cannot modify the
+archived snapshot or resurrect deleted records. Unknown prices/confirmations are
+excluded and the Gold metric is marked incomplete/frozen.
 
-`PerHour.Stores.Settings` provides `GetMinimapAngle()` and
-`SetMinimapAngle(angle)`. Each module receives its own `module.Settings` handle
-with `Get(key)` and `Set(key, value)` for `isShown` and `position`. Positions are
-plain tables with `point`, `relativePoint`, `x` and `y`; setting a position to
-`nil` removes it. `GetRate()` and `SetRate(rate)` control one display unit for
-Experience, Gold, Honor and Reputation: `hour` (default) or `minute`. It is saved in
-`PerHourCharacter_Settings.rate`. Invalid saved rates recover the default.
+Each character retains 100 completed summaries, with event/segment details for
+the latest 20. At most 1,000 latest Gold events are consultable for one session.
+Removing details never recomputes totals. Summaries retain faction totals and
+tracked durations, Gold composition, start metadata, flags and context.
 
-`GetEstimatesEnabled()` and `SetEstimatesEnabled(boolean)` control the small
-estimate line below the XP and Reputation rates. The checkbox lives in General
-and writes `PerHourCharacter_Settings.showEstimates`. Only `true` enables it;
-missing or invalid values read as disabled without rewriting saved settings.
-There is no migration. The preference survives reloads and is independent
-between characters; tooltip estimates remain available with either value.
+Names are independent from IDs. Duplicate names are valid, Rename trims outer
+whitespace and accepts up to 80 UTF-8 characters, and renaming never changes
+retention order. Delete removes only the selected stored record after confirmation.
 
-`GetSpeedometerEnabled()` and `SetSpeedometerEnabled(boolean)` control the XP
-speedometer for the current character, disabled by default. Honor and Reputation
-keep their numeric displays. `GetSpeedometerLevel()` and `SetSpeedometerLevel(level)`
-control one integer level from 1 to 10 (default 5).
-`GetSpeedometerMaximum(rate)` derives the maximum for `hour` or `minute` from
-`PerHour.SpeedometerScales` in `src/model/SpeedometerScales.lua`; the two maxima
-are never saved independently. Level 5 represents 800/min or approximately 50k/h.
-The hourly values are rounded, and minute levels 7–9 use 1.1k, 1.3k and 1.4k.
-Only `enabled` and `level` are written to `PerHourCharacter_Settings.speedometer`.
-A missing or invalid level defaults to 5. Previous independent maxima are ignored;
-there is no migration. Changing characters restores their own unit, toggle and level.
+## Unreadable data
 
-Visibility, position and minimap angle are also per character. Session saving
-and resetting never modify character preferences.
+Record validation keeps invalid records out of rates and comparison. Unreadable
+current checkpoints are preserved in a recovery field. A malformed module context
+isolates that metric for the remainder of the session while preserving readable
+summary data; healthy modules can continue. It remains unavailable/partial and
+Gold finalizes as incomplete. The isolated state survives another checkpoint/reload.
+No migration or fabricated reconstruction is performed.
 
-Previous account layout preferences are no longer read. Characters without saved
-preferences start with hidden trackers, the default panel layout and the default
-minimap angle. A missing or invalid character display unit defaults to hourly;
-legacy account rates are ignored. A character that only had a legacy per-minute
-preference starts hourly and can choose per-minute again. Valid character
-preferences survive initialization and new modules cannot change the shared
-rate. Legacy account data remains untouched, and existing character sessions
-are preserved.
-
-Initialization preserves valid values, including `false` and zero, and repairs
-malformed data using defaults. Invalid positions are discarded so panels use
-their default layout. Setters reject invalid values. Position reads and writes
-copy tables, so callers cannot mutate stored positions indirectly.
-
-Forms keep their generic `value` and `onChanged` interface. The settings panel
-connects module visibility and the shared display unit to the stores and applies each
-change immediately. It refreshes silently when opened and when visibility changes
-elsewhere. Rate selection changes all panels' numeric values and units, and the XP gauge scale, without
-altering session totals, duration, running state or the calculated rates. The
-minimap remains draggable and its position is saved, with no angle form control.
-
-## Sessions
-
-Each module receives `module.Store:ReadSession()` and `ClearSession()`.
-`ReadSession()` returns a detached snapshot, or `nil, true` for malformed data
-so the session coordinator can report an error. The common store validates
-totals, duration and flags; the module validates its own context, such as a
-reputation faction. A module's handle only accesses that module's saved entry.
-Gold's context stores its versioned event journal, including pending item prices;
-Gold validates its entries and their sum against the restored total. See
-[Gold tracking](gold-tracking.md) for the journal contract and retention rules.
-
-`PerHour.Session` captures progress and owns continuity checks, pause/resume and
-restoration. It calls `PerHour.Stores.Sessions:SaveAll(snapshots, playedAtSave)`
-to commit all module snapshots with one shared played-time reference. Module
-handles have no independent save operation. Saving copies snapshots and context;
-clearing a session preserves other sessions and both account and character preferences.
-
-Version 1 sessions remain readable; the next batch save uses version 2. Unknown
-versions start empty, matching the existing compatibility policy. Stores update
-SavedVariables in memory; the client writes them to disk during normal exit or
-UI reload.
-
-Run `lua tests/forever.lua` with Lua 5.1 for store contracts and integration
-coverage. Simulations do not replace validation of reload, normal logout and
-panel behavior in WoW Forever.
+Run lua tests/forever.lua with Lua 5.1. The fixture loads the real TOC/XML,
+native component contracts and embedded libraries; it does not validate drawing
+or native event delivery inside the game.

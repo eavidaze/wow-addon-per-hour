@@ -1,425 +1,405 @@
-# Shared panels
+# Revamp interface and in-game test checklist
 
-`PerHour.Components:CreatePanel(parent, settings)` shares the tracking panels'
-border, background, typography and gold controls. Settings include `name`,
-`title`, `width`, optional `height`, `footerSize` (default 28),
-`onClose` and `draggable` (default false).
-The X calls `onClose(panel)` when supplied, then hides the panel.
-`titleSize` accepts `"small"` (`GameFontHighlight`, used by trackers) or
-`"default"` (`GameFontNormalLarge`, the default). Titles are centered. Small
-headers span the row using the footer's side insets. Text is gold inside boxes
-and white when unboxed.
-Tracking panels show the X on hover, keep it visible over child controls and the
-protruding close button, and hide it immediately when the mouse leaves both. Settings
-panels keep the X visible. Neither behavior uses cursor polling or a fade callback.
-`Components:SetupCloseButtonHover(panel)` installs these hooks after tracker
-controls and tooltip scripts have been created. It hooks only regions that already
-accept mouse motion, preserving their click state. Decorative header, border and
-content frames remain passive so background hover and drag gestures reach the
-tracker panel. Hit checks use Forever's `region:IsMouseOver()` method.
-Set `titleBox = true` to surround either size with Forever's native
-[`DialogHeaderTemplate`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Shared/Dialog/DialogTemplates.xml),
-as used by the Game Menu. The box sits over the top border. Small boxes fill
-the row between the footer's side insets; default boxes fit the text and
-shrink to leave room for the panel corners and close button. Branding does
-not reduce the title box width. `panel.TitleText`
-remains available; boxed titles also expose `panel.TitleBox`.
-Small boxes use 24 px of text padding on each side; default boxes retain the
-native 32 px per side. Both preserve the native corner textures.
-Boxed panels leave 12 px between the bottom of the title box and the content.
-Set `contentSpacing` to a nonnegative number of pixels to configure this gap
-on the panel; it also sets the gap between content and footer buttons to that
-value + 2 px. Panel height follows both gaps when fields grow or shrink.
-Omitting it preserves the compact layout's existing spacing.
-The settings panel uses a boxed default title; trackers use boxed small titles.
-Tracker titles contain only the module name (Experience, Honor or Reputation).
-Their rate display is centered between the title box and footer controls.
-Small panels have no branding. Default panels show gray `powered by Per Hour`
-on the right of the header, using a small font at 9 px and an extra 12 px of
-horizontal inset to keep it clear of the X. Branding does not affect title
-or content positioning.
-Set `form = true` for form content padding and spacing between groups,
-independently of the title size and box.
+The interface uses Forever's DialogBorderTranslucentTemplate border geometry,
+DialogHeaderTemplate and SharedGoldRedButtonSmallTemplate, with Settings native
+checkboxes, selectors and slider. The translucent border background is hidden;
+all panels use Options' FlatPanelBackgroundTemplate, which supplies the native
+PANEL_BACKGROUND_COLOR without extra tint or alpha. Details tabs reuse Options'
+MinimalTabTemplate and CreateRadioButtonGroup, including native selection artwork.
+Sources: [Options frame](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Settings_Shared/Mainline/Blizzard_SettingsPanelTemplates.xml),
+[Options tabs](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Settings_Shared/Blizzard_SettingsPanel.xml).
 
-```lua
-local panel = Components:CreatePanel(UIParent, {
-    title = "Example", width = 360,
-    titleSize = "small", -- or "default"
-    titleBox = true, -- omit for an unboxed title
-    contentSpacing = 12, -- 12 px after header, 14 px before footer
-})
-```
+The addon uses one shared dashboard and independent movable consultation windows.
+Panels have two title styles: normal retains the native ornamental header for
+Settings and consultation windows; small uses a centered 10 px muted gold caption
+inside the tracker border, with no ornamental plate and a shorter header area.
+The tracker's X appears only while hovering the panel or its controls.
+Normal footer buttons have a 96 px minimum width and 28 px height, with 32 px
+horizontal text padding. Footer groups are centered; Compare does not
+stretch to the panel width. Longer labels grow to fit. History and Details share
+Components:CreateRenameButton, using the same 72 x 24 px size. Details reserves
+the button's measured width before wrapping its session name. Icon actions with dropdown menus share INV_Scroll_03
+through Theme.icons.menu, including tracker Sessions and Details Announce. The
+direct session-view action retains INV_Misc_Note_06.
 
-For custom content, use `panel:SetContent(component)`. It reparents the component
-into `panel.Content` and centers it between the title and footer, preserving the
-panel's configured size. Replacing the component hides the previous one. A composite
-component can contain multiple displays. Adding footer actions later updates the
-content boundary. Use custom content or form fields for a given panel.
+Panels use native toplevel behavior and render-layer flattening so the background,
+text and controls of different windows are not interleaved. Clicking a window
+brings it forward. Standard windows initially open in a 32 px cascade within their
+own strata, constrained to the screen; a hidden window does not determine placement.
+First-open placement runs once, preserving subsequent manual moves during the
+session. Windows fit both screen dimensions. The tracker keeps its separate
+position; Rename/Delete retain FULLSCREEN_DIALOG above the DIALOG consultation windows.
+PanelWindows.lua owns placement and fitting, without per-frame polling or new settings.
 
-`TrackerPanels.lua` creates and coordinates the four monitors, including session
-controls, positioning and refreshes. Each monitor mounts a composite through
-`SetContent`. It always contains a `CreateRateDisplay` component, whose
-`SetRate(value, unit)` method formats the number, unit and overflow abbreviation
-using its parent's width. When enabled, a `CreateSpeedometerDisplay` component
-sits above that numeric display. Its `SetRate(value, maximum)` method updates only
-the dial labels, needle position and native overload state. The coordinator supplies
-the existing session rate to both displays, without changing the tracking calculation.
-Gold uses the same controls and layout, converts copper rates to gold for the
-panel, and requests two decimal places from the numeric display. Tooltip totals
-and rates use its monetary formatter. Its context line identifies the internal
-TSM → Auctionator → Vendor priority, vendor minimum and pending item prices.
-Item icons in Details show the recorded source and value. View the event journal
-through **Gold → Options → Details** or a left-click on the Gold tracker's
-background/rate. Gold's tooltip lists that shortcut; dragging and footer controls
-keep their actions. See [Gold tracking](gold-tracking.md).
+## Controls
 
-Use `panel:AddField(field)` for forms. Fields belong to `panel.Content` and
-provide their own height; the panel stacks them with spacing and adjusts its
-height automatically. `Components:CreateCheckbox(panel.Content, settings)`
-accepts `label`, optional `checked` and optional `onChanged(checked)`. Clicking
-the label also toggles the checkbox. No value is persisted automatically.
-
-Forms use `Components:CreateFormGroup(panel.Content, settings)` with a `title`
-and a `fields` array. Add the group with `panel:AddField(group)`. Each group has
-a white title using `GameFontNormalHuge`, the same font as the hourly rate, and
-indented rows with gold labels on the left and aligned controls on the right.
-Groups have no separator lines. `group:AddField(settings)` can add rows later;
-the group and enclosing panel resize and reposition subsequent groups. Hidden
-fields take no space; showing them restores their row and spacing automatically.
-
-| Field `type` | Settings and behavior |
+| Input | Result |
 | --- | --- |
-| `checkbox` | Boolean `value`; `SettingsCheckboxTemplate`, including its native checkmark and hover state. Clicking the checkbox or label toggles it. |
-| `select` | `options = { { value = "hour", label = "Per hour" }, ... }`; `SettingsDropdownWithButtonsTemplate`, with its native dropdown, radio menu and previous/next buttons. |
-| `text` | String `value`, optional `maxLength` (default 64); Enter or losing focus commits the text, Escape restores the last committed value. |
-| `slider` | `MinimalSliderWithSteppersTemplate`; numeric `value`, **required finite `min` and `max` with `min < max`**, optional positive `step` (default 1), `format` (a string, default `%g`, or a function receiving the value) and `suffix`. |
-| `group` | One shared `label` and a `fields` array of controls placed side by side; optional `spacing` (default 8). Access children through `field.Fields[index]`. |
+| Minimap / broker left click | Show/hide dashboard; leave capture unchanged. |
+| Minimap / broker right click | Open Settings. |
+| Dashboard X | Hide only the dashboard. |
+| Start / Pause / Resume | Control the shared session. |
+| Sessions > Finish Session, or current Details footer | Confirm, freeze and save result, then wait for Start. |
+| Sessions > History | Browse saved summaries. |
+| Sessions > Details, or click a readout | Open current Session Details. |
+| /perhour | Open Settings, including with an organizer-hidden minimap icon. |
+| /perhour xp, gold, honor, rep | Show the same dashboard without changing its order or session. |
+| /perhour help | Explain supported commands. |
 
-Individual controls accept `label`, optional `controlWidth` (the space reserved for the control column, default 300) and
-`onChanged(value)`. Use `field:GetValue()` and `field:SetValue(value)` to read
-or update a field. Sliders round to the configured step and clamp to their
-bounds. Form controls keep values in memory; callers decide whether to persist
-them or apply them to the addon.
+The minimap is the standard embedded LibDBIcon launcher and shares callbacks
+with broker displays. Dragging uses LibDBIcon's own positioning code.
 
-Fields accept a `subfields` array, or `field:AddSubfield(settings)` after
-creation. Subfields use the same field settings and appear below their parent,
-with 24 px of additional indentation for labels and controls and an 8 px gap.
-The control column narrows to keep the right boundary inside the form. Select
-fields align their outer left stepper with checkboxes at the same nesting level.
-Sliders shorten to fit the indented control column and reserve space for their
-formatted minimum and maximum values, with the readout inside the right boundary
-and a 4 px gap after the slider. Readouts align left so shorter values stay close.
-Access subfields through `field.Subfields[index]`; composite rows
-keep their inline controls in `field.Fields`. Nested subfields and later rows
-resize and reposition the enclosing group and panel automatically.
+## Dashboard and settings
 
-Select fields also provide `field:SetOptions(options, value)` to replace their
-choices and refresh the selected value silently, without calling `onChanged`.
-An optional `maxMenuHeight` enables native menu scrolling at that height.
+Full shows primary, secondary and two tertiary readouts. Extended shows primary
+and secondary. Focused shows only primary. Counters have no name labels above them;
+their units identify the metric, with lowercase xp. Before Start, counters and
+duration show zero without an Unavailable warning. Metric tooltips show only the
+metric name, total and the opposite rate: per minute when the display uses per
+hour, or per hour when it uses per minute. Capture warnings and metric context
+remain in Details. Tracked rates share Format:RateReading/RateText across the
+dashboard, tooltips and consultation views: a numeric value plus xp/h, g/m, etc.
+Gold rates convert copper to gold; absolute amounts use Format:Amount and native
+coin icons, preserving copper precision and negative signs.
+Value and unit sit together as a centered group without a
+background, with no status labels below the displays. When enabled,
+the Experience estimate appears above the primary display, between it and the
+speedometer; the Reputation estimate appears below primary. Both can be visible
+together, using the same XS component and 10 px font as Duration, with areas
+matching the primary width.
+Both estimate texts follow the same session-status colors as Duration and the
+action indicator: gray before Start/after Finish, green while running and yellow
+while paused (including continuity verification).
+Preferred order starts with Experience,
+Gold, Honor and Reputation; max level hides XP and promotes the others without
+overwriting the preference. Reputation is hidden whenever no faction is watched,
+including before Start; an unavailable reputation reading is never shown as zero.
+If only one tertiary remains, it is centered vertically beside the primary.
+The primary width scales from the secondary by their height ratio (60:42).
+Secondary and tertiary displays share the same width. The panel fits the visible
+columns and their contents, including duration, estimates and the gauge.
+Focused, Extended and Full reserve the same height for the current composition;
+switching type changes width and visibility without a vertical resize.
+Each column is centered vertically as a whole, including the XS + MD block on
+the left. Displays use explicit whole-pixel sizes: LG / MD / SM / XS fonts are
+28 / 18 / 14 / 10 px, with heights of 29 / 19 / 15 / 11 px and units of 12 / 10 / 10 / 9 px.
+The primary retains its established width when the speedometer is visible, keeping
+its geometry; otherwise it uses 85% of that width to bring the side columns closer.
+Secondary and tertiary widths shrink to 75% of their previous reference, following
+the MD font ratio of 18/24. Widths use 84.7% of the reference measured for four
+digits or a compact reading alongside each metric's /h and /m unit; longer readings
+extend beyond the slot instead of being cut with ellipsis.
+Value and unit stay centered together at their natural text width. Native
+FontStrings use automatic width/height, avoiding tight bounds that can trigger
+ellipsis at fractional UI scales.
+Secondary and tertiary widths remain equal;
+changing values or units does not resize them. Native controls retain their scale;
+the session action has a fixed 96 px width across Start, Pause and Resume.
+The footer shares the display area's horizontal padding, leaving 8 px inside
+each border even when the action row determines the panel's minimum width.
+This remains wider than the 3 px gaps between the central and circular actions.
+Its diamond indicates current state: gray before Start, green while running
+(Pause action), and yellow while paused (Resume action). The native atlas stays
+desaturated so its original colors do not mix with the state tint.
+Header and footer content gaps are reduced. A readable metric without gains shows zero and its rate unit,
+including immediately after selecting a faction during a running session.
+Settings retains the preferred metric positions
+even while a metric is hidden.
 
-In a `group` row, child labels are omitted from the layout; a checkbox's label
-still supplies its tooltip. Each child keeps its own value and callback.
-Checkboxes reserve 32 pixels by default in these rows; other controls reserve
-300. Set a child's `controlWidth` to reserve a different width without resizing
-its native control. The shared control column fits the sum of the child widths
-and spacing. The shared label does not toggle any child.
-The last child may use `fill = true` to occupy the remaining control column;
-this keeps a checkbox and slider inside an indented row without fixed child widths.
-Dropdowns are centered inside their reserved column so both native stepper
-buttons fit without overlapping adjacent controls. Their frame and stepper
-anchors come from Forever's [shared panel templates](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.lua).
+Show duration applies to Extended and Full; Focused does not show it. There is
+no short-session override. Details and Compare always retain duration.
+Duration uses the shared XS display above the secondary: 11 px high, a 10 px
+value font and the same width as its column, without a background.
+Its text shows whole seconds below one minute (0s through 59s), whole minutes
+below one hour (1m through 59m), then hours and minutes (1h 0m, 1h 2m).
+Stored duration retains full precision for calculations. Duration is the only
+display that uses the session status color: idle gray, running green, paused yellow.
+It has no leading icon. The action button's status diamond retains those colors.
+The optional active/pause indicator remains available through
+Components:CreateSessionIndicator(parent), but the dashboard does not instantiate it.
+It follows MUI CircularProgress motion with a native 84-frame FlipBook over 1.4
+seconds and two bars when inactive. See the Design System component catalog and
+src/licenses/MaterialUI.txt for attribution.
+The gauge always reads XP, regardless of primary metric. Experience and Reputation
+each end with an independent Show estimates checkbox in Settings. Both default off;
+the previous shared estimate preference is not migrated. At max level, the XP
+estimate and gauge are hidden while the Reputation estimate remains available.
+The gauge occupies the primary display's width. Its labels stay at 10 px while
+only the arc, tick marks and needle geometry resize. Compact artwork uses
+analytic edge coverage baked directly at the final texture resolution, linear
+sampling and native rotation. Label boxes anchor outside the arc, with a 6 px
+gap; radius and frame height account for their measured widths and heights;
+label text keeps automatic width so native FontStrings do not add ellipsis.
+the frame and its text are not scaled. Side stacks use a 10 px vertical gap
+while retaining their centered alignment.
 
-Form controls use the same complete templates as Forever's Options menu. Leave
-their textures, fonts, colors, checkmarks, arrows and native sizes unchanged.
-Text inputs use `InputBoxTemplate` with its default font and artwork and an
-explicit 220 × 20 layout size. Per Hour supplies the surrounding groups, labels,
-placement and value callbacks. The outer panel and footer retain Per Hour's
-shared design.
+Metric selectors and their arrows swap positions. Metric rows have no drag handles.
+The watched-faction selector changes
+the native watched faction. None affects only reputation capture.
 
-`Theme.gold.text` is the shared gold text color for rate values and units,
-form labels and tooltip labels. The minimap uses the native `GameNoHeaderTooltip`
-with three compact lines aligned to the left and no title, so the first action
-uses the same body font as the others. `Theme:GoldText(text)` applies the shared
-gold color inline to each label, followed immediately by the white action.
-See Forever's [tooltip definitions](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_GameTooltip/Mainline/GameTooltip.xml).
+The interface and number formatting use English. Rates use /h and /m. Fixed fonts
+use compact k/M readouts; display text can overflow its slot without ellipsis.
+All four counters display at most one decimal place, without rounding stored
+totals, rates or estimate calculations. Identical readings are not redrawn.
+Tooltips give full values.
+Details uses compact XP/Honor readings with complete values in tooltips;
+Gold rates use numeric gold with g/h or g/m, while totals retain native coin icons
+and copper precision.
+Estimates use unrounded session means, at least one measured minute and rounding
+up to whole minutes. Paused shows Paused; absent progress gives No estimate available.
 
-```lua
-local group = Components:CreateFormGroup(panel.Content, {
-    title = "Appearance",
-    fields = {
-        { type = "checkbox", label = "Show icon", value = true },
-        { type = "slider", label = "Opacity", value = 80,
-            min = 25, max = 100, step = 5, suffix = "%" },
-    },
-})
-panel:AddField(group)
-```
+## History, Details and comparison
 
-To share a label between controls, add a composite row:
+History starts with the current character and can select other known characters
+or all characters. Each record has its own name, timestamp, starting map, measured
+duration and result. Duplicate names remain independent. Select exactly two to
+Compare. Rename affects one record; Delete requires its own confirmation.
+Compare uses a fixed, single-line gold grid header with 16 px session titles;
+the metric and separator headings are blank. Titles truncate with
+ellipsis; their tooltips show the complete name, character, start and duration.
+The panel is 700 px wide, with a 648 px table. Height fits the rows between a
+320 px minimum and a 520 px maximum; additional factions scroll within that limit.
+Each metric occupies one 32 px row with 14 px readings. Labels follow the session card's small,
+muted-gold style. The greater reading in each row is gold; the other remains white,
+and ties leave both white. Winners use unrounded hourly rates, treating absent
+readings as zero. The first reading aligns right and the second
+aligns left, facing a fixed 24 px `vs.` column with 6 px of padding on either side.
+The `vs.` column marks the exact horizontal center of the panel, including the
+space reserved for its scrollbar; metric labels occupy a narrower left column.
+The winner also shows a green upward triangle and its percentage advantage, before
+the first reading or after the second. The percentage uses the full rate difference
+divided by the absolute opposing rate, with up to one decimal place below 100%
+and no decimal places from 100% onward; positive differences
+below 0.1% show `<0.1%`. For negative Gold this measures reduced loss. Ties, missing
+or unavailable readings and a zero opposing baseline have no percentage.
+Readings and percentage captions use their full natural text
+width, without ellipsis. The metric label yields space when a left-side winning
+group needs it. Only column titles and metric labels may truncate; `vs.` stays 24 px.
+Rows show compact rates per hour only, with a space before `xp/h`, `g/h`, `hon/h`
+or `rep/h` (numeric gold in `g/h`), independent of the
+dashboard's selected period. Zero, unavailable, untracked and zero-duration
+readings display zero with the metric's spaced hourly unit. Value tooltips contain only the metric/faction title,
+`Rate per min.:` with the inverse minute rate and `Total:` with the full amount.
+Unavailable minute rates display `0/m`; absent totals are zero. Session names,
+measured time, capture warnings and calculation explanations are omitted from
+these value tooltips.
+Experience, Gold and Honor come first, followed by the union of tracked factions
+sorted alphabetically and matched by faction ID. Each faction rate uses its own
+tracked time. Duration is not included in the comparison rows. The header remains
+fixed while only metric rows scroll.
+New sessions default to `<starting area> - <local date and time>`, for example
+`Mount Hyjal - Nov 27, 2026 14:54`. Only Start assigns this title; existing names
+and restored sessions are preserved without migration.
+History rows are 28 px with a white session name on a single line, without
+a subtitle. Duration and estimated Gold occupy aligned columns; selection stays on the
+left. The first Session column combines the 18.5 px INV_Misc_Note_06 icon and title
+in one transparent button, with identical click/hover behavior across both.
+Click opens that row's Details; hover retains the icon highlight without a session
+tooltip. The row background also has no session tooltip. Only Rename
+and the 24 px UIPanelCloseButton X for Delete remain in the right action column. The X opens
+the existing deletion confirmation and has its own action tooltip. Gold est.
+shows only the largest nonzero denomination (gold, otherwise silver, otherwise
+copper), without rounding into a larger unit; zero is 0 copper. Full precision
+and metadata remain available in Details. The title uses the standard white value style
+and truncates with ellipsis when necessary; its icon and text share one hit area.
+Checkbox, Details icon, Rename and Delete share a 24 px band anchored to the top
+of the row, with the same vertical center and whole-pixel control edges. The smaller
+Details texture is centered inside its 24 px slot, matching the half-scale item
+icons (the native ItemButton is 37 px). The 3 px divider
+and remaining 1 px sit below that band, avoiding a half-pixel center in 25 px content.
 
-```lua
-local row = group:AddField({
-    type = "group", label = "Experience",
-    fields = {
-        { type = "checkbox", label = "Show Experience", value = true },
-        { type = "select", value = "hour", options = {
-            { value = "hour", label = "Per hour" },
-            { value = "minute", label = "Per minute" },
-        } },
-    },
-})
-```
+Session Details pins one grouped card at the top. Its heading shows only the name
+beside Session and Rename. The name is green while running and gold when paused
+or finished; verification/review states also use gold rather than implying active
+capture. Refreshes reset the color when status or the displayed record changes.
+Character shows
+the character's first name and surname, with a realm suffix only when nonempty;
+Level occupies the second column as 56 (62% xp), using the
+starting level and initial XP.
+Started shows the local start date and time, such as Nov 26, 2026 14:54,
+with Duration in the second column as 3h 43m 35s. Measured time
+excludes pauses and offline time. Experience, Honor and Gold each occupy a row
+with rate in column one and total in column two. Rate labels follow the shared
+Hour/Minute preference. XP/Honor rates truncate to one compact decimal (61.7k,
+53.1); totals truncate to whole compact units (230k, 198). Only display values
+are shortened. Tooltips retain exact rates/totals, measured time, quality flags
+and issue causes, plus Gold's Coins, Items (est.), Expenses and pending/excluded
+price count. Absolute Gold shares Format:Amount/Format:Money with event rows for
+native coin icons; Gold rates share Format:RateText with dashboard tooltips.
+Total Gold shows the net value followed by (inc - exp), left-aligned in the standard
+white value color; its numeric composition remains available in the tooltip.
+Visited areas is the last card row, after all metrics. It always shows the route,
+including a single starting area, with bullets separating visited areas.
+Below the card, Income, Expenses and Reputation share one native virtualized ScrollBox.
+The former Gold tab is split into Income and Expenses at the same navigation level;
+Income is the default for each session. Only the selected tab's content scrolls.
+The tab content and scrollbar sit inside the border of Options_InnerFrame,
+joined to the tab strip, with 8 px of breathing room. Tabs.lua draws only the
+eight outer slices at native thickness; the atlas center is omitted. A fixed
+black fill at 45% opacity covers only the interior, matching the darker inner
+border band while leaving the surrounding panel background unchanged. The box
+uses its parent's frame level, below the sibling ScrollBox, so its translucent
+fill cannot darken the text or pooled rows.
+The Experience row is omitted for sessions started at level 60; recorded starting context
+controls visibility, so later character progression cannot hide archived XP.
+Live updates retain selection and scroll position. Changing tabs starts at the top. It can stay open alongside History
+or Settings. Finish turns open current Details into the archived record.
+The current Details footer shows Finish Session while running or paused, including
+recovery/verification states. Archived Details hides it and recenters the remaining
+action. The Sessions dropdown lists History, Current Session, a divider and
+Finish Session rendered with Components:CreateButton, the same normal red-and-gold
+component used by panel actions, with the footer's tint and 28 px height. The menu
+pools only an empty Frame container; the actual button and its label are owned by
+the dashboard and reused. Opening attaches and centers the button in the container;
+closing hides it and returns it to the dashboard. Its native menu responder closes
+the dropdown and opens the same confirmation as the Details footer. The implementation
+uses the native menu's [custom frame elements](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Menu/11_0_0_MenuImplementationGuide.lua).
+Register initialization with `root:CreateFrame():AddInitializer(...)` and data with
+`SetData`: [MenuUtil's wrapper](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_Menu/MenuUtil.lua)
+does not forward initializer/data arguments to MenuTemplates.CreateFrame.
+Without a current session, only History is listed. Both Finish controls call
+Session:Finish(). Every public
+Session:Finish() request opens the shared Finish dialog, with Finish Session and
+Cancel, in FULLSCREEN_DIALOG like Delete. Only confirmation for that exact current
+session ID performs the archive. Cancel, X and Escape preserve the session's state;
+capture continues while a running session awaits confirmation. Finishing closes any
+pending confirmation for that record; a stale confirmation cannot finish a new one.
+Finish, Rename and Delete use centered 14 px body text. Finish and Rename share a
+centered title field, prefilled and selected with the current session title (the
+starting area/date/time suggestion unless already renamed). Finish saves the edited
+title only on confirmation; Cancel, X and Escape discard the draft. Both title
+dialogs accept Enter, trim outer whitespace and require 1–80 characters, with an
+inline error for invalid input. Delete explicitly warns that removal is permanent.
+Income and Expenses contain their Last / Description / Count / Total table, with an
+empty/expired-details notice when needed. Sum sits above the Total header, aligned
+with its values. It sums known retained rows for that tab, never the global net
+metric. An asterisk flags pending/excluded prices or the latest-1,000-events limit;
+the Sum tooltip explains these limits. Expired details show a dash instead of zero.
+All table headers remain fixed, including History and Compare. Only body rows enter
+the ScrollBox; Income/Expenses also pin Sum above their headers. GoldGroups.lua groups retained events only for display:
+item variants use the complete item-link payload, merging loot/rewards on Income
+and consumption/delivery on Expenses. Incoming and outgoing quantities never net
+against each other. Count is item units, or the number of non-item occurrences.
+Dropped coins and Reward coins are separate groups; repeated repairs/flights
+group by source. Last is the latest occurrence, independent of price resolution.
+Income sorts by accumulated known value descending; Expenses by largest cost.
+Ties use Last descending and stable group identity. Group IDs survive updates so
+the viewport can retain a consulted group as rankings change.
+Card fields span the width and wrap; the heading reserves space for Rename so
+long names cannot overlap the action. Fields start at 24 px, table rows at 28 px
+and the heading uses 32 px. Native font metrics determine taller
+rows for wrapped text. The card stays outside the ScrollBox; its frame pool grows with wrapped
+fields. The window grows when necessary to retain at least 240 px of tab content,
+then follows the standard screen fitting. Key/value fields
+have no separators; only grids and lists use the copper row divider.
+Frozen unresolved quotes are labeled Excluded prices, not Pending prices.
+Reputation is a single Faction / Duration / Rate / Total grid, sorted by faction
+name. Repeated tracking intervals contribute to the same faction row; its rate
+uses that faction's tracked duration. The watched faction is green while running
+and gold while paused or awaiting verification; other and archived factions are
+white. Partial capture and the rate time basis remain in its tooltip. Untracked
+time appears as a No faction row with Duration and dashes for Rate/Total.
+The list uses distinct renderers and native variable extents: 52 px Compare summaries,
+24 px headers, 28 px sessions and 26 px grouped Gold rows. Gold content stays
+centered above the 3 px copper divider, with Last / Description / Count / Total columns,
+half-scale item/source icon, reserved quest-marker
+slot and rarity-colored item name without a quantity suffix. Count aligns right
+in its own column. Values align right
+using native money strings; outgoing values are red, without a redundant sign.
+Price provenance stays in the icon tooltip instead of another text line/column.
+Only item and quest icons show their native tooltips; item names remain passive.
 
-To place a related setting below a row:
+Grouped items retain native item tooltips, counts, recorded quotes and source
+provenance. A single quest retains its native tooltip; groups spanning several
+quests report their count without pretending to represent one quest. Mixed prices
+are summed exactly as recorded, never repriced or replaced with an average. The
+tooltip shows up to six consolidated quote parts, with an additional-parts count.
+Pending/excluded members do not enter known value: entirely unresolved groups
+show Pending or Not included · frozen; mixed groups show their known subtotal
+with an asterisk and explain the missing members in the icon tooltip. Renderers
+query cached item metadata, never market prices. Capture, persistence and metric
+summaries are unchanged; no migration or saved-data rewrite is involved.
+Viewport refreshes retain the first surviving visible record and its partial
+pixel offset across mixed row heights. Changing the record or character filter
+or selected metric tab resets the viewport. Pooled frames create only the controls needed by each row
+type and hide the previous type when reused.
+Unresolved values excluded at Finish show Not included · frozen. Announce in live
+Details sends the chosen metric only to the explicitly selected chat channel.
 
-```lua
-row:AddSubfield({
-    type = "select", label = "Tracked faction", value = 72,
-    options = { { value = 72, label = "Stormwind" } },
-    onChanged = function(factionID) C_Reputation.SetWatchedFactionByID(factionID) end,
-})
-```
+Compare derives its hourly rates from the same preserved summaries as Details.
+Value tooltips show the inverse minute rate and full total; absent faction
+readings display `0 rep/h` in the table and zero in their tooltip readings.
 
-Pass `actions` to `CreatePanel`, or call
-`Components:CreatePanelActions(panel, actions)` once after creating it. Each
-action can have a `key`, and its control is available at `panel.Actions[key]`.
+History retains 100 summaries per character, details of the latest 20 and up to
+1,000 retained Gold events per session, grouped for consultation. Limited lists
+explicitly say they group only the latest 1,000 events; summaries still cover all.
+Expired/truncated details have their
+own notice and do not change capture quality or totals.
 
-| `type` | Appearance and behavior |
-| --- | --- |
-| `button` (default) | Gold text button with `text` and `onClick(panel, button)`. |
-| `status` | Gold text button with an additional `Indicator` texture for tracking state. |
-| `icon` | Circular icon and ring; `menu(button, rootDescription)` creates a dropdown, otherwise `onClick` runs directly. |
-| `toggle` | Circular icon and ring; `isOn()` reads state and `onToggle(value, panel)` changes it. Color reflects state; optional `onTexture` and `offTexture` change the artwork. |
+## Test in WoW Forever
 
-Circular actions accept `texture` or `atlas`. Actions accept an optional
-`tooltip()` returning text and a fixed `width`. Text actions default to
-`fullWidth = true` and share the remaining footer width; set `fullWidth = false`
-to size an action to its label, or supply `width` or `widthFraction` explicitly.
-Toggle state refreshes after clicks and when the
-panel opens; call `button:Refresh()` after changing state elsewhere while open.
-Use `widthFraction = 0.3` for 30% of the available footer width. A single action
-can use `align = "CENTER"` to stay centered within that footer.
+Simulation does not confirm rendering, clipping, mouse routing, actual signals
+or SavedVariables writes. Test these on the game client:
 
-The minimap left-click menu is titled **Show trackers**.
-The icon is a `PerHour` LibDataBroker launcher registered with LibDBIcon as
-`LibDBIcon10_PerHour`; its `tocname` identifies the loaded addon for broker
-displays to read TOC metadata. Both libraries and their LibStub/CallbackHandler
-dependencies are embedded, so no separate library addon is required. Leatrix
-and other minimap organizers can manage the standard icon directly. Broker
-displays use the same click and tooltip callbacks: left-click toggles the native
-context menu at the cursor; right-click opens Settings. The menu belongs to the
-launcher that was clicked, so a hidden minimap icon does not dismiss a menu
-opened from a visible broker display.
+1. **First revamp load:** enable Lua errors; confirm one dashboard, defaults and
+   empty revamp history. Old tracker preferences and sessions are not imported.
+2. **Visibility:** left/right minimap clicks, broker clicks with hidden minimap,
+   X, /perhour and every legacy metric command. Hiding must keep capture running.
+3. **Session boundaries:** Start, earn XP/Gold/honor, Pause, gain while paused,
+   Resume and Finish. Verify no paused gain, duplicate event or extra history entry.
+   Request Finish from both Sessions and the Details footer while running and paused.
+   Cancel or close with X/Escape and verify capture state/totals are preserved.
+   Confirm once, verify one history entry, archived Details without Finish, and
+   correct footer centering. Finish during continuity verification and repeat
+   requests; no old dialog may finalize a later session.
+4. **Layouts:** Full, Extended and Focused; Show duration on/off; gauge on/off;
+   each estimate on/off separately and together. Check all ten gauge maxima and /h versus /m.
+5. **Metric order:** swap by selectors and their arrows. Reach/use max level,
+   confirm XP leaves positions and others move up without clearing saved order.
+6. **Reputation:** A -> B -> A, changes in the native reputation UI, and None.
+   Details must combine repeated intervals into one row per faction with correct
+   Duration/Rate/Total, current-faction colors and a No faction row for untracked time.
+7. **Estimates:** wait one active minute; pause/resume; no gains; level/standing
+   change; maximum level/Exalted. Archived sessions must not predict from live progress.
+8. **Gold:** looted/shared coins, quest money/items, consumables, delivered quest
+   items, personal and guild repairs, paid flight, old-stock consumption and FIFO.
+   Verify sales, purchases, mail, trade and bank transfers are not farming income.
+9. **Prices:** vendor only; optional TSM/Auctionator; fixed quotes; pending data
+   during pause/reload; Finish unresolved values; response after another Start.
+   Frozen history must not change or leak income into the next session.
+10. **History:** current and archived Details, long event scrolling, Rename,
+    duplicate names, cancel/confirm Delete and Compare. Check native item/quest
+    tooltips and complete copper values, including negative totals.
+    Verify 26 px event rows and 28 px single-line session rows, icon/title click and hover, rarity colors,
+    native source icons without direction arrows, and the INV_Misc_Note_06 Details action.
+    In Details, switch Income/Expenses/Reputation and scroll long content: the grouped card,
+    metric results, tab strip, column headers and Gold Sum must stay fixed. Check
+    History/Compare headers too. Check inline Rename for current
+    and archived sessions, including an open session that is finished and renamed.
+    Check leveling sessions,
+    repeat item gains/spends and coin drops/rewards, verify Last and Count, and
+    check value-descending income / cost-descending expenses. Resolve quotes and
+    verify rows merge/update without changing totals; inspect pending/frozen and
+    mixed-price tooltips, single/multiple quest markers and retained-event limits.
+    sessions that reach 60 and sessions started at 60, including archived records.
+    Check that key/value cards have no dividers and tables retain theirs. Compare
+    the native gray background with Options across tracker, Settings and Details.
+    Scroll to a partially visible row, receive more loot/archive another session
+    and confirm the viewport stays anchored. Reused rows must not retain an old
+    quest marker, item rarity, tooltip, checkbox selection or action target.
+11. **Simultaneous windows:** keep History/Details/Settings open, change rate,
+    rename, finalize and delete; inspect refresh, focus and Escape behavior.
+    Open Compare too. Verify a cascade with exposed headers, click both panel
+    backgrounds and child controls to switch the front window, and confirm no
+    texts, checkboxes, footer actions or close buttons interleave. Move a window,
+    close/reopen it and verify the position stays put. Check Rename/Delete above
+    the consultation windows and repeat at reduced resolution/UI scale.
+12. **Persistence:** reload running and paused, normal logout/login, loading screens,
+    another character and another realm. Review uncertain recovery before Resume.
+13. **Screen fit:** UI scales/resolutions, long names, large/negative rates, fixed
+    typography, display overflow, tooltips and draggable/clamped windows.
+14. **Retention:** Lua tests cover 101 summaries and 1,002 events; inspect notices
+    when enough records are available. Summaries must remain unchanged.
 
-Text commands open Settings or a tracker independently of minimap visibility:
-
-| Command | Action |
-| --- | --- |
-| `/perhour` | Open Settings, or raise it when already open. |
-| `/perhour xp` | Show the Experience tracker. |
-| `/perhour gold` | Show the Gold tracker. |
-| `/perhour honor` | Show the Honor tracker. |
-| `/perhour rep` | Show the Reputation tracker. |
-| `/perhour help` | List the supported commands in chat. |
-
-Commands ignore surrounding whitespace and letter case. Unknown commands point
-to `/perhour help`. Opening Settings closes the minimap menu and tooltips;
-it does not change tracker visibility or start a session. Tracker commands show
-and raise the requested window and save its visibility without hiding other
-trackers or starting, resuming or resetting sessions. Repeating a tracker command
-keeps its window visible. There is no `settings` subcommand.
-
-Each tracker's gear menu is titled **Options**, with **Reset**, **Settings**
-and **Announce**, in that order. **Settings** opens the same shared settings panel as minimap
-right-click, regardless of which tracker opens it.
-**Announce** sends one message to the chosen chat channel, leading with the
-hourly average, followed by active session duration and total gains in
-parentheses, with a discreet `[Per Hour]` prefix. Reputation appends the
-session's faction when available. For example:
-`[Per Hour] 240,000 XP/h - 30m (120,000 XP total)`
-`SettingsPanel.lua` opens **Per Hour Settings** through `/perhour`
-or minimap right-click, with
-the entire boxed title in DS gold. The
-**General** group starts with one **Rate** dropdown for
-**Per hour** or **Per minute**, defaulting to hourly display. It immediately changes
-all four panels' numeric rates and units, for example `XP/h` or `XP/min`.
-The **Show trackers** group contains each module's visibility checkbox, sorted by name.
-The shared unit is saved per character. Changes persist through the
-[settings store](stores.md) across reloads and logins. Rate selection preserves
-tracking totals, duration and pause state; large numbers keep their abbreviation.
-The session tooltip still lists both rates.
-
-Experience and Reputation tooltips place **Estimate** first, below the title,
-tracking status and faction context, followed by **Session** and **Rates**.
-Experience predicts the next level (`Level 43 in 2h 13m`); Reputation predicts
-the next standard standing of the session's watched faction
-(`Honored in 1h 23m`). Honor keeps its Session and Rates sections.
-Estimates use current remaining progress divided by the unrounded session mean.
-Paused time is excluded; idle time while tracking is included. Durations round
-up to whole minutes, with a minimum of `1m` and hours allowed beyond 24.
-The shared tracking timer refreshes an open tooltip without resizing the panel.
-
-Before tracking, the estimate reads **Not started**. During the first active
-minute it reads **Estimating…**, and while paused it reads **Paused**.
-After that first minute, zero or negative means show **No estimate available**;
-the same message covers missing or unreadable progress, pending restoration,
-and friendship, renown or paragon reputations. Maximum level and Exalted show
-**Max level reached** and **Exalted reached** instead of a time.
-Level and standing changes advance the goal without resetting the session;
-changing the watched faction follows the existing reputation reset.
-**General → Show estimates** also displays the same estimate below the numeric
-rate in Experience and Reputation. The line uses centered text at 10 px,
-with a 4 px gap. Its color matches the button's diamond: gray before tracking,
-green while running and yellow while paused. `BaseModule:GetTrackingStatus()`
-provides the shared status key, action and label; `Theme.trackerStatus` supplies
-its DS color. The button, tooltip status and both estimate displays consume
-that same status. The checkbox defaults to disabled and is saved per character;
-it does not hide the tooltip estimate. Enabling it adds 18 px of panel height
-(180 x 112 without the gauge, or 240 x 222 with the XP gauge), and disabling it
-restores the layout without the extra line. It uses the shared refresh timer,
-skips unchanged text and refreshes hidden panels when they are shown.
-
-**Experience** has an indented **Show speedometer** row with a checkbox and
-the maximum slider immediately to its right, without a separate maximum label.
-The checkbox defaults to disabled and applies only to Experience, for the current character.
-Honor and Reputation keep their numeric displays. The XP numeric rate stays
-visible in either mode. Enabling the gauge expands the Experience monitor
-from 180 x 94 to 240 x 204; disabling it restores the
-compact layout. The existing placement rules keep visible panels on screen and
-avoid overlaps. Tracking and pause state are preserved.
-
-The inline maximum slider has 10 levels (default 5) and appears while
-**Show speedometer** is enabled. Its compact readout and the XP dial use
-the current **Rate** unit. The maximum readout includes `/h` or `/min`, such as
-`20k/h` or `320/min`. Only the level is saved per character; switching
-units keeps that level and resolves the corresponding maximum from
-`src/model/SpeedometerScales.lua`. Disabling the gauge hides the slider;
-the checkbox row stays visible and the panel height remains unchanged.
-
-| Level | XP/min | XP/h (rounded) |
-| --- | --- | --- |
-| 1 | 160 | 10k |
-| 2 | 320 | 20k |
-| 3 | 480 | 30k |
-| 4 | 640 | 40k |
-| 5 | 800 | 50k |
-| 6 | 960 | 60k |
-| 7 | 1.1k | 70k |
-| 8 | 1.3k | 80k |
-| 9 | 1.4k | 90k |
-| 10 | 1.6k | 100k |
-
-The hourly maxima are approximate counterparts rather than exact conversions;
-minute levels 7–9 are also rounded to the nearest hundred.
-Above the maximum, the needle trembles inward from the end stop while the numeric
-display keeps the actual rate. The gauge uses two transparent, antialiased TGA
-assets with linear filtering: `src/textures/SpeedometerDial.tga` for the arc,
-ticks and center cap, and `SpeedometerNeedle.tga` for the pointer.
-Both are white artwork tinted in Lua; the five scale labels remain dynamic text.
-The pointer uses `Theme.speedometer.needle` normally and
-`Theme.speedometer.overload` when the rate strictly exceeds the maximum.
-It moves directly to the current fraction and changes color only when overload
-state changes. Both artworks have black shadow copies at 45% opacity, offset one
-UI pixel right and down. The four layers reuse the same two texture assets.
-The pointer shadow shares its base rotation and keeps its screen-relative offset.
-Overload uses matching native rotation groups for the pointer and its shadow,
-created on first use: twelve balanced inward beats over 0.36 seconds, including
-three stronger beats at three
-degrees instead of 1.5, followed by a 1.44-second pause. The cycle starts and stops
-only when overload or visibility changes; rate refreshes do not restart it.
-There are no glow layers, Lua animation timers or per-frame callbacks. Shadow
-layers add rendering work, but their tremor does not add Lua rotation calls per
-frame. Session calculations and the numeric readout are unaffected. Native
-animation geometry and mouse routing still require visual validation in Forever.
-Regenerate the textures with `python scripts/generate-speedometer-assets.py`
-(development dependencies: Pillow and Lupa with Lua 5.1). The generator executes
-`Theme.lua` to read the dial, needle, shadow and text colors for its preview;
-the TGA assets remain white with transparency. It also writes a magnified illustration to
-`dist/SpeedometerPreview.png`; that preview is not an in-game screenshot.
-
-The Reputation row has an indented **Tracked faction** dropdown. It displays
-the game's watched faction and changes it directly through
-[`C_Reputation`](https://github.com/Gethe/wow-ui-source/blob/forever/Interface/AddOns/Blizzard_APIDocumentationGenerated/ReputationInfoDocumentation.lua).
-`UPDATE_FACTION` keeps the open form synchronized with changes made in the
-game's reputation panel. The alphabetized list includes known reputations in
-collapsed and inactive groups, plus headers that have their own reputation.
-Reading the list restores the original collapsed states. **None** clears the
-watched faction, and long lists use native scrolling. Reopening settings reads
-the current game state; no separate addon preference is saved. The selector
-works while the tracker is hidden or stopped and does not start a session.
-Changing factions preserves the tracker's existing automatic session reset;
-gains from different factions are never combined.
-
-Hiding a panel keeps its session running. The form follows visibility changes
-from the minimap menu and panel X and reads saved preferences silently when
-reopened. Reposition the minimap button by dragging it; settings have no angle
-control. LibDBIcon owns cursor sampling, drag updates, minimap shape and positioning.
-Per Hour does not replace or invoke the library's update callback. Its degree value lives
-in a runtime table; Per Hour keeps saving only the existing per-character radian
-angle. This introduces no settings migration or new saved layout format.
-
-Tracker visibility, tracker positions and the minimap button position are saved
-per character, along with the hourly/per-minute preference shared by all four panels.
-Missing or invalid character rates default to hourly; legacy account rates are
-ignored. A valid saved per-minute character preference remains per-minute,
-independently of which modules are registered.
-Previous account layouts are not imported; characters start with hidden trackers
-and the default layout until they save their own preferences.
-
-The panel has one centered footer action, **Close**, at 30% of the
-available footer width, and an always-visible
-X. Drag its background, including
-the title area, to move it; fields and buttons handle their own mouse input.
-The panel retains its position while the addon remains loaded.
-Its `contentSpacing = 12` keeps 12 px below the boxed header and 14 px between
-the form content and **Close**, independently of the compact tracker layout.
-
-Validate appearance, checkbox interaction, the shared rate dropdown, dragging and
-both close controls in WoW Forever. After `/reload` and a normal logout/login,
-confirm that panel visibility, selected unit and minimap position match saved preferences.
-Verify `/perhour` opens Settings with the minimap button visible or hidden by a
-minimap organizer; repeat it while Settings is open. Check `xp`, `gold`, `honor`
-and `rep` show their trackers without changing sessions, and that `/perhour help`
-describes every command. Unknown commands, including `settings`, point to help.
-With Leatrix's minimap enhancements enabled, confirm that the standard icon has
-the Per Hour action tooltip, both clicks work and no custom-button warning is
-shown. Check dragging on round and square minimaps, then `/reload` and switch
-characters. If using a broker display, test its launcher with the minimap icon
-hidden and confirm the menu closes when its actual owner is hidden.
-Switch between two characters and confirm their layouts and display units remain independent.
-Changing the unit must update all four panels' numeric readouts and the XP gauge scale.
-Verify that the speedometer checkbox applies only to XP, keeps the
-numeric rate below the dial and restores after reload. Check that the single
-maximum slider appears while enabled, including after reopening and reload;
-check all ten levels, switching units without changing the level,
-pause/resume, overflow and switching characters with different gauge preferences.
-Check that the X appears instantly, remains reachable over the footer controls
-and its protruding corner, and disappears when leaving the panel. During overload,
-check that the pointer and shadow tremble together and return to the end stop
-during each pause. Hiding, reopening and leaving overload must stop or resume both
-animations together without restarting them on each rate refresh.
-Validate the reputation subfield's indentation and scrolling, switching factions
-through both interfaces, **None**, and session reset after switching factions.
-Lua simulation checks do not validate rendering or native mouse routing.
-
-## Runtime updates
-
-One shared one-second timer samples started sessions and updates their rates,
-including sessions whose panels are hidden. It stops rescheduling when no
-module needs periodic work and while outside the world. Paused XP and reputation
-retain baseline checks; paused Honor needs only its existing event handler.
-XP and reputation events capture new progress without immediately repainting
-panels. The periodic sample remains a fallback for missing events and temporarily
-unreadable player data. Start, Pause, Resume and logout still sample their boundaries.
-
-Runtime rate rendering is deferred for hidden panels and synchronized on Show.
-Explicit display preferences update all panels. Numeric text and width are cached
-by rounded value, unit and available width. Status controls change only when their
-state changes, avoiding repeated footer layout.
-
-Dragging recomputes panel geometry only when the cursor moves. Already-free panel
-positions bypass the candidate search; settings are saved on release or when the
-panel is hidden during dragging. The minimap uses LibDBIcon's native drag updates
-and saves the last sampled angle on release or hide. Logout saves any drag still
-in progress. See [Performance validation](performance.md) for regression coverage
-and the in-game comparison procedure.
+For failures, record the triggering action, Lua error/stack trace and expected/
+actual result. Native-client validation remains pending until these checks pass.

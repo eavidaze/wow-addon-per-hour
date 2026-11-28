@@ -35,6 +35,13 @@ function NumTaxiNodes() return 1 end
 function GetMoneyString(copper)
     return string.format("%dg %ds %dc", math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100)
 end
+Enum = Enum or {}
+Enum.CurrencyType = {Copper=1,Silver=2,Gold=3}
+MoneyFormatterPresets = {CompactWithZero={}}
+MoneyFormatterUtil = {FormatDenomination=function(config,denomination,amount)
+    assert(config == MoneyFormatterPresets.CompactWithZero,"single coins use the native compact preset")
+    return tostring(amount)..({"c","s","g"})[denomination]
+end}
 function GameTooltip:SetHyperlink(link) self:ClearLines(); self.hyperlink = link end
 C_Item = {
     GetItemQualityColor = function(quality)
@@ -42,7 +49,8 @@ C_Item = {
             [0] = { 0.62, 0.62, 0.62 }, [1] = { 1, 1, 1 }, [2] = { 0.12, 1, 0 },
             [3] = { 0, 0.44, 0.87 }, [4] = { 0.64, 0.21, 0.93 }, [5] = { 1, 0.5, 0 },
         }
-        return unpack(colors[quality])
+        local r,g,b=unpack(colors[quality])
+        return r,g,b,string.format("ff%02x%02x%02x",math.floor(r*255+0.5),math.floor(g*255+0.5),math.floor(b*255+0.5))
     end,
     GetItemIconByID = function(id) return 100000 + id end,
     GetItemInfo = function(value)

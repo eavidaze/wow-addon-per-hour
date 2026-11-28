@@ -6,6 +6,7 @@ local Theme = {
     -- Different source textures need different tints to share the close button's antique gold.
     gold = {
         text = { 1, 0.82, 0 },
+        subtleText = { 0.72, 0.64, 0.44 },
         buttonTint = { 0.65, 0.50, 0.70 }, ringTint = { 0.75, 0.58, 0.35 },
     },
     green = { text = GREEN_TEXT },
@@ -14,8 +15,10 @@ local Theme = {
     red = { text = RED_TEXT },
     text = { 1, 1, 1 },
     rowDivider = { color = { 0.72, 0.45, 0.40 }, height = 3, alpha = 0.1 },
+    tabContentBackground = { 0, 0, 0, 0.45 },
     circularBackground = { 0.08, 0.08, 0.08, 1 },
     toggle = { on = GREEN_TEXT, off = GRAY_TEXT },
+    icons = { menu = "Interface\\Icons\\INV_Scroll_03", sessionDetails = "Interface\\Icons\\INV_Misc_Note_06" },
     trackerStatus = { idle = GRAY_TEXT, running = GREEN_TEXT, paused = YELLOW_TEXT },
     speedometer = {
         needle = { 0.72, 0.12, 0.10 }, shadow = { 0, 0, 0, 0.45 },

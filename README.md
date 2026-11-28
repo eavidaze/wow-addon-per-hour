@@ -1,63 +1,49 @@
 # Per Hour - WoW Forever
 
-Track experience, honor, watched reputation and estimated net gold per minute and per hour.
-Targets **WoW Forever 1.60.1 (Interface 16001)**. In-game validation is pending.
+Measure XP, estimated net Gold, honor and reputation in one shared activity session.
+Targets **WoW Forever (Interface 16001)**. Native rendering and event ordering
+still require in-game validation.
 
 ## Install
 
-1. Extract the addon into `_forever_\Interface\AddOns\per-hour`.
-   The folder must contain `per-hour.toc` directly.
-2. Restart WoW and enable **Per Hour** in the AddOns list.
+Extract into `_forever_\Interface\AddOns\per-hour`, with `per-hour.toc` directly
+inside that folder, then restart WoW and enable the addon.
+For a linked development checkout on Windows, run `.\scripts\install.ps1` once.
 
-For local development on Windows, run `.\scripts\install.ps1` once to link this
-checkout to the game's AddOns folder. Keep the checkout in place; subsequent
-code changes only need `/reload`.
+**Updating to the revamp:** previous tracker sessions and preferences are not
+imported. The revamp starts with its own defaults and empty history.
 
 ## Use
 
-- Left-click the minimap clock to toggle the module menu.
-- Use `/perhour`, or right-click the minimap clock, to open **Settings**
-  for panel visibility, a shared hourly/per-minute display unit and the watched reputation.
-- Use `/perhour help` to list the available text commands.
-- Use `/perhour xp`, `gold`, `honor` or `rep` to show the corresponding tracker.
-- Check a module to show its window. Drag the minimap button to reposition it.
-- The standard minimap icon supports Leatrix and other LibDBIcon organizers; its libraries are included.
-- **Start / Pause / Resume** controls tracking; paused gains and time are excluded.
-- Drag a window's background to move it; its close button appears on hover and hides it without stopping tracking.
-- Enable **Show speedometer** under Experience in **Settings** for an XP gauge with ten scale levels.
-- Windows automatically stay apart when moved or reopened.
-- The **Options** gear menu offers **Reset** (clear and stop), **Settings** and **Announce** (share results to chat).
-- Hover over a window for session details and estimates to the next XP level or reputation standing.
-- Enable **Show estimates** in **Settings → General** to also display predictions below the rates.
-- Choose a watched faction in **Settings** or the game's reputation panel;
-  switching factions resets the reputation tracker.
-- **Gold** values eligible items with optional TSM → Auctionator → vendor pricing and a vendor minimum;
-  poor (gray) items always use vendor value. It tracks loot and rewards,
-  and subtracts consumed/delivered items, personal repairs and paid flights. Trades, mail, item purchases
-  and vendor-sale receipts are excluded. See [Gold tracking](docs/gold-tracking.md).
-- Left-click **Gold** or choose **Gold → Options → Details** to view income, expenses and event history.
+- Left-click the minimap clock to show/hide Per Hour; right-click opens Settings.
+- Start / Pause / Resume controls every metric together. Hidden panels keep capturing.
+- Finish Session in Sessions or current Details lets you edit the title, confirms saving to History and waits for another Start.
+- Sessions > Current Session opens metrics, reputation by faction and grouped Gold Income/Expenses.
+- History opens saved sessions, supports Rename and confirmed Delete, and compares two
+  selected sessions with all metrics. Its character selector can show other characters.
+- Settings controls Focused / Extended / Full, metric order, /h or /m, duration,
+  separate XP/reputation estimates, XP speedometer and watched faction. Use metric selectors or arrows to reorder.
+- Changing faction preserves earlier results. None stops only reputation capture.
+- Reload restores the verified state; normal logout returns to a paused session.
+- /perhour opens Settings; /perhour xp|gold|honor|rep shows the shared panel.
+- Details > Announce shares a live metric only after selecting a chat channel.
 
-Window visibility, window positions and minimap button position are saved per character.
-One hourly/per-minute display preference applies to all windows and is saved per character.
-Sessions survive reloads and logins per character. Offline time and gains are excluded;
-running sessions resume automatically, and manually paused sessions stay paused.
-The top-left restore icon reports the continuity check. Hover for details; sessions
-that need review stay paused until you choose **Resume** or **Reset**.
-
-See [Session continuity](docs/session-continuity.md) for limitations and validation steps.
+History keeps 100 summaries per character and details of the latest 20 sessions,
+up to 1,000 consultable events each. Finish freezes unresolved Gold as incomplete.
+See [usage and in-game test checklist](docs/panels.md),
+[Gold accounting](docs/gold-tracking.md) and [session continuity](docs/session-continuity.md).
 
 ## Development
 
-Run commands from the repository root:
+Run from the repository root:
 
-```powershell
-lua tests/forever.lua      # Lua 5.1 simulation checks
-.\scripts\package.ps1     # Generate the release ZIP in dist\
-```
+    lua tests/forever.lua          # Lua 5.1
+    .\scripts\package.ps1          # Local ZIP in dist\
 
-See [Publishing a release](docs/releasing.md) for CurseForge setup.
+If Lua is unavailable, install the optional development runtime with
+python -m pip install --target dist/runtime lupa, then run
+python scripts/lua51.py tests/forever.lua. This executes actual Lua 5.1;
+the runtime is excluded from the addon package.
+See [architecture](docs/stores.md) and [releasing](docs/releasing.md).
 
-## Credits
-
-Original author: José Júnior. Thanks to Zwietabak and AssisrMatheus.
-[MIT license](LICENSE).
+Original author: José Júnior. Thanks to Zwietabak and AssisrMatheus. [MIT license](LICENSE).

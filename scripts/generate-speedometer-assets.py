@@ -3,7 +3,7 @@
 Development dependencies: Pillow and Lupa (Lua 5.1). Run from anywhere with Python 3.
 """
 
-from math import cos, floor, pi, sin
+from math import ceil, cos, floor, hypot, pi, sin
 from pathlib import Path
 
 from lupa.lua51 import LuaRuntime
@@ -13,20 +13,16 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 TEXTURES = ROOT / "src" / "textures"
 OUTPUT = ROOT / "dist"
-SIZE = 256
 TEXTURE_SIZE = 512
-SUPERSAMPLE = 8
-RADIUS = 78
-NEEDLE_BASE_WIDTH = 5
-NEEDLE_TIP_WIDTH = 2
 WHITE = (255, 255, 255, 255)
 
 
-def load_theme_palette():
-    # Execute the actual theme so aliases and future Lua expressions work as in the addon.
+def load_definition():
+    # Share the actual Lua geometry and palette with the rendered component.
     lua = LuaRuntime(unpack_returned_tuples=True)
-    lua.execute("PerHour = {}")
+    lua.execute('PerHour = { Components={}, AddonName="per-hour" }')
     lua.execute((ROOT / "src" / "core" / "Theme.lua").read_text(encoding="utf-8"))
+    lua.execute((ROOT / "src" / "core" / "Speedometer.lua").read_text(encoding="utf-8"))
     theme = lua.globals().PerHour.Theme
 
     def rgba(color):
@@ -35,12 +31,17 @@ def load_theme_palette():
             channels.append(1)
         return tuple(floor(channel * 255 + 0.5) for channel in channels)
 
-    return {
+    palette = {
         "dial": rgba(theme.gold.text),
         "needle": rgba(theme.speedometer.needle),
         "shadow": rgba(theme.speedometer.shadow),
         "text": rgba(theme.text),
     }
+    return palette, dict(lua.globals().PerHour.Components.SpeedometerGeometry.items())
+
+
+PALETTE, GEOMETRY = load_definition()
+SIZE, RADIUS = int(GEOMETRY["TextureSize"]), GEOMETRY["Radius"]
 
 
 def position(fraction, radius):
@@ -48,53 +49,77 @@ def position(fraction, radius):
     return SIZE / 2 + cos(angle) * radius, SIZE / 2 - sin(angle) * radius
 
 
-def scaled(point):
-    return tuple(round(value * SUPERSAMPLE) for value in point)
+def segment(x1, y1, x2, y2, half_width=0):
+    dx, dy = x2 - x1, y2 - y1
+    return x1, y1, dx, dy, 1 / (dx * dx + dy * dy), half_width
 
 
-def canvas():
-    return Image.new("RGBA", (SIZE * SUPERSAMPLE, SIZE * SUPERSAMPLE))
+def segment_distance(x, y, line):
+    x1, y1, dx, dy, inverse_length, half_width = line
+    offset_x, offset_y = x - x1, y - y1
+    fraction = min(1, max(0, (offset_x * dx + offset_y * dy) * inverse_length))
+    return hypot(offset_x - fraction * dx, offset_y - fraction * dy) - half_width
 
 
-def finish(image, name):
-    image = image.resize((TEXTURE_SIZE, TEXTURE_SIZE), Image.Resampling.LANCZOS)
-    # Keep transparent texels white as well, avoiding dark fringes under linear sampling.
-    alpha = image.getchannel("A")
-    image = Image.new("RGBA", image.size, WHITE)
+def finish(distance, bounds, name):
+    # Bake analytic coverage directly into the final texture: no low-resolution
+    # intermediate, enlargement, blur or repeated resampling of the contour.
+    density = TEXTURE_SIZE / SIZE
+    alpha = Image.new("L", (TEXTURE_SIZE, TEXTURE_SIZE))
+    pixels = alpha.load()
+    left, top, right, bottom = bounds
+    feather = GEOMETRY["EdgeCoverage"]
+    for row in range(max(0, floor((top - feather) * density)), min(TEXTURE_SIZE, ceil((bottom + feather) * density))):
+        y = (row + 0.5) / density
+        for column in range(max(0, floor((left - feather) * density)), min(TEXTURE_SIZE, ceil((right + feather) * density))):
+            x = (column + 0.5) / density
+            coverage = min(1, max(0, 0.5 - distance(x, y) / feather))
+            pixels[column, row] = floor(coverage * 255 + 0.5)
+    image = Image.new("RGBA", alpha.size, WHITE)
     image.putalpha(alpha)
     image.save(TEXTURES / name)
     return image
 
 
 def make_dial():
-    image = canvas()
-    draw = ImageDraw.Draw(image)
-    bounds = ((SIZE / 2 - RADIUS) * SUPERSAMPLE, (SIZE / 2 - RADIUS) * SUPERSAMPLE,
-              (SIZE / 2 + RADIUS) * SUPERSAMPLE, (SIZE / 2 + RADIUS) * SUPERSAMPLE)
-    draw.arc(bounds, 180, 360, fill=WHITE, width=2 * SUPERSAMPLE)
+    center = SIZE / 2
+    ticks = []
     for index in range(21):
         major = index % 5 == 0
-        draw.line((scaled(position(index / 20, RADIUS)),
-                   scaled(position(index / 20, RADIUS - (10 if major else 5)))),
-                  fill=WHITE, width=(2 if major else 1) * SUPERSAMPLE)
-    center, radius = SIZE * SUPERSAMPLE / 2, 3.5 * SUPERSAMPLE
-    draw.ellipse((center - radius, center - radius, center + radius, center + radius), fill=WHITE)
-    return finish(image, "SpeedometerDial.tga")
+        start = position(index / 20, RADIUS)
+        end = position(index / 20, RADIUS - GEOMETRY["MajorTickLength" if major else "MinorTickLength"])
+        ticks.append(segment(*start, *end, (2 if major else 1) / 2))
+
+    def distance(x, y):
+        dx, dy = x - center, y - center
+        arc = max(abs(hypot(dx, dy) - RADIUS) - GEOMETRY["ArcWidth"] / 2, dy)
+        cap = hypot(dx, dy) - GEOMETRY["CapRadius"]
+        result = min(arc, cap)
+        for tick in ticks:
+            result = min(result, segment_distance(x, y, tick))
+        return result
+
+    return finish(distance, (center - RADIUS - 2, center - RADIUS - 2,
+                            center + RADIUS + 2, center + GEOMETRY["CapRadius"] + 1), GEOMETRY["ArcTexture"])
 
 
 def make_needle():
-    image = canvas()
-    draw = ImageDraw.Draw(image)
     center = SIZE / 2
-    # The artwork points right; its center is the rotation pivot in both axes.
-    tip = center + RADIUS - 14
-    draw.polygon([
-        scaled((center, center - NEEDLE_BASE_WIDTH / 2)),
-        scaled((tip, center - NEEDLE_TIP_WIDTH / 2)),
-        scaled((tip, center + NEEDLE_TIP_WIDTH / 2)),
-        scaled((center, center + NEEDLE_BASE_WIDTH / 2)),
-    ], fill=WHITE)
-    return finish(image, "SpeedometerNeedle.tga")
+    tip = center + RADIUS - GEOMETRY["NeedleInset"]
+    base_width, tip_width = GEOMETRY["NeedleBaseWidth"], GEOMETRY["NeedleTipWidth"]
+    vertices = ((center, center - base_width / 2), (tip, center - tip_width / 2),
+                (tip, center + tip_width / 2), (center, center + base_width / 2))
+    edges = [segment(*vertices[index], *vertices[(index + 1) % len(vertices)]) for index in range(len(vertices))]
+
+    def distance(x, y):
+        nearest, inside = float("inf"), True
+        for edge in edges:
+            x1, y1, dx, dy, _, _ = edge
+            inside = inside and dx * (y - y1) - dy * (x - x1) >= 0
+            nearest = min(nearest, segment_distance(x, y, edge))
+        return -nearest if inside else nearest
+
+    return finish(distance, (center, center - base_width / 2, tip, center + base_width / 2), GEOMETRY["NeedleTexture"])
 
 
 def colored(image, color):
@@ -115,34 +140,64 @@ def font(size):
     return ImageFont.load_default(size=size)
 
 
-def make_preview(dial, needle):
-    palette = load_theme_palette()
-    scale = 3
-    width, height = 240 * scale, 210 * scale
-    image = Image.new("RGBA", (width, height), (16, 18, 20, 255))
-    # Compose the same textures, logical radius and rotation pivot used by Lua.
-    center = (width // 2, 135 * scale)
-    texture_size = SIZE * scale
-    origin = (center[0] - texture_size // 2, center[1] - texture_size // 2)
-    shadow_origin = (origin[0] + scale, origin[1] + scale)
-    dial_shadow = colored(dial, palette["shadow"]).resize((texture_size, texture_size), Image.Resampling.LANCZOS)
-    needle_shadow = colored(needle, palette["shadow"]).resize((texture_size, texture_size), Image.Resampling.LANCZOS)
-    image.alpha_composite(dial_shadow, shadow_origin)
-    image.alpha_composite(needle_shadow.rotate(90, Image.Resampling.BICUBIC), shadow_origin)
-    needle = colored(needle, palette["needle"]).resize((texture_size, texture_size), Image.Resampling.LANCZOS)
-    needle = needle.rotate(90, Image.Resampling.BICUBIC)
-    image.alpha_composite(needle, origin)
-    image.alpha_composite(colored(dial, palette["dial"]).resize((texture_size, texture_size), Image.Resampling.LANCZOS), origin)
+def render_gauge(dial, needle, width, fraction, zoom):
+    labels = ("0", "12.5k", "25k", "37.5k", "50k")
+    label_size = int(GEOMETRY["LabelSize"])
+    label_widths = [ceil(font(label_size).getlength(text)) for text in labels]
+    radius = width / 2 - GEOMETRY["Padding"]
+    for index, label_width in enumerate(label_widths):
+        cosine = abs(cos(pi * (1 - index / 4)))
+        if cosine > 0.001:
+            radius = min(radius, (width / 2 - GEOMETRY["Padding"] - label_width) / cosine - GEOMETRY["LabelGap"])
+    radius = max(16, radius)
+    bottom = -GEOMETRY["LabelHeight"] / 2 - GEOMETRY["Padding"]
+    top = radius + GEOMETRY["LabelGap"] + GEOMETRY["LabelHeight"] + GEOMETRY["Padding"]
+    height = ceil(top - bottom)
+    center_y = -height / 2 - bottom
+    image = Image.new("RGBA", (round(width * zoom), round(height * zoom)), (16, 18, 20, 255))
+    pivot = (width * zoom / 2, (height / 2 - center_y) * zoom)
+    density = TEXTURE_SIZE / (SIZE * radius / RADIUS * zoom)
+    for artwork, color, shadow, rotation in (
+        (dial, PALETTE["shadow"], True, 0),
+        (needle, PALETTE["shadow"], True, pi * (1 - fraction)),
+        (needle, PALETTE["needle"], False, pi * (1 - fraction)),
+        (dial, PALETTE["dial"], False, 0),
+    ):
+        pivot_x, pivot_y = pivot
+        if shadow:
+            pivot_x, pivot_y = pivot_x + zoom, pivot_y + zoom
+        a, b = cos(rotation) * density, -sin(rotation) * density
+        d, e = sin(rotation) * density, cos(rotation) * density
+        transform = (a, b, TEXTURE_SIZE / 2 - a * pivot_x - b * pivot_y,
+                     d, e, TEXTURE_SIZE / 2 - d * pivot_x - e * pivot_y)
+        # Point-sampled bilinear transform, closer to the game's LINEAR GPU
+        # sampling than a preview that hides aliasing with Lanczos downsampling.
+        layer = colored(artwork, color).transform(image.size, Image.Transform.AFFINE, transform,
+                                                 resample=Image.Resampling.BILINEAR)
+        image.alpha_composite(layer)
     draw = ImageDraw.Draw(image)
-    draw.text((width // 2, 12 * scale), "Prévia das texturas", font=font(10 * scale),
-              fill=(168, 175, 183, 255), anchor="mt")
-    for index, label in enumerate(("0", "12.5k", "25k", "37.5k", "50k")):
+    for index, label in enumerate(labels):
         angle = pi * (1 - index / 4)
-        point = (center[0] + cos(angle) * 94 * scale, center[1] - sin(angle) * 94 * scale)
-        draw.text(point, label, font=font(10 * scale), fill=palette["text"], anchor="mm")
-    draw.text((width // 2, 160 * scale), "25,000 XP/h", font=font(17 * scale), fill=palette["dial"], anchor="mm")
-    draw.text((width // 2, 192 * scale), "Ampliação 3× · não é uma captura do WoW",
-              font=font(8 * scale), fill=(139, 146, 154, 255), anchor="mm")
+        point = (pivot[0] + cos(angle) * (radius + GEOMETRY["LabelGap"]) * zoom,
+                 pivot[1] - sin(angle) * (radius + GEOMETRY["LabelGap"]) * zoom)
+        draw.text(point, label, font=font(label_size * zoom), fill=PALETTE["text"], anchor=("rm", "rb", "mb", "lb", "lm")[index])
+    return image
+
+
+def make_preview(dial, needle):
+    image = Image.new("RGBA", (990, 385), (16, 18, 20, 255))
+    draw = ImageDraw.Draw(image)
+    draw.text((18, 12), "Compact gauge: fixed 10 px labels; geometry resized independently",
+              font=font(15), fill=PALETTE["text"])
+    for index, width in enumerate((100, 120, 160)):
+        x = index * 330 + 165
+        draw.text((x, 50), f"{width} px wide / native size", font=font(12), fill=PALETTE["text"], anchor="mm")
+        native = render_gauge(dial, needle, width, (0.2, 0.5, 0.8)[index], 1)
+        image.alpha_composite(native, (x - native.width // 2, 72))
+        draw.text((x, 170), "2x inspection", font=font(11), fill=(168, 175, 183, 255), anchor="mm")
+        enlarged = render_gauge(dial, needle, width, (0.2, 0.5, 0.8)[index], 2)
+        image.alpha_composite(enlarged, (x - enlarged.width // 2, 190))
+    draw.text((18, 364), "Texture/font preview only; not a WoW screenshot.", font=font(11), fill=(168, 175, 183, 255))
     image.convert("RGB").save(OUTPUT / "SpeedometerPreview.png")
 
 
@@ -151,6 +206,6 @@ if __name__ == "__main__":
     OUTPUT.mkdir(parents=True, exist_ok=True)
     dial, needle = make_dial(), make_needle()
     make_preview(dial, needle)
-    print(TEXTURES / "SpeedometerDial.tga")
-    print(TEXTURES / "SpeedometerNeedle.tga")
+    print(TEXTURES / GEOMETRY["ArcTexture"])
+    print(TEXTURES / GEOMETRY["NeedleTexture"])
     print(OUTPUT / "SpeedometerPreview.png")

@@ -1,0 +1,105 @@
+<div id="per-hour-concept" class="viz-dotted-background">
+  <div class="ph-window" aria-label="Per Hour">
+    <header class="ph-header">
+      <strong>Per Hour</strong>
+      <div class="ph-tabs" role="tablist" aria-label="Per Hour">
+        <button id="ph-live-tab" type="button" role="tab" aria-controls="ph-live" aria-selected="true">Ao vivo</button>
+        <button id="ph-history-tab" type="button" role="tab" aria-controls="ph-history" aria-selected="false">Histórico</button>
+      </div>
+    </header>
+    <section id="ph-live" role="tabpanel" aria-labelledby="ph-live-tab">
+      <div class="ph-session">
+        <div><span class="ph-caption">Sessão marcada</span><h2>Quests nas Terras Pestilentas</h2></div>
+        <div class="ph-status"><strong>30 min</strong><span id="ph-state" class="ph-caption" aria-live="polite">Em andamento</span></div>
+      </div>
+      <dl class="ph-metrics">
+        <div><dt>Experiência</dt><dd>36 mil XP/h</dd><dd class="ph-caption">18 mil XP</dd></div>
+        <div><dt>Gold estimado</dt><dd>24 g/h</dd><dd class="ph-caption">12 g líquidos</dd></div>
+        <div><dt>Aurora Argêntea</dt><dd>900 rep/h</dd><dd class="ph-caption">450 rep</dd></div>
+      </dl>
+      <footer class="ph-footer">
+        <button type="button" id="ph-pause">Pausar</button>
+        <details><summary>Detalhes do Gold</summary>
+          <dl class="ph-gold">
+            <div><dt>Moedas recebidas</dt><dd>4 g</dd></div>
+            <div><dt>Valor estimado dos itens</dt><dd>11 g</dd></div>
+            <div><dt>Despesas da atividade</dt><dd>−3 g</dd></div>
+          </dl>
+        </details>
+      </footer>
+    </section>
+    <section id="ph-history" role="tabpanel" aria-labelledby="ph-history-tab" hidden>
+      <div class="ph-session"><h2>Comparar atividades</h2></div>
+      <table>
+        <thead><tr><th scope="col">Sessão</th><th scope="col">Tempo</th><th scope="col">XP/h</th><th scope="col">Gold/h est.</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Quests nas Terras Pestilentas</th><td>45 min</td><td>42 mil</td><td>12 g</td></tr>
+          <tr><th scope="row">Rota de ervas</th><td>30 min</td><td>6 mil</td><td>32 g</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+<style>
+  #per-hour-concept { color-scheme: dark; padding: clamp(10px, 3%, 22px); }
+  #per-hour-concept .ph-window { box-sizing: border-box; max-width: 610px; margin-inline: auto; background: #1e1a16; color: #f1e5d2; border: 1px solid #80613a; border-radius: 6px; font: 14px system-ui, sans-serif; }
+  #per-hour-concept .ph-header { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding: 10px 14px; background: #2d241a; border-radius: 5px 5px 0 0; border-bottom: 1px solid #62492e; }
+  #per-hour-concept .ph-header strong { color: #f5ca80; }
+  #per-hour-concept .ph-tabs { display: flex; gap: 6px; }
+  #per-hour-concept button { padding: 7px 10px; border: 1px solid #80613a; border-radius: 4px; background: #2d241a; color: #f1e5d2; font: inherit; }
+  #per-hour-concept button[aria-selected="true"] { color: #241b13; background: #edc17c; border-color: #edc17c; }
+  #per-hour-concept .ph-session { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px; }
+  #per-hour-concept h2 { margin: 2px 0 0; font: 600 17px system-ui, sans-serif; }
+  #per-hour-concept .ph-caption { color: #c9b79b; font-size: 12px; }
+  #per-hour-concept .ph-status { display: grid; gap: 2px; }
+  #per-hour-concept .ph-metrics { margin: 0 14px; padding: 10px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; border-block: 1px solid #59472f; }
+  #per-hour-concept dt { font-weight: 500; }
+  #per-hour-concept dd { margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  #per-hour-concept .ph-metrics dd:first-of-type { color: #f5ca80; font-size: 16px; }
+  #per-hour-concept .ph-footer { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding: 10px 14px; }
+  #per-hour-concept .ph-footer details { flex: 1 1 145px; }
+  #per-hour-concept .ph-gold { margin: 8px 0 0; }
+  #per-hour-concept .ph-gold div { display: flex; justify-content: space-between; gap: 8px; }
+  #per-hour-concept table { border-collapse: collapse; width: calc(100% - 28px); margin: 0 14px 14px; font-variant-numeric: tabular-nums; }
+  #per-hour-concept th, #per-hour-concept td { padding: 8px 5px; text-align: end; border-bottom: 1px solid #59472f; font-weight: 400; }
+  #per-hour-concept thead th { color: #f5ca80; }
+  #per-hour-concept th:first-child { text-align: start; }
+  @media (max-width: 430px) {
+    #per-hour-concept .ph-metrics { grid-template-columns: 1fr; gap: 6px; }
+    #per-hour-concept .ph-metrics > div { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: baseline; }
+    #per-hour-concept .ph-metrics .ph-caption { grid-column: 2; text-align: end; }
+  }
+</style>
+<script>
+  (() => {
+    const root = document.getElementById("per-hour-concept");
+    const tabs = Array.from(root.querySelectorAll('[role="tab"]'));
+    const pause = root.querySelector("#ph-pause");
+    const status = root.querySelector("#ph-state");
+    let paused = false;
+
+    function selectTab(selected) {
+      for (const tab of tabs) {
+        const selectedHere = tab === selected;
+        tab.setAttribute("aria-selected", String(selectedHere));
+        root.querySelector("#" + tab.getAttribute("aria-controls")).hidden = !selectedHere;
+      }
+    }
+
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => selectTab(tab));
+      tab.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const other = tabs.find((candidate) => candidate !== tab);
+        selectTab(other);
+        other.focus();
+      });
+    }
+    pause.addEventListener("click", () => {
+      paused = !paused;
+      pause.textContent = paused ? "Retomar" : "Pausar";
+      status.textContent = paused ? "Pausada" : "Em andamento";
+    });
+  })();
+</script>

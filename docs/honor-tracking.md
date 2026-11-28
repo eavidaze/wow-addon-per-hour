@@ -1,5 +1,11 @@
 # Honor tracking in Forever
 
+Honor now belongs to the shared session controlled by the unified dashboard.
+The revamp starts in new SavedVariables; previous tracker data is not imported.
+Normal logout/login restores the session paused, while verified UI reload restores
+its prior running/paused state. History and comparison keep honor alongside the
+other metrics. See [the revamp interface](panels.md).
+
 Honor tracks gains of **Honor Points, currency 1792**, through
 `CURRENCY_DISPLAY_UPDATE(currencyType, quantity, quantityChange, ...)`.
 The event supplies the numeric gain directly, so the module does not parse

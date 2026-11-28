@@ -1,6 +1,7 @@
 local Theme = PerHour.Theme
 local Components = {}
 PerHour.Components = Components
+Components.RenameButtonSize = {width=72,height=24}
 
 local CIRCULAR_ICON = {
     size = 24, iconSize = 18, backgroundSize = 20,
@@ -13,14 +14,26 @@ local CONTENT_PADDING, FIELD_GAP = 16, 8
 local HEADER_SPACING = 12
 local FOOTER_PADDING, ACTION_GAP = 8, 3
 local TITLE_BOX_MIN_WIDTH = 64 -- Two native 32 px corner textures.
+local NORMAL_BUTTON = { minWidth=96, height=28, textPadding=32 }
 local TITLE_STYLES = {
-    small = { font = "GameFontHighlight", headerHeight = 40, boxPadding = 48, boxMinWidth = 130 },
+    small = { font = "GameFontHighlightSmall", fontSize = 10, headerHeight = 36 },
     default = { font = "GameFontNormalLarge", headerHeight = 56 },
 }
 
 local function CreatePanelTitle(frame, settings, style)
     local small = settings.titleSize == "small"
-    if not small then
+    if small then
+        frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
+        local font,_,flags = frame.TitleText:GetFont()
+        frame.TitleText:SetFont(font,style.fontSize,flags)
+        frame.TitleText:SetText(settings.title)
+        frame.TitleText:SetPoint("TOP",frame.Border.Bg,"TOP",0,-6)
+        frame.TitleText:SetJustifyH("CENTER")
+        frame.TitleText:SetWordWrap(false)
+        frame.TitleText:SetTextColor(unpack(Theme.gold.subtleText))
+        return
+    end
+    do
         frame.BrandText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
         frame.BrandText:SetText("powered by Per Hour")
         frame.BrandText:SetTextColor(0.6, 0.6, 0.6)
@@ -37,22 +50,12 @@ local function CreatePanelTitle(frame, settings, style)
         box.headerTextPadding = style.boxPadding or box.headerTextPadding
         box:SetHeaderFont(style.font)
         box:Setup(settings.title)
-        if small then
-            box:ClearAllPoints()
-            box:SetPoint("TOP", frame.Border.Bg, "TOP", 0, DIALOG_BORDER_INSET + 11)
-        end
         frame.TitleText:ClearAllPoints()
         frame.TitleText:SetPoint("CENTER", box, "CENTER", 0, 0)
         local function LayoutTitleBox()
             local padding = box.headerTextPadding
-            local width
-            if small then
-                width = math.min(math.max(style.boxMinWidth, frame.TitleText:GetStringWidth() + padding),
-                    math.max(style.boxMinWidth, frame:GetWidth() - 2 * (DIALOG_BORDER_INSET + FOOTER_PADDING)))
-            else
-                width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
-                    math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
-            end
+            local width = math.min(math.max(TITLE_BOX_MIN_WIDTH, frame.TitleText:GetStringWidth() + padding),
+                math.max(TITLE_BOX_MIN_WIDTH, frame:GetWidth() - 48))
             box:SetWidth(width)
             frame.TitleText:SetWidth(width - padding)
         end
@@ -61,13 +64,8 @@ local function CreatePanelTitle(frame, settings, style)
     else
         frame.TitleText = frame:CreateFontString(nil, "OVERLAY", style.font)
         frame.TitleText:SetText(settings.title)
-        if small then
-            frame.TitleText:SetPoint("TOPLEFT", frame.Border.Bg, "TOPLEFT", FOOTER_PADDING, -8)
-            frame.TitleText:SetPoint("TOPRIGHT", frame.Border.Bg, "TOPRIGHT", -FOOTER_PADDING, -8)
-        else
-            frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
-            frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
-        end
+        frame.TitleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -15)
+        frame.TitleText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -15)
     end
     frame.TitleText:SetJustifyH("CENTER")
     frame.TitleText:SetWordWrap(false)
@@ -133,9 +131,14 @@ end
 function Components:CreatePanel(parent, settings)
     local titleStyle = assert(TITLE_STYLES[settings.titleSize or "default"], "unsupported panel title size")
     local frame = CreateFrame("Frame", settings.name, parent)
+    -- Composite each window as a unit so unrelated child controls cannot render
+    -- between its background and content. Let the client raise clicked windows.
+    frame:SetToplevel(true)
+    frame:SetFlattensRenderLayers(true)
     local footerSize = settings.footerSize or 28
     -- The native box extends 28 px below the panel top; leave 12 px before content.
-    local headerHeight = settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
+    local headerHeight = settings.titleSize == "small" and titleStyle.headerHeight
+        or settings.titleBox and 40 or math.max(settings.form and 56 or 0, titleStyle.headerHeight)
     local footerSpacing = CONTENT_PADDING
     if settings.contentSpacing ~= nil then
         local spacing = settings.contentSpacing
@@ -148,12 +151,17 @@ function Components:CreatePanel(parent, settings)
     frame:SetSize(settings.width, settings.height or baseHeight)
     frame.FooterSize = footerSize
     frame.FooterMinWidth = settings.titleSize == "small" and 130 or false
-    -- Use the same border and translucent background as Blizzard's Edit Mode.
+    -- Retain the border geometry; use Options' native opaque gray background.
     frame.Border = CreateFrame("Frame", nil, frame, "DialogBorderTranslucentTemplate")
     frame.Border:SetPoint("TOPLEFT", frame, "TOPLEFT")
     -- Keep half of the footer below the visible border, within the panel bounds.
     frame.Border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, footerSize / 2 - DIALOG_BORDER_INSET)
+    frame.Border.Bg:Hide()
+    frame.Background = CreateFrame("Frame", nil, frame, "FlatPanelBackgroundTemplate")
+    frame.Background:SetFrameLevel(frame:GetFrameLevel())
+    frame.Background:SetAllPoints(frame.Border.Bg)
 
+    frame.TitleBox = false
     CreatePanelTitle(frame, settings, titleStyle)
 
     frame.CloseButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -166,8 +174,10 @@ function Components:CreatePanel(parent, settings)
     frame.CloseButton:EnableMouse(true)
 
     frame.Content = CreateFrame("Frame", nil, frame)
-    frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", settings.form and 32 or 15, -headerHeight)
-    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -15, footerSize + footerSpacing)
+    frame.ContentInsets = {left=settings.form and 32 or DIALOG_BORDER_INSET+FOOTER_PADDING,
+        right=DIALOG_BORDER_INSET+FOOTER_PADDING,top=headerHeight,bottom=footerSize+footerSpacing}
+    frame.Content:SetPoint("TOPLEFT", frame, "TOPLEFT", frame.ContentInsets.left, -frame.ContentInsets.top)
+    frame.Content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -frame.ContentInsets.right, frame.ContentInsets.bottom)
     frame.ContentComponent = false
     self:SetupFieldStack(frame, frame.Content, baseHeight,
         settings.form and 20 or FIELD_GAP)
@@ -205,6 +215,7 @@ function Components:CreatePanel(parent, settings)
         frame:HookScript("OnHide", function(self) self:StopMovingOrSizing() end)
     end
     if settings.actions then self:CreatePanelActions(frame, settings.actions) end
+    if settings.titleSize ~= "small" then self:SetupPanelWindow(frame) end
     return frame
 end
 
@@ -213,9 +224,18 @@ function Components:CreateButton(parent, text, height, frameType)
     for _, section in ipairs({ button.Left, button.Center, button.Right }) do
         section:SetVertexColor(unpack(Theme.gold.buttonTint))
     end
-    button:SetHeight(height)
+    button:SetHeight(height or NORMAL_BUTTON.height)
     -- The gold template creates its font string on the first SetText call.
     button:SetText(text)
+    local label=button:GetFontString()
+    button:SetWidth(math.max(NORMAL_BUTTON.minWidth,(label and label:GetStringWidth() or 0)+NORMAL_BUTTON.textPadding))
+    return button
+end
+
+function Components:CreateRenameButton(parent)
+    local size=self.RenameButtonSize
+    local button=self:CreateButton(parent,"Rename",size.height)
+    button:SetWidth(size.width)
     return button
 end
 
@@ -233,14 +253,14 @@ function Components:CreateStatusButton(parent, text, height)
     return button
 end
 
--- Text actions share the remaining space; icons keep their circular dimensions.
+-- Footer text actions use normal button sizes; icons keep their circular dimensions.
 -- A menu is optional, and toggle state belongs to the caller (isOn/onToggle).
 function Components:CreatePanelActions(frame, actions)
     frame.Actions = {}
-    local buttons, fixedWidth, relativeWidth, flexibleCount = {}, 0, 0, 0
+    local buttons,requiredWidth = {},0
     for index, action in ipairs(actions) do
         local button
-        local circular = action.type == "icon" or action.type == "toggle"
+        local circular = action.menu ~= nil or action.type == "icon" or action.type == "toggle"
         if circular then
             button = CreateFrame(action.menu and "DropdownButton" or "Button", nil, frame)
             self:CreateCircularIcon(button, action)
@@ -275,86 +295,42 @@ function Components:CreatePanelActions(frame, actions)
             button:SetScript("OnClick", function(self) action.onClick(frame, self) end)
         end
         if action.tooltip then self:SetButtonTooltip(button, action.tooltip) end
-        local width = action.width or (circular and CIRCULAR_ICON.size)
-        if not width and not action.widthFraction and action.fullWidth == false then
-            local label = button:GetFontString()
-            width = math.max(80, (label and label:GetStringWidth() or 0) + 32)
-        end
-        local widthFraction = not width and action.widthFraction
-        if width then
-            button:SetWidth(width)
-            fixedWidth = fixedWidth + width
-        elseif widthFraction then
-            relativeWidth = relativeWidth + widthFraction
-        else
-            flexibleCount = flexibleCount + 1
-        end
-        buttons[index] = { button = button, width = width, widthFraction = widthFraction, align = action.align,
-            textPadding = action.type == "status" and 52 or 32 }
+        local width=action.width or (circular and CIRCULAR_ICON.size) or button:GetWidth()
+        button:SetWidth(width)
+        requiredWidth=requiredWidth+width
+        buttons[index]={button=button,width=width}
         frame.Actions[action.key or index] = button
     end
+    requiredWidth=requiredWidth+ACTION_GAP*math.max(0,#buttons-1)
     -- Anchor to the visible background, whose insets are owned by the template.
     local footer = CreateFrame("Frame", nil, frame)
     frame.ActionBar = footer
-    footer:SetSize(frame:GetWidth() - FOOTER_PADDING * 2, frame.FooterSize)
+    footer:SetSize(frame.FooterMinWidth and math.max(frame.FooterMinWidth,requiredWidth)
+        or frame:GetWidth()-FOOTER_PADDING*2,frame.FooterSize)
     if frame.FooterMinWidth then
         footer:SetPoint("CENTER", frame.Border.Bg, "BOTTOM", 0, 0)
     else
         footer:SetPoint("LEFT", frame.Border.Bg, "BOTTOMLEFT", FOOTER_PADDING, 0)
         footer:SetPoint("RIGHT", frame.Border.Bg, "BOTTOMRIGHT", -FOOTER_PADDING, 0)
     end
-    local function Layout(_, width)
-        local available = width * (1 - relativeWidth) - ACTION_GAP * (#buttons - 1) - fixedWidth
-        local offset = 0
-        for index, item in ipairs(buttons) do
-            local button = item.button
-            local buttonWidth = item.width or (item.widthFraction and width * item.widthFraction)
-                or math.max(0, available / flexibleCount)
-            button:SetWidth(buttonWidth)
-            button:ClearAllPoints()
-            if #buttons == 1 and item.align == "CENTER" then
-                button:SetPoint("CENTER", footer, "CENTER", 0, 0)
-            else
-                button:SetPoint("LEFT", footer, "LEFT", offset, 0)
+    local function Layout(_,width)
+        local visibleWidth,count=0,0
+        for _,item in ipairs(buttons) do
+            if item.button:IsShown() then visibleWidth=visibleWidth+item.width; count=count+1 end
+        end
+        visibleWidth=visibleWidth+ACTION_GAP*math.max(0,count-1)
+        local offset=(width-visibleWidth)/2
+        for _,item in ipairs(buttons) do
+            if item.button:IsShown() then
+                item.button:ClearAllPoints()
+                item.button:SetPoint("LEFT",footer,"LEFT",offset,0)
+                offset=offset+item.width+ACTION_GAP
             end
-            if not item.width and not item.widthFraction then
-                local nextButton = buttons[index + 1]
-                if nextButton then
-                    button:SetPoint("RIGHT", nextButton.button, "LEFT", -ACTION_GAP, 0)
-                else
-                    button:SetPoint("RIGHT", footer, "RIGHT", 0, 0)
-                end
-            end
-            offset = offset + buttonWidth + ACTION_GAP
         end
     end
-    footer:SetScript("OnSizeChanged", Layout)
-    if frame.FooterMinWidth then
-        local function FitActions()
-            local required = fixedWidth + ACTION_GAP * math.max(0, #buttons - 1)
-            local minimum = frame.FooterMinWidth
-            for _, item in ipairs(buttons) do
-                if not item.width then
-                    local label = item.button:GetFontString()
-                    local width = math.max(80, (label and label:GetStringWidth() or 0) + item.textPadding)
-                    if item.widthFraction then
-                        minimum = math.max(minimum, width / item.widthFraction)
-                    else
-                        required = required + width
-                    end
-                end
-            end
-            if relativeWidth < 1 then minimum = math.max(minimum, required / (1 - relativeWidth)) end
-            footer:SetWidth(minimum)
-            Layout(footer, minimum)
-        end
-        for _, item in ipairs(buttons) do
-            if not item.width then hooksecurefunc(item.button, "SetText", FitActions) end
-        end
-        FitActions()
-    else
-        Layout(footer, footer:GetWidth())
-    end
+    function frame:LayoutActions() Layout(footer,footer:GetWidth()) end
+    footer:SetScript("OnSizeChanged",Layout)
+    Layout(footer,footer:GetWidth())
     if frame.ContentComponent then frame:SetContent(frame.ContentComponent) end
 end
 
@@ -421,11 +397,12 @@ function Components:CreateCircularIcon(frame, settings)
     local iconSize = settings.iconSize or style.iconSize
     frame.Icon:SetSize(iconSize, iconSize)
     frame.Icon:SetPoint("CENTER")
-    if settings.texture then
-        frame.Icon:SetTexture(settings.texture)
+    local texture=settings.menu and Theme.icons.menu or settings.texture
+    if texture then
+        frame.Icon:SetTexture(texture)
         frame.Icon:SetTexCoord(0, 1, 0, 1)
     end
-    if settings.atlas then frame.Icon:SetAtlas(settings.atlas) end
+    if settings.atlas and not settings.menu then frame.Icon:SetAtlas(settings.atlas) end
     local maskedTexture = settings.background and frame.Background or frame.Icon
     local mask = frame:CreateMaskTexture()
     mask:SetTexture(style.maskTexture, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
