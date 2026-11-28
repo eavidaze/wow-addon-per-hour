@@ -10,29 +10,35 @@ return function(t,fresh)
 
     local session,dashboard,theme=PerHour.Session,PerHour.Dashboard,PerHour.Theme
     local duration=dashboard.Duration
+    PerHour.Stores.Settings:SetEstimatesEnabled("Experience",true)
+    PerHour.Stores.Settings:SetEstimatesEnabled("Reputation",true)
+    dashboard:RefreshDisplays()
     local function color(label,expected)
         for index=1,3 do equal(label.textColor[index],expected[index],"duration/display status color channel "..index) end
     end
+    local function statusColors(key)
+        for _,display in ipairs({duration,dashboard.ExperienceEstimate,dashboard.ReputationEstimate}) do
+            color(display.Value,theme.trackerStatus[key])
+        end
+    end
     equal(duration.Leading,false,"dashboard duration has no active indicator")
     equal(duration.Value:GetText(),"0s","idle duration starts at zero seconds")
-    color(duration.Value,theme.trackerStatus.idle)
+    statusColors("idle")
     session:Start(); t.tick(59)
     equal(duration.Value:GetText(),"59s","first minute visibly counts seconds")
-    color(duration.Value,theme.trackerStatus.running)
-    color(dashboard.ExperienceEstimate.Value,theme.gold.text)
-    color(dashboard.ReputationEstimate.Value,theme.gold.text)
+    statusColors("running")
     color(dashboard.Displays[1].Value,theme.gold.text)
     t.tick(1)
     equal(duration.Value:GetText(),"1m","first minute switches to minute precision")
     session:Pause(); t.tick(15)
     equal(duration.Value:GetText(),"1m","pause freezes measured duration")
-    color(duration.Value,theme.trackerStatus.paused)
+    statusColors("paused")
     session:Resume(); t.tick(3540)
     equal(duration.Value:GetText(),"1h 0m","first hour switches to hours and minutes")
-    color(duration.Value,theme.trackerStatus.running)
+    statusColors("running")
     t.tick(60)
     equal(duration.Value:GetText(),"1h 1m","elapsed hour retains minute precision")
     t.finish()
     equal(duration.Value:GetText(),"0s","Finish resets duration")
-    color(duration.Value,theme.trackerStatus.idle)
+    statusColors("idle")
 end

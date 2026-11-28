@@ -67,6 +67,9 @@ the Experience estimate appears above the primary display, between it and the
 speedometer; the Reputation estimate appears below primary. Both can be visible
 together, using the same XS component and 10 px font as Duration, with areas
 matching the primary width.
+Both estimate texts follow the same session-status colors as Duration and the
+action indicator: gray before Start/after Finish, green while running and yellow
+while paused (including continuity verification).
 Preferred order starts with Experience,
 Gold, Honor and Reputation; max level hides XP and promotes the others without
 overwriting the preference. Reputation is hidden whenever no faction is watched,
